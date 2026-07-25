@@ -12,7 +12,7 @@ export default async function (plop: NodePlopAPI) {
     ],
     actions: (answers) => {
       const today = new Date().toISOString().slice(0, 10)
-      const basePath = 'apps/{{name}}'
+      const basePath = 'code/apps/{{name}}'
       return [
         {
           type: 'add',
@@ -50,7 +50,7 @@ export default async function (plop: NodePlopAPI) {
     ],
     actions: (answers) => {
       const today = new Date().toISOString().slice(0, 10)
-      const basePath = 'packages/{{name}}'
+      const basePath = 'code/packages/{{name}}'
       return [
         {
           type: 'add',
@@ -88,18 +88,18 @@ export default async function (plop: NodePlopAPI) {
       {
         type: 'input',
         name: 'title',
-        message: 'Document path/name? (e.g., "my-doc" or "docs/api/my-doc")',
+        message: 'Document path/name? (e.g., "my_doc" or "docs/api/my_doc")',
       },
       {
         type: 'list',
         name: 'type',
         message: 'Type?',
-        choices: ['concept', 'convention', 'decision', 'roadmap', 'raw_data'],
+        choices: ['concept', 'convention', 'decision', 'roadmap', 'media-script', 'meta', 'raw_data'],
       },
       {
         type: 'input',
         name: 'producer',
-        message: 'Producer?',
+        message: 'Producer? (e.g., "Jane Doe" or "agent/deepseek-v4-flash-free")',
         default: 'oriel',
       },
       {
@@ -118,7 +118,11 @@ export default async function (plop: NodePlopAPI) {
     actions: (answers) => {
       const created = new Date().toISOString()
       const segments = answers.title.split('/')
-      const heading = segments[segments.length - 1]
+      const rawHeading = segments[segments.length - 1]
+      const heading = rawHeading
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
       return [
         {
           type: 'add',
