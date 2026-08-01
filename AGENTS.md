@@ -1,3 +1,1 @@
-# CoPAS Monorepo
-
-CoPAS is an B2B SaaS
+For understand docs [read meta](meta/index.md)
