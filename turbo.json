@@ -7,6 +7,10 @@
     },
     "lint": {},
     "test": {},
+    "test:mutation": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/stryker/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
