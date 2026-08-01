@@ -1,11 +1,14 @@
 {
   "name": "copas",
   "version": "1.0.0",
+  "private": true,
   "description": "",
-  "main": "index.js",
   "scripts": {
     "gen": "plop",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +22,7 @@
   },
   "type": "module",
   "devDependencies": {
-    "plop": "^4.0.5"
+    "plop": "^4.0.5",
+    "turbo": "^2.10.7"
   }
 }
