@@ -21,7 +21,5 @@ jobs:
         uses: pnpm/action-setup@v6.0.9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Setup Turborepo Remote Cache
-        uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
       - name: Run Tests
         run: pnpm turbo test
