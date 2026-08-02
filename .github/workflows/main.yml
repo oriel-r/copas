@@ -13,13 +13,13 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - name: proejct validation
-        run: ls
-      - name: node_and_pnpm_setup
-        uses: pnpm/setup@v1.0.0
+      - name: node_setup
+        uses: actions/setup-node@v7.0.0
         with:
-          version: 11.13.0
-          runtime: node@24.x
-          install: false
-      - name: validation
-        run: node -v && pnpm -v
+          node-version: 24.x
+      - name: node_validation
+        run: node -v
+      - name: pnpm_setup
+        uses: pnpm/action-setup@v6.0.9
+      - name: pnpm_validation
+        run: pnpm -v
