@@ -1,0 +1,22 @@
+name: ci-cd-staging
+
+on:
+  pull_request:
+    branches: "main"
+
+jobs:
+  test:
+    environment: staging
+    runs-on: ubuntu-24.04
+    steps:
+      - name: project_setup
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: node_and_pnpm_setup
+        uses: pnpm/setup@v1.0.
+        with:
+          runtime: node@lts
+          install: false
+      - name: validation
+        run: ls && node -v && pnpm -v
