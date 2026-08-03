@@ -6,6 +6,7 @@ import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
+  // Comentario temporal para probar workflow
   return (
     <>
       <section id="center">
