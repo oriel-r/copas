@@ -6,7 +6,7 @@ import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
-
+// Este comentario debe borrarse en el siguiente commit
   return (
     <>
       <section id="center">
