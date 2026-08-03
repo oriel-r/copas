@@ -13,7 +13,7 @@
       "passThroughEnv": ["*"]
     },
     "test:mutation": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "build" ],
       "outputs": ["coverage/stryker/**"],
       "passThroughEnv": ["*"]
     },
