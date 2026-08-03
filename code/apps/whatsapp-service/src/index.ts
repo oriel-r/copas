@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 
 const app = new Hono()
-// comentario temporal, debe borrarse en el siguiente commit
 app.get('/', (c) => {
   return c.text('Hello Hono!')
 })
