@@ -9,7 +9,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "test:mutation": "turbo run test:mutation"
+    "test:mutation": "turbo run test:mutation",
+    "deploy": "turbo run deploy --affected"
   },
   "keywords": [],
   "author": "",
