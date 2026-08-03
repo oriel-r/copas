@@ -6,7 +6,7 @@ import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
-// Este es un comentario para borrar  
+  
   return (
     <>
       <section id="center">
