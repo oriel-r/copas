@@ -70,3 +70,7 @@ coverage/
 **/.cache/
 tmp/
 temp/
+
+# ===== Cloudflare / Wrangler =====
+.wrangler/
+**/.wrangler/

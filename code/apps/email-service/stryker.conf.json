@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "concurrency": 1,
+  "coverageAnalysis": "perTest",
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "reporters": ["clear-text", "progress", "html"],
+  "plugins": [
+    "@stryker-mutator/vitest-runner",
+    "@stryker-mutator/typescript-checker"
+  ],
+  "ignoreStatic": true,
+  "mutate": [
+    "src/**/*.ts",
+    "!src/**/*.{test,spec}.ts"
+  ],
+  "htmlReporter": {
+    "fileName": "coverage/stryker/index.html"
+  }
+}

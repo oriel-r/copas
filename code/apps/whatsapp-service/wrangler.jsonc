@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "whatsapp-service",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01"
+  "compatibility_date": "2026-08-01",
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
@@ -35,4 +35,9 @@
   //   "enabled": true,
   //   "head_sampling_rate": 1
   // }
+  "env": {
+    "staging": {
+      "name": "whatsapp-service-staging"
+    }
+  }
 }
