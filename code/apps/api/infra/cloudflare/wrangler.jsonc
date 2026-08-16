@@ -1,0 +1,77 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "api",
+  "main": "../../src/index.ts",
+  "compatibility_date": "2026-08-06",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "copas-auth",
+      "database_id": "<PRODUCTION_DATABASE_ID>",
+      "preview_database_id": "local-copas-auth",
+      "migrations_dir": "../../../../packages/auth-db/migrations"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "AUTH_KV",
+      "id": "<PRODUCTION_KV_NAMESPACE_ID>",
+      "preview_id": "local-copas-auth-kv"
+    }
+  ],
+
+  "vars": {
+    "BETTER_AUTH_URL": "http://localhost:8787",
+    "CLIENT_URL": "http://localhost:5173",
+    "NODE_ENV": "development"
+  },
+
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "MICROSOFT_CLIENT_ID",
+      "MICROSOFT_CLIENT_SECRET",
+      "MICROSOFT_TENANT_ID"
+    ]
+  },
+
+  "env": {
+    "staging": {
+      "name": "api-staging",
+      "secrets": {
+        "required": [
+          "BETTER_AUTH_SECRET",
+          "GOOGLE_CLIENT_ID",
+          "GOOGLE_CLIENT_SECRET",
+          "MICROSOFT_CLIENT_ID",
+          "MICROSOFT_CLIENT_SECRET",
+          "MICROSOFT_TENANT_ID"
+        ]
+      },
+      "vars": {
+        "BETTER_AUTH_URL": "https://api-staging.example.com",
+        "CLIENT_URL": "https://app-staging.example.com",
+        "NODE_ENV": "staging"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "copas-auth-staging",
+          "database_id": "<STAGING_DATABASE_ID>",
+          "migrations_dir": "../../../../packages/auth-db/migrations"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "AUTH_KV",
+          "id": "<STAGING_KV_NAMESPACE_ID>"
+        }
+      ]
+    }
+  }
+}

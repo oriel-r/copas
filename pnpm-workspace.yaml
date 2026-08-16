@@ -2,6 +2,7 @@ packages:
   - 'code/apps/*'
   - 'code/packages/*'
 allowBuilds:
+  agent-browser: false
   esbuild: false
   workerd: false
 minimumReleaseAgeExclude:

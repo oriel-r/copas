@@ -13,7 +13,8 @@
   "ignoreStatic": true,
   "mutate": [
     "src/**/*.ts",
-    "!src/**/*.{test,spec}.ts"
+    "platform/**/*.ts",
+    "!**/*.{test,spec}.ts"
   ],
   "htmlReporter": {
     "fileName": "coverage/stryker/index.html"
