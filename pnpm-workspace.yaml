@@ -2,7 +2,9 @@ packages:
   - 'code/apps/*'
   - 'code/packages/*'
 allowBuilds:
+  '@prisma/client': false
   agent-browser: false
+  better-sqlite3: false
   esbuild: false
   workerd: false
 minimumReleaseAgeExclude:
