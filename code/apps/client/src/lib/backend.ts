@@ -8,3 +8,17 @@ export function backendUrl(path: string) {
 }
 
 export const authBaseUrl = backendUrl(authPath)
+
+export async function probeBackend(timeoutMs = 2000): Promise<boolean> {
+  try {
+    await fetch(backendUrl('/'), {
+      method: 'GET',
+      mode: 'no-cors',
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+
+    return true
+  } catch {
+    return false
+  }
+}

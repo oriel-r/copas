@@ -19,6 +19,16 @@ vi.mock('./lib/auth-client', () => ({
   },
 }))
 
+vi.mock('./lib/session', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./lib/session')>()
+  return {
+    ...actual,
+    useSession: authMocks.useSession,
+    signInSocial: (provider: string, callbackURL: string) => authMocks.social({ provider, callbackURL }),
+    signOut: () => authMocks.signOut(),
+  }
+})
+
 function renderApp(initialEntries: string[] = ['/']) {
   const queryClient = new QueryClient({
     defaultOptions: {

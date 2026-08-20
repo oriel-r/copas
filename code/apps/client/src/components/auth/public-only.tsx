@@ -1,9 +1,9 @@
 import { Navigate, Outlet } from 'react-router'
-import { authClient } from '@/lib/auth-client'
+import { useSession } from '@/lib/session'
 import { PageLoader } from '@/components/ui/page-loader'
 
 export function PublicOnly() {
-  const { data: session, isPending } = authClient.useSession()
+  const { data: session, isPending } = useSession()
 
   if (isPending) {
     return <PageLoader />

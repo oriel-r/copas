@@ -3,14 +3,14 @@ import LogoutIcon from '~icons/material-symbols/logout'
 import LoadingIcon from '~icons/material-symbols/progress-activity'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { authClient } from '@/lib/auth-client'
+import { signOut } from '@/lib/session'
 import { getErrorMessage } from '@/lib/errors'
 import { AppShell } from '@/components/layout/app-shell'
 import { FormError } from '@/components/ui/form-error'
 
 export function DashboardPage() {
   const signOutMutation = useMutation({
-    mutationFn: () => authClient.signOut(),
+    mutationFn: () => signOut(),
     onError: () => {
       // Error handled by mutation state
     },
