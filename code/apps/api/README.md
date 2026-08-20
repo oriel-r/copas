@@ -21,12 +21,12 @@ http://localhost:8787/auth/callback/microsoft
 
 ## Migrations
 
-The shared Drizzle schema lives in `code/packages/auth-db`. Generate and check
+The shared Drizzle schema lives in `code/packages/db`. Generate and check
 migrations with:
 
 ```txt
-pnpm --filter @copas/auth-db db:generate
-pnpm --filter @copas/auth-db db:check
+pnpm --filter @copas/db db:generate
+pnpm --filter @copas/db db:check
 pnpm --filter api db:migrate:local
 ```
 
@@ -42,7 +42,7 @@ before deploying.
 ## Tests
 
 ```txt
-pnpm --filter @copas/auth-db test
+pnpm --filter @copas/db test
 pnpm --filter api test
 pnpm --filter api test:mutation
 ```

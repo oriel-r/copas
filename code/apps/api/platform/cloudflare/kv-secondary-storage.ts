@@ -22,5 +22,18 @@ export function createKvSecondaryStorage(
     delete(key) {
       return namespace.delete(key)
     },
+
+    async getAndDelete(key) {
+      const value = await namespace.get(key)
+      await namespace.delete(key)
+      return value
+    },
+
+    async increment(key) {
+      const current = (await namespace.get(key)) || '0'
+      const next = parseInt(current, 10) + 1
+      await namespace.put(key, String(next))
+      return next
+    },
   }
 }

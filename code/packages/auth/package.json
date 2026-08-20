@@ -1,0 +1,26 @@
+{
+  "name": "@copas/auth",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./config": "./src/config.ts"
+  },
+  "scripts": {
+    "auth:generate": "auth generate --config ./src/auth.config.ts --output ./src/schema.ts --yes",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.1",
+    "better-auth": "^1.7.1",
+    "uuidv7": "^1.2.1"
+  },
+  "devDependencies": {
+    "auth": "^1.7.1",
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.10"
+  }
+}

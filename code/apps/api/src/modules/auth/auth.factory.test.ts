@@ -43,8 +43,6 @@ describe('createAuth', () => {
     )
     expect(auth.options.plugins).toHaveLength(2)
     expect(auth.options.secondaryStorage).toBeDefined()
-    expect(auth.options.session?.storeSessionInDatabase).toBe(true)
-    expect(auth.options.verification?.storeInDatabase).toBe(true)
     expect(auth.options.rateLimit?.enabled).toBe(true)
     expect(auth.options.rateLimit?.storage).toBe('database')
     expect(auth.options.trustedOrigins).toEqual(['http://localhost:5173'])

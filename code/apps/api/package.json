@@ -15,9 +15,9 @@
     "test:mutation": "stryker run"
   },
   "dependencies": {
-    "@copas/auth-db": "workspace:*",
-    "better-auth": "^1.6.28",
-    "drizzle-orm": "^0.45.2",
+    "@copas/auth": "workspace:*",
+    "@copas/db": "workspace:*",
+    "better-auth": "^1.7.1",
     "hono": "^4.12.33"
   },
   "devDependencies": {

@@ -11,7 +11,8 @@
       "database_name": "copas-auth",
       "database_id": "<PRODUCTION_DATABASE_ID>",
       "preview_database_id": "local-copas-auth",
-      "migrations_dir": "../../../../packages/auth-db/migrations"
+      "migrations_dir": "../../../../packages/db/migrations",
+      "migrations_pattern": "../../../../packages/db/migrations/*/migration.sql"
     }
   ],
 
@@ -63,7 +64,8 @@
           "binding": "DB",
           "database_name": "copas-auth-staging",
           "database_id": "<STAGING_DATABASE_ID>",
-          "migrations_dir": "../../../../packages/auth-db/migrations"
+          "migrations_dir": "../../../../packages/db/migrations",
+          "migrations_pattern": "../../../../packages/db/migrations/*/migration.sql"
         }
       ],
       "kv_namespaces": [
