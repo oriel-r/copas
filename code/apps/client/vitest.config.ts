@@ -1,16 +1,10 @@
-import { defineConfig } from 'vitest/config'
-import react, { reactCompilerPreset } from '@vitejs/plugin-react'
-import babel from '@rolldown/plugin-babel'
-import Icons from 'unplugin-icons/vite'
-import { fileURLToPath } from 'node:url'
+import { defineConfig, mergeConfig } from 'vitest/config'
+import viteConfig from './vite.config'
 
-export default defineConfig({
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), Icons({ compiler: 'jsx', jsx: 'react' })],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
+export default mergeConfig(viteConfig, defineConfig({
+  plugins: [
+    ...(viteConfig.plugins ?? []).filter((p): p is NonNullable<typeof p> & { name: string } => !!p && typeof p === 'object' && 'name' in p && p.name !== 'cloudflare'),
+  ],
   test: {
     environment: 'happy-dom',
     globals: true,
@@ -18,4 +12,4 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     css: false,
   },
-})
+}))

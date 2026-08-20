@@ -6,29 +6,53 @@ type HttpOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
 }
 
+function isFormData(body: unknown): body is FormData {
+  return typeof FormData !== 'undefined' && body instanceof FormData
+}
+
 async function request<T>(path: string, options: HttpOptions = {}): Promise<T> {
-  const { body, headers, ...init } = options
+  const { body, headers, signal, ...init } = options
+
+  const requestHeaders: Record<string, string> = {
+    Accept: 'application/json',
+    ...headers,
+  }
+
+  let requestBody: BodyInit | undefined
+
+  if (body !== undefined) {
+    if (isFormData(body)) {
+      requestBody = body
+    } else {
+      requestHeaders['Content-Type'] = 'application/json'
+      requestBody = JSON.stringify(body)
+    }
+  }
 
   const response = await fetch(backendUrl(path), {
     ...init,
+    method: init.method ?? 'GET',
     credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      ...headers,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: requestHeaders,
+    body: requestBody,
+    signal,
   })
-
-  if (!response.ok) {
-    throw await ApiError.fromResponse(response)
-  }
 
   if (response.status === 204) {
     return undefined as T
   }
 
-  return (await response.json()) as T
+  if (!response.ok) {
+    throw await ApiError.fromResponse(response)
+  }
+
+  const contentType = response.headers.get('content-type') ?? ''
+
+  if (contentType.includes('application/json')) {
+    return (await response.json()) as T
+  }
+
+  return (await response.text()) as T
 }
 
 export const http = {
@@ -40,4 +64,5 @@ export const http = {
   patch: <T>(path: string, body?: unknown, options?: HttpOptions) =>
     request<T>(path, { ...options, method: 'PATCH', body }),
   delete: <T>(path: string, options?: HttpOptions) => request<T>(path, { ...options, method: 'DELETE' }),
+  request: <T>(path: string, options?: HttpOptions) => request<T>(path, options),
 }

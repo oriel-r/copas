@@ -39,13 +39,46 @@ async function parseDetails(response: Response): Promise<unknown> {
 }
 
 function extractMessage(details: unknown): string | null {
-  if (
-    typeof details === 'object' &&
-    details !== null &&
-    'message' in details &&
-    typeof (details as { message: unknown }).message === 'string'
-  ) {
-    return (details as { message: string }).message
+  if (typeof details === 'object' && details !== null) {
+    const d = details as Record<string, unknown>
+
+    if (typeof d.message === 'string') {
+      return d.message
+    }
+
+    if (typeof d.error === 'object' && d.error !== null) {
+      const err = d.error as Record<string, unknown>
+      if (typeof err.message === 'string') {
+        return err.message
+      }
+    }
+
+    if (Array.isArray(d.errors)) {
+      const firstError = d.errors[0]
+      if (typeof firstError === 'object' && firstError !== null) {
+        const fe = firstError as Record<string, unknown>
+        if (typeof fe.message === 'string') {
+          return fe.message
+        }
+      }
+      if (typeof firstError === 'string') {
+        return firstError
+      }
+    }
+
+    if (Array.isArray(d.issues)) {
+      const firstIssue = d.issues[0]
+      if (typeof firstIssue === 'object' && firstIssue !== null) {
+        const fi = firstIssue as Record<string, unknown>
+        if (typeof fi.message === 'string') {
+          return fi.message
+        }
+      }
+    }
+  }
+
+  if (typeof details === 'string') {
+    return details
   }
 
   return null

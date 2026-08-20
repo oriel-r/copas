@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 
 const authMocks = vi.hoisted(() => ({
@@ -19,10 +20,19 @@ vi.mock('./lib/auth-client', () => ({
 }))
 
 function renderApp(initialEntries: string[] = ['/']) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
   return render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <App />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
@@ -44,54 +54,50 @@ describe('App', () => {
     authMocks.signOut.mockResolvedValue({ error: null })
   })
 
-  it('renders the sign in and sign up OAuth options on /login', async () => {
-    const user = userEvent.setup()
+  it('renders the OAuth options on /login', async () => {
+    userEvent.setup()
     renderApp(['/login'])
 
-    expect(screen.getByRole('tab', { name: 'Sign in' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Sign up' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Continuar con Microsoft' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('tab', { name: 'Sign up' }))
-    expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument()
   })
 
-  it('redirects unauthenticated users from /app to /login', () => {
+  it('redirects unauthenticated users from /app to /login', async () => {
     renderApp(['/app'])
 
-    expect(screen.getByRole('tab', { name: 'Sign in' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument())
   })
 
-  it('redirects authenticated users from /login to /app', () => {
+  it('redirects authenticated users from /login to /app', async () => {
     authMocks.useSession.mockReturnValue(authenticatedSession())
     renderApp(['/login'])
 
-    expect(screen.getByText('Hola!')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Hola!')).toBeInTheDocument())
   })
 
-  it('redirects the root path to the dashboard', () => {
+  it('redirects the root path to the dashboard', async () => {
     authMocks.useSession.mockReturnValue(authenticatedSession())
     renderApp(['/'])
 
-    expect(screen.getByText('Hola!')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Hola!')).toBeInTheDocument())
   })
 
-  it('shows a not found page for unknown routes', () => {
+  it('shows a not found page for unknown routes', async () => {
     renderApp(['/ruta-inexistente'])
 
-    expect(screen.getByText('Página no encontrada')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Página no encontrada')).toBeInTheDocument())
   })
 
   it('starts OAuth with the selected provider', async () => {
     const user = userEvent.setup()
     renderApp(['/login'])
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Continuar con Google' }))
 
     expect(authMocks.social).toHaveBeenCalledWith({
       provider: 'google',
-      callbackURL: window.location.origin,
+      callbackURL: `${window.location.origin}/dashboard`,
     })
   })
 
@@ -100,7 +106,7 @@ describe('App', () => {
     authMocks.useSession.mockReturnValue(authenticatedSession())
     renderApp(['/app'])
 
-    expect(screen.getByText('Hola!')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Hola!')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
 
     expect(authMocks.signOut).toHaveBeenCalledOnce()
@@ -111,6 +117,7 @@ describe('App', () => {
     authMocks.social.mockResolvedValue({ error: { message: 'OAuth falló' } })
     renderApp(['/login'])
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar con Microsoft' })).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Continuar con Microsoft' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('OAuth falló')

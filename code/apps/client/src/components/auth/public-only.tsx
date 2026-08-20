@@ -1,20 +1,16 @@
-import LoadingIcon from '~icons/material-symbols/progress-activity'
 import { Navigate, Outlet } from 'react-router'
 import { authClient } from '@/lib/auth-client'
+import { PageLoader } from '@/components/ui/page-loader'
 
 export function PublicOnly() {
   const { data: session, isPending } = authClient.useSession()
 
   if (isPending) {
-    return (
-      <main className="app-shell">
-        <LoadingIcon className="size-6 animate-spin text-muted-foreground" aria-label="Cargando sesión" />
-      </main>
-    )
+    return <PageLoader />
   }
 
   if (session) {
-    return <Navigate to="/app" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return <Outlet />

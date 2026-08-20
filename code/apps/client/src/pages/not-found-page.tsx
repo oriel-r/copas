@@ -1,10 +1,11 @@
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AppShell } from '@/components/layout/app-shell'
 
 export function NotFoundPage() {
   return (
-    <main className="app-shell">
+    <AppShell>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Página no encontrada</CardTitle>
@@ -16,6 +17,6 @@ export function NotFoundPage() {
           </Button>
         </CardContent>
       </Card>
-    </main>
+    </AppShell>
   )
 }

@@ -1,98 +1,76 @@
-import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import GoogleIcon from '~icons/logos/google-icon'
 import MicrosoftIcon from '~icons/logos/microsoft-icon'
 import LoadingIcon from '~icons/material-symbols/progress-activity'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { authClient } from '@/lib/auth-client'
+import { getErrorMessage } from '@/lib/errors'
+import { AppShell } from '@/components/layout/app-shell'
+import { FormError } from '@/components/ui/form-error'
 
 type OAuthProvider = 'google' | 'microsoft'
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Ocurrió un error. Intentá nuevamente.'
-}
-
 export function LoginPage() {
-  const [activeProvider, setActiveProvider] = useState<OAuthProvider | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handleOAuthSignIn(provider: OAuthProvider) {
-    setActiveProvider(provider)
-    setError(null)
-
-    try {
+  const signInMutation = useMutation({
+    mutationFn: async (provider: OAuthProvider) => {
       const result = await authClient.signIn.social({
         provider,
-        callbackURL: window.location.origin,
+        callbackURL: `${window.location.origin}/dashboard`,
       })
-
       if (result.error) {
-        setError(result.error.message ?? 'No se pudo iniciar sesión.')
+        throw new Error(result.error.message ?? 'No se pudo iniciar sesión.')
       }
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError))
-    } finally {
-      setActiveProvider(null)
-    }
-  }
+      return result
+    },
+    onError: () => {
+      // Error handled by mutation state
+    },
+  })
 
   return (
-    <main className="app-shell">
+    <AppShell>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Bienvenido</CardTitle>
           <CardDescription>Ingresá o creá tu cuenta usando un proveedor OAuth.</CardDescription>
         </CardHeader>
         <CardContent>
-          {error && (
-            <Alert className="mb-4" variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <Tabs defaultValue="sign-in" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="sign-in">Sign in</TabsTrigger>
-              <TabsTrigger value="sign-up">Sign up</TabsTrigger>
-            </TabsList>
-            <TabsContent value="sign-in">
-              <OAuthButtons activeProvider={activeProvider} onSelect={handleOAuthSignIn} />
-            </TabsContent>
-            <TabsContent value="sign-up">
-              <OAuthButtons activeProvider={activeProvider} onSelect={handleOAuthSignIn} />
-            </TabsContent>
-          </Tabs>
+          <FormError message={signInMutation.error ? getErrorMessage(signInMutation.error) : null} className="mb-4" />
+          <OAuthButtons
+            isPending={signInMutation.isPending}
+            onSignIn={(provider) => signInMutation.mutate(provider)}
+          />
         </CardContent>
       </Card>
-    </main>
+    </AppShell>
   )
 }
 
 type OAuthButtonsProps = {
-  activeProvider: OAuthProvider | null
-  onSelect: (provider: OAuthProvider) => Promise<void>
+  isPending: boolean
+  onSignIn: (provider: OAuthProvider) => void
 }
 
-function OAuthButtons({ activeProvider, onSelect }: OAuthButtonsProps) {
+function OAuthButtons({ isPending, onSignIn }: OAuthButtonsProps) {
   return (
     <div className="mt-4 grid gap-3">
       <Button
         variant="outline"
         className="w-full"
-        onClick={() => onSelect('google')}
-        disabled={activeProvider !== null}
+        onClick={() => onSignIn('google')}
+        disabled={isPending}
       >
-        {activeProvider === 'google' ? <LoadingIcon className="animate-spin" /> : <GoogleIcon />}
+        {isPending ? <LoadingIcon className="animate-spin" /> : <GoogleIcon />}
         Continuar con Google
       </Button>
       <Button
         variant="outline"
         className="w-full"
-        onClick={() => onSelect('microsoft')}
-        disabled={activeProvider !== null}
+        onClick={() => onSignIn('microsoft')}
+        disabled={isPending}
       >
-        {activeProvider === 'microsoft' ? <LoadingIcon className="animate-spin" /> : <MicrosoftIcon />}
+        {isPending ? <LoadingIcon className="animate-spin" /> : <MicrosoftIcon />}
         Continuar con Microsoft
       </Button>
     </div>

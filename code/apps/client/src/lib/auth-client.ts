@@ -3,4 +3,8 @@ import { authBaseUrl } from './backend'
 
 export const authClient = createAuthClient({
   baseURL: authBaseUrl,
+  sessionOptions: {
+    refetchOnWindowFocus: false,
+    refetchInterval: 300,
+  },
 })

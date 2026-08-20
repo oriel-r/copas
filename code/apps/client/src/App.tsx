@@ -1,25 +1,32 @@
 import { Navigate, Route, Routes } from 'react-router'
+import { lazy, Suspense } from 'react'
 import { PublicOnly } from '@/components/auth/public-only'
 import { RequireSession } from '@/components/auth/require-session'
-import { LoginPage } from '@/pages/auth/login-page'
-import { DashboardPage } from '@/pages/dashboard/dashboard-page'
-import { NotFoundPage } from '@/pages/not-found-page'
+import { PageLoader } from '@/components/ui/page-loader'
+
+const LoginPage = lazy(() => import('@/pages/auth/login-page').then((m) => ({ default: m.LoginPage })))
+const DashboardPage = lazy(() => import('@/pages/dashboard/dashboard-page').then((m) => ({ default: m.DashboardPage })))
+const NotFoundPage = lazy(() => import('@/pages/not-found-page').then((m) => ({ default: m.NotFoundPage })))
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/app" replace />} />
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      <Route element={<PublicOnly />}>
-        <Route path="/login" element={<LoginPage />} />
-      </Route>
+        <Route element={<PublicOnly />}>
+          <Route path="/login" element={<LoginPage />} />
+        </Route>
 
-      <Route element={<RequireSession />}>
-        <Route path="/app" element={<DashboardPage />} />
-      </Route>
+        <Route element={<RequireSession />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Route>
 
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   )
 }
 
