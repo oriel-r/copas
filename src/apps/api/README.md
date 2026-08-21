@@ -21,7 +21,7 @@ http://localhost:8787/auth/callback/microsoft
 
 ## Migrations
 
-The shared Drizzle schema lives in `code/packages/db`. Generate and check
+The shared Drizzle schema lives in `src/packages/db`. Generate and check
 migrations with:
 
 ```txt

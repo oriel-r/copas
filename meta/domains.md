@@ -17,22 +17,22 @@ cross-reference across domains using absolute paths from the project root.
 | Domain | Purpose | Examples |
 |---|---|---|
 | `docs/` | Business documentation, implementation-independent | decisions, roadmaps, concepts, conventions |
-| `code/` | Source code + technical docs tied to implementation | apps, packages, API usage guides |
+| `src/` | Source code + technical docs tied to implementation | apps, packages, API usage guides |
 | `scripts/` | Audiovisual content scripts | videos, reels, TikTok |
 
 ## docs/
 
 Business documentation. Not directly tied to code. A decision may reference
-implementations under `/code/` and vice versa.
+implementations under `/src/` and vice versa.
 
 `/docs/index.md` is the entry point. Subdirectories by topic.
 
-## code/
+## src/
 
 Source code + its documentation (how to use, integrate, etc). Changes with
 code.
 
-Structure: `/code/apps/` (services, micro-frontends), `/code/packages/`
+Structure: `/src/apps/` (services, micro-frontends), `/src/packages/`
 (shared libraries).
 
 ## scripts/

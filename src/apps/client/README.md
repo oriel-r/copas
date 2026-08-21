@@ -21,7 +21,7 @@ backend caído no cae en modo demo: muestra el error de sesión normal.
 ### Con backend (auth real)
 
 Requisitos previos: levantar la API en `http://localhost:8787` y aplicar sus
-migraciones D1 locales (ver `code/apps/api/README.md`).
+migraciones D1 locales (ver `src/apps/api/README.md`).
 
 ```txt
 pnpm --filter api db:migrate:local

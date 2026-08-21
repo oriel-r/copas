@@ -1,22 +1,25 @@
 {
-  "name": "@copas/contracts",
+  "name": "@copas/db",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./insurance": "./src/contexts/insurance/index.ts"
+    "./schemas": "./src/schemas/index.ts"
   },
   "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@copas/db": "workspace:*",
-    "zod": "^4.4.3"
+    "@copas/auth": "workspace:*",
+    "drizzle-orm": "1.0.0-rc.4",
+    "uuidv7": "^1.2.1"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "typescript": "^6.0.3",
+    "drizzle-kit": "1.0.0-rc.4",
     "vitest": "^4.1.10"
   }
 }

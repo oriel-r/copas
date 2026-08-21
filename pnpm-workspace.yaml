@@ -1,6 +1,6 @@
 packages:
-  - 'code/apps/*'
-  - 'code/packages/*'
+  - 'src/apps/*'
+  - 'src/packages/*'
 allowBuilds:
   '@prisma/client': false
   agent-browser: false

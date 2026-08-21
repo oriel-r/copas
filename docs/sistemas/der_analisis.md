@@ -171,7 +171,7 @@ condicionadas por el motor. Se separan deliberadamente del análisis conceptual.
 ### 5.2 Convenciones canónicas de tipo (fijar antes de escribir migraciones)
 
 - **Timestamps de sistema** (`created_at`, `updated_at`, `sent_at`, …): `integer`
-  epoch ms — convención ya usada por better-auth en `code/packages/auth-db`
+  epoch ms — convención ya usada por better-auth en `src/packages/auth-db`
   (`timestamp_ms` de Drizzle).
 - **Fechas de negocio** (`birth_date`, `start_date`, `end_date`, `due_date`):
   formato único (date-only `YYYY-MM-DD` o epoch) y timezone explícita (ART, UTC-3,
@@ -219,7 +219,7 @@ condicionadas por el motor. Se separan deliberadamente del análisis conceptual.
 
 ---
 
-## 6. Divergencias DER ↔ implementación existente (`code/packages/auth-db`)
+## 6. Divergencias DER ↔ implementación existente (`src/packages/auth-db`)
 
 El esquema Drizzle ya implementado difiere del DER:
 

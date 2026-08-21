@@ -31,7 +31,7 @@ running anything.
   ([`meta/domains.md`](/meta/domains.md)): `docs/` for business documentation,
   `code/` for implementation-tied technical docs, `scripts/` for audiovisual
   content scripts. Examples: `docs/decisions/use_tailwind`,
-  `code/packages/ui/api_usage`, `scripts/reels/launch`.
+  `src/packages/ui/api_usage`, `scripts/reels/launch`.
 - `type` — one of the seven below, chosen by the question the document
   answers ([`meta/types.md`](/meta/types.md) for full semantics).
 - `producer` — author.

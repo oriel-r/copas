@@ -12,7 +12,7 @@ export default async function (plop: NodePlopAPI) {
     ],
     actions: (answers) => {
       const today = new Date().toISOString().slice(0, 10)
-      const basePath = 'code/apps/{{name}}'
+      const basePath = 'src/apps/{{name}}'
       return [
         {
           type: 'add',
@@ -50,7 +50,7 @@ export default async function (plop: NodePlopAPI) {
     ],
     actions: (answers) => {
       const today = new Date().toISOString().slice(0, 10)
-      const basePath = 'code/packages/{{name}}'
+      const basePath = 'src/packages/{{name}}'
       return [
         {
           type: 'add',
