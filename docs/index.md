@@ -12,5 +12,7 @@
 - [Arquitectura de la solucion](/docs/vencimientos_y_renovaciones/arquitectura_de_la_solucion.md)
 - [Por que así y no de otra forma](/docs/vencimientos_y_renovaciones/por_que_asi.md)
 
+## Implementation
 
+Code structure and technical conventions live in [src/docs](/src/docs/index.md).
 
