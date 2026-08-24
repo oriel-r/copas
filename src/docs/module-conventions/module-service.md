@@ -40,4 +40,4 @@ export type XService = ReturnType<typeof createXService>;
 
 ```
 
-[← Module Scaffolding](/src/docs/conventions/module-scaffolding.md)
+[← Module Scaffolding](/src/docs/module-conventions/module-scaffolding.md)

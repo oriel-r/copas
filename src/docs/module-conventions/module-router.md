@@ -43,4 +43,4 @@ export { app as xRouter };
 
 ```
 
-[← Module Scaffolding](/src/docs/conventions/module-scaffolding.md)
+[← Module Scaffolding](/src/docs/module-conventions/module-scaffolding.md)

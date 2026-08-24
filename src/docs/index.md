@@ -5,7 +5,7 @@ the root [docs](/docs/index.md).
 
 ## Conventions
 
-- [Module Scaffolding](/conventions/module-scaffolding.md)
-  - [Router](/conventions/module-router.md)
-  - [Service](/conventions/module-service.md)
-  - [Repository](/conventions/module-repository.md)
+- [Module Scaffolding](/module-conventions/module-scaffolding.md)
+  - [Router](/module-conventions/module-router.md)
+  - [Service](/module-conventions/module-service.md)
+  - [Repository](/module-conventions/module-repository.md)

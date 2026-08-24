@@ -39,6 +39,6 @@ src/
 
 ## Elements
 
-- [Router](/src/docs/conventions/module-router.md)
-- [Service](/src/docs/conventions/module-service.md)
-- [Repository](/src/docs/conventions/module-repository.md)
+- [Router](/src/docs/module-conventions/module-router.md)
+- [Service](/src/docs/module-conventions/module-service.md)
+- [Repository](/src/docs/module-conventions/module-repository.md)

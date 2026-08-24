@@ -1,4 +1,8 @@
+import path from 'node:path'
 import type { NodePlopAPI } from 'plop'
+
+const baseDir = path.resolve(process.env.INIT_CWD ?? process.cwd())
+const resolveTarget = (p: string) => (path.isAbsolute(p) ? p : path.join(baseDir, p))
 
 export default async function (plop: NodePlopAPI) {
   plop.setGenerator('app', {
@@ -126,7 +130,7 @@ export default async function (plop: NodePlopAPI) {
       return [
         {
           type: 'add',
-          path: '{{title}}.md',
+          path: resolveTarget(`${answers.title}.md`),
           templateFile: 'generator/doc/template.hbs',
           data: { created, heading },
         },

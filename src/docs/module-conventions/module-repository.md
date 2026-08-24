@@ -38,4 +38,4 @@ export type XRepository = ReturnType<typeof createXRepository>;
 
 ```
 
-[← Module Scaffolding](/src/docs/conventions/module-scaffolding.md)
+[← Module Scaffolding](/src/docs/module-conventions/module-scaffolding.md)
