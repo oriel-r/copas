@@ -9,3 +9,18 @@ the root [docs](/docs/index.md).
   - [Router](/module-conventions/module-router.md)
   - [Service](/module-conventions/module-service.md)
   - [Repository](/module-conventions/module-repository.md)
+
+## Core
+
+- [Scaffolding](/core/scaffolding.md)
+- [Entry Point](/core/entry-point.md)
+- [Routing](/core/routing.md)
+- [Error Handling](/core/error-handling.md)
+- [DI](/core/di.md)
+- [Global Middlewares](/core/global_middlewares.md)
+- [File Location Rules](/core/files_location_rules.md)
+
+## API
+
+- [Endpoints](/api/endpoints.md)
+- [How To Serve](/api/how_to_serve.md)
