@@ -10,7 +10,21 @@
 - [Problema a resolver](/docs/vencimientos_y_renovaciones/planteo_del_problema.md)
 - [Como lo resolveremos](/docs/vencimientos_y_renovaciones/solucion_al_problema.md)
 - [Arquitectura de la solucion](/docs/vencimientos_y_renovaciones/arquitectura_de_la_solucion.md)
-- [Por que así y no de otra forma](/docs/vencimientos_y_renovaciones/por_que_asi.md)
+
+## Sistemas
+
+- [DER](/docs/sistemas/der.md)
+- [Análisis del DER](/docs/sistemas/der_analisis.md)
+
+## Servicios
+
+- [Scheduler](/docs/servicios/scheduler.md)
+- [Whatsapp Service](/docs/servicios/whatsapp_service.md)
+- [Email Service](/docs/servicios/email_service.md)
+- [Inteligencia Artificial](/docs/servicios/inteligencia_artificial.md)
+- [Auth Y Organizaciones](/docs/servicios/auth_y_organizaciones.md)
+- [Billing](/docs/servicios/billing.md)
+- [Cartera](/docs/servicios/cartera.md)
 
 ## Implementation
 

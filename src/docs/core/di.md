@@ -12,6 +12,7 @@ supersededBy: ""
 # Di
 
 ```typescript
+import { AppEnv } from '../types/env';
 
 export const injectAppServices = createMiddleware<AppEnv>(async (c, next) => {
   const organizationId = c.get('session').activeOrganizationId

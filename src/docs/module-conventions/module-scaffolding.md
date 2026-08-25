@@ -3,7 +3,7 @@ type: convention
 producer: oriel
 status: draft
 created: 2026-08-21
-updated: 2026-08-22
+updated: 2026-08-25
 expires:
 deprecatedReason: ""
 supersededBy: ""
@@ -21,10 +21,13 @@ src/
 ├── index.ts
 └── modules/
     ├── x/
-    │   ├── x.schema.ts
     │   ├── x.repository.ts
+    │   ├── x.repository.test.ts
     │   ├── x.service.ts
-    │   └── x.routes.ts
+    │   ├── x.service.test.ts
+    │   ├── x.routes.ts
+    │   ├── x.routes.test.ts
+    │   └── x-implementation-doc.md   # optional
     └── y/
         └── ...
 

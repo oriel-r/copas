@@ -3,7 +3,7 @@ type: concept
 producer: oriel
 status: draft
 created: 2026-07-30T20:42:11.196Z
-updated:
+updated: 2026-08-25
 expires: 
 deprecatedReason: ""
 supersededBy: ""
@@ -83,3 +83,38 @@ flowchart TD
 
 
 ```
+
+## Componentes
+
+| Componente | Rol |
+|---|---|
+| Cliente | PAS que usa la herramienta |
+| Frontend | Interfaz web |
+| API Backend | Auth, cartera y billing |
+| Almacenamiento de Archivos | Bucket de documentos (pólizas) |
+| Motor de IA | Lectura y análisis de documentos |
+| Base de Datos | Persistencia del dominio |
+| Servicio de Notificaciones - Mail | Eventos del sistema (auth, billing) |
+| Servicio de Consulta y Encolado | Consulta programada de vencimientos y encolado de recordatorios |
+| Cola de mensajes | Buffer entre el encolado y el envío |
+| Servicio de Notificaciones - WhatsApp | Envío de recordatorios y recepción de webhooks |
+| Proveedor de Email / API WhatsApp Cloud | Servicios externos de entrega |
+| Destinatario | Asegurado o usuario que recibe el mensaje |
+
+## Preguntas pendientes
+
+### Flujo A — eventos del sistema → mail
+
+- ¿Qué eventos del sistema disparan mail (auth, billing, otros)?
+- ¿Cómo recibe el evento el servicio de mail: binding, cola o HTTP?
+
+### Flujo B — recordatorios programados → cola → WhatsApp
+
+- ¿Cada cuánto corre la consulta programada? ¿En qué ventana horaria y timezone?
+- ¿Qué payload lleva el mensaje encolado?
+- ¿Cómo se garantiza idempotencia ante re-ejecuciones?
+
+### Flujo C — webhooks entrantes desde WhatsApp
+
+- ¿Qué webhooks se escuchan (estados de entrega, mensajes inbound)?
+- ¿Qué pasa con un mensaje inbound fuera de una conversación activa?

@@ -17,6 +17,7 @@ the root [docs](/docs/index.md).
 - [Routing](/core/routing.md)
 - [Error Handling](/core/error-handling.md)
 - [DI](/core/di.md)
+- [Env Types](/core/env-types.md)
 - [Global Middlewares](/core/global_middlewares.md)
 - [File Location Rules](/core/files_location_rules.md)
 
@@ -24,3 +25,7 @@ the root [docs](/docs/index.md).
 
 - [Endpoints](/api/endpoints.md)
 - [How To Serve](/api/how_to_serve.md)
+
+## Infra
+
+- [Infra Types](/infra/infra-types.md)

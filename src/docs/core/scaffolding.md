@@ -20,9 +20,11 @@ supersededBy: ""
     ├── core/       # Framework wiring and bootstrapping (DI, routing setup)
     │   ├── middlewares/
     │   │   └── di.middleware.ts
-    │   └── setup/
-    │       ├── app.middlewares.ts
-    │       └── app.router.ts
+    │   ├── setup/
+    │   │   ├── app.middlewares.ts
+    │   │   └── app.router.ts
+    │   └── types/
+    │       └── env.ts
     ├── modules/
     │   ├── x/
     │   ├── y/

@@ -98,7 +98,7 @@ export default async function (plop: NodePlopAPI) {
         type: 'list',
         name: 'type',
         message: 'Type?',
-        choices: ['concept', 'convention', 'decision', 'roadmap', 'media-script', 'meta', 'raw_data'],
+        choices: ['concept', 'convention', 'decision', 'roadmap', 'media-script', 'meta', 'raw_data', 'rules', 'guide'],
       },
       {
         type: 'input',

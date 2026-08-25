@@ -12,6 +12,8 @@ supersededBy: ""
 # Error Handling
 
 ```typescript
+import { AppEnv } from './types/env';
+
 export function registerErrorHandlers(app: Hono<AppEnv>) {
   app.notFound((c) => {
     return c.json({ message: 'Not Found' }, 404);

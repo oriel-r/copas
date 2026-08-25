@@ -12,6 +12,7 @@ supersededBy: ""
 # Routing
 
 ```typescript
+import { AppEnv } from './types/env';
 
 export function registerRoutes(app: Hono<AppEnv>) {
   const routes = app

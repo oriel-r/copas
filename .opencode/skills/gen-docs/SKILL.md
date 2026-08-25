@@ -2,7 +2,7 @@
 description: >-
   Scaffold new atomic documentation files in the copas repo via `pnpm gen doc`.
   Use when the user wants to create or add a doc, mentions scaffolding a
-  markdown file, or asks for a concept/decision/convention/roadmap/meta/raw_data/media_script
+  markdown file, or asks for a concept/decision/convention/roadmap/meta/raw_data/media_script/rules/guide
   document; also fires when another skill needs a new doc scaffolded.
 ---
 
@@ -14,9 +14,9 @@ generator writes `generator/doc/template.hbs` to `<title>.md` with standardized
 frontmatter and a heading. Run it non-interactively so it never hangs on a
 prompt — pass every answer on the command line.
 
-Documents are **atomic**: one concept, decision, convention, roadmap, or raw
-record per file. A document answers exactly the question its `type` denotes —
-nothing more.
+Documents are **atomic**: one concept, decision, convention, roadmap, raw
+record, rule, or guide per file. A document answers exactly the question its
+`type` denotes — nothing more.
 
 ## Steps
 
@@ -32,7 +32,7 @@ running anything.
   `code/` for implementation-tied technical docs, `scripts/` for audiovisual
   content scripts. Examples: `docs/decisions/use_tailwind`,
   `src/packages/ui/api_usage`, `scripts/reels/launch`.
-- `type` — one of the seven below, chosen by the question the document
+- `type` — one of the nine below, chosen by the question the document
   answers ([`meta/types.md`](/meta/types.md) for full semantics).
 - `producer` — author.
   - **Agent-authored** (this skill fired on its own, or another skill did):
@@ -79,9 +79,9 @@ not paper over it.
 ### 4. Draft the atomic body
 
 Under the `# heading`, write the document's body. Keep it **atomic**: one
-concept, decision, convention, roadmap, or raw record — never an aggregate. A
-document should answer the question its `type` poses (see `meta/types.md`) and
-no other.
+concept, decision, convention, roadmap, raw record, rule, or guide — never an
+aggregate. A document should answer the question its `type` poses (see
+`meta/types.md`) and no other.
 
 - **What is determined**, write it. Conventions, decisions, definitions, raw
   data — whatever the `type` calls for, filled from what the user gave you or
@@ -104,7 +104,7 @@ never empty, never a vague placeholder, never invented content.
 
 ## Reference
 
-### `type` — the seven values
+### `type` — the nine values
 
 Each type answers a specific question (`meta/types.md` for the source of
 truth).
@@ -115,6 +115,8 @@ truth).
 | `decision`     | Why do we do X?     |
 | `convention`   | How do we do X?     |
 | `roadmap`      | Where are we going? |
+| `rules`        | What must/must not be done? |
+| `guide`        | How do we do X, step by step? |
 | `raw_data`     | Raw, unprocessed business data |
 | `media_script` | Scripts for audiovisual content |
 | `meta`         | Documentation about the documentation system itself |

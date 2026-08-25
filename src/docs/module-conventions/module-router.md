@@ -18,7 +18,7 @@ module service obtained from the DI container.
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import { AppEnv } from '../../di.middleware';
+import { AppEnv } from '../../types/env';
 import { insertXSchema } from './x.schema';
 
 const app = new Hono<AppEnv>();
