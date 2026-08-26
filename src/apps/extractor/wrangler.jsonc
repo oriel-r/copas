@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "extractor",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "env": {
+    "staging": {
+      "name": "extractor-staging"
+    }
+  }
+}
