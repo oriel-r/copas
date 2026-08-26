@@ -29,3 +29,5 @@ the root [docs](/docs/index.md).
 ## Infra
 
 - [Infra Types](/infra/infra-types.md)
+- [Worker Boundaries](/infra/worker-boundaries.md)
+- [Queues](/infra/queues.md)
