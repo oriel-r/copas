@@ -391,14 +391,14 @@ const expectedIndexes: ReadonlyArray<readonly [string, string, readonly string[]
   ['subscription_payments', 'subscription_payments_organization_id_idx', ['organizationId']],
   ['subscription_payments', 'subscription_payments_subscription_id_idx', ['subscriptionId']],
   ['insureds', 'insureds_organization_id_idx', ['organizationId']],
-  ['insureds', 'insureds_uploaded_by_idx', ['uploaded_by']],
+  ['insureds', 'insureds_uploaded_by_idx', ['uploadedBy']],
   ['assets', 'assets_insured_id_idx', ['insuredId']],
   ['assets', 'assets_asset_type_id_idx', ['assetTypeId']],
-  ['assets', 'assets_uploaded_by_idx', ['uploaded_by']],
+  ['assets', 'assets_uploaded_by_idx', ['uploadedBy']],
   ['asset_types', 'asset_types_branch_id_idx', ['branchId']],
   ['policies', 'policies_insured_id_idx', ['insuredId']],
   ['policies', 'policies_company_id_idx', ['companyId']],
-  ['policies', 'policies_uploaded_by_idx', ['uploaded_by']],
+  ['policies', 'policies_uploaded_by_idx', ['uploadedBy']],
   ['policies', 'policies_produced_by_idx', ['producedBy']],
   ['policy_installments', 'policy_installments_policy_id_idx', ['policyId']],
   ['policy_installments', 'policy_installments_organization_id_idx', ['organizationId']],
@@ -505,20 +505,20 @@ describe('timestamps & dates', () => {
   describe('domain mutable tables use integer timestamp_ms (DER §"Convenciones del modelo")', () => {
     it.each(mutableDomainTables.map((t) => [t] as const))('%s', (name) => {
       const tableName = name as ExpectedTable
-      expect(hasColumnMode(tableName, 'created_at', 'timestamp_ms')).toBe(true)
-      expect(hasColumnMode(tableName, 'updated_at', 'timestamp_ms')).toBe(true)
-      expect(hasColumnMode(tableName, 'deleted_at', 'timestamp_ms')).toBe(true)
+      expect(hasColumnMode(tableName, 'createdAt', 'timestamp_ms')).toBe(true)
+      expect(hasColumnMode(tableName, 'updatedAt', 'timestamp_ms')).toBe(true)
+      expect(hasColumnMode(tableName, 'deletedAt', 'timestamp_ms')).toBe(true)
     })
   })
 
   describe('event-log tables carry only created_at (immutable)', () => {
     it.each(eventLogTables.map((t) => [t] as const))('%s', (name) => {
       const tableName = name as ExpectedTable
-      expect(hasColumnMode(tableName, 'created_at', 'timestamp_ms')).toBe(true)
+      expect(hasColumnMode(tableName, 'createdAt', 'timestamp_ms')).toBe(true)
       const table = getTable(tableName)
       const cols = getColumns(table) as Record<string, any>
-      expect(cols['updated_at']).toBeUndefined()
-      expect(cols['deleted_at']).toBeUndefined()
+      expect(cols['updatedAt']).toBeUndefined()
+      expect(cols['deletedAt']).toBeUndefined()
     })
   })
 
