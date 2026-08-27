@@ -10,6 +10,7 @@
     "test:mutation": "stryker run"
   },
   "dependencies": {
+    "@copas/contracts": "workspace:*",
     "hono": "^4.12.33"
   },
   "devDependencies": {

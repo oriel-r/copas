@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
+
+const CACHE_DIR = path.join(os.tmpdir(), 'agy-boundary-cache');
+const TAIL_BYTES = 65536;
+const HEADER_BYTES = 32768;
 
 function readStdin() {
   return new Promise((resolve, reject) => {
@@ -33,7 +38,6 @@ function isAllowedQAReadPath(filePath) {
   const norm = normalizePath(filePath);
   if (isTestFile(norm)) return true;
 
-  // Allowed documentation, configuration, and contracts paths
   const allowedPatterns = [
     /\/docs\//i,
     /\/meta\//i,
@@ -53,29 +57,127 @@ function isAllowedQAReadPath(filePath) {
   return allowedPatterns.some(pattern => pattern.test(norm));
 }
 
+function agentFromText(text) {
+  if (!text) return null;
+  if (/senior-implementer|Senior Implementer|Senior TypeScript Developer \/ Implementer/i.test(text)) {
+    return 'senior-implementer';
+  }
+  if (/senior-qa-engineer|Senior QA Engineer|Senior Quality Assurance Engineer/i.test(text)) {
+    return 'senior-qa-engineer';
+  }
+  if (/senior-architect|Senior Software Architect/i.test(text)) {
+    return 'senior-architect';
+  }
+  return null;
+}
+
+function ensureCacheDir() {
+  try {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+  } catch {}
+}
+
+function getCachePath(conversationId) {
+  if (!conversationId) return null;
+  const safe = String(conversationId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  return path.join(CACHE_DIR, `${safe}.json`);
+}
+
+function readCachedAgent(payload) {
+  const conversationId = payload.conversationId;
+  const transcriptPath = payload.transcriptPath;
+  if (!conversationId || !transcriptPath) return null;
+  const cachePath = getCachePath(conversationId);
+  if (!cachePath || !fs.existsSync(cachePath)) return null;
+  try {
+    const stat = fs.statSync(transcriptPath);
+    const raw = fs.readFileSync(cachePath, 'utf8');
+    const cached = JSON.parse(raw);
+    if (cached.mtimeMs === stat.mtimeMs && cached.size === stat.size && cached.agent) {
+      return cached.agent;
+    }
+  } catch {}
+  return null;
+}
+
+function writeCachedAgent(payload, agent) {
+  const conversationId = payload.conversationId;
+  const transcriptPath = payload.transcriptPath;
+  if (!conversationId || !transcriptPath || !agent || agent === 'unknown') return;
+  const cachePath = getCachePath(conversationId);
+  if (!cachePath) return;
+  try {
+    ensureCacheDir();
+    const stat = fs.statSync(transcriptPath);
+    const data = JSON.stringify({ agent, mtimeMs: stat.mtimeMs, size: stat.size });
+    fs.writeFileSync(cachePath, data, 'utf8');
+  } catch {}
+}
+
 function detectAgent(payload) {
   if (!payload) return 'unknown';
 
-  if (payload.transcriptPath && fs.existsSync(payload.transcriptPath)) {
-    try {
-      const fd = fs.openSync(payload.transcriptPath, 'r');
-      const buffer = Buffer.alloc(32768);
-      const bytesRead = fs.readSync(fd, buffer, 0, 32768, 0);
-      fs.closeSync(fd);
-      const header = buffer.toString('utf8', 0, bytesRead);
+  const cached = readCachedAgent(payload);
+  if (cached) return cached;
 
-      if (/senior-implementer|Senior Implementer|Senior TypeScript Developer \/ Implementer/i.test(header)) {
-        return 'senior-implementer';
+  const transcriptPath = payload.transcriptPath;
+  if (!transcriptPath || !fs.existsSync(transcriptPath)) {
+    return 'unknown';
+  }
+
+  try {
+    const stat = fs.statSync(transcriptPath);
+    const fileSize = stat.size;
+    if (fileSize === 0) return 'unknown';
+
+    // 1. Tail 64k — most relevant in GUI (invoke_subagent appears at end)
+    if (fileSize > 0) {
+      const tailSize = Math.min(TAIL_BYTES, fileSize);
+      const offset = Math.max(0, fileSize - tailSize);
+      const fd = fs.openSync(transcriptPath, 'r');
+      try {
+        const buffer = Buffer.alloc(tailSize);
+        const bytesRead = fs.readSync(fd, buffer, 0, tailSize, offset);
+        const tail = buffer.toString('utf8', 0, bytesRead);
+        const agent = agentFromText(tail);
+        if (agent) {
+          fs.closeSync(fd);
+          writeCachedAgent(payload, agent);
+          return agent;
+        }
+      } finally {
+        try { fs.closeSync(fd); } catch {}
       }
-      if (/senior-qa-engineer|Senior QA Engineer|Senior Quality Assurance Engineer/i.test(header)) {
-        return 'senior-qa-engineer';
-      }
-      if (/senior-architect|Senior Software Architect/i.test(header)) {
-        return 'senior-architect';
-      }
-    } catch (e) {
-      // Fallback
     }
+
+    // 2. Header 32k — covers mainAgent selected via /agent (prompt at start)
+    // Only if tail missed, to keep SSD writes minimal
+    if (fileSize > TAIL_BYTES || true) {
+      const headerSize = Math.min(HEADER_BYTES, fileSize);
+      // If file is smaller than tail, we already scanned it; skip duplicate read
+      if (fileSize > TAIL_BYTES || fileSize <= TAIL_BYTES) {
+        // For small files (<64k) tail already covered full file, but keep logic explicit
+        if (fileSize <= TAIL_BYTES) {
+          // Already scanned full file via tail, no need for header
+          return 'unknown';
+        }
+      }
+      const fd2 = fs.openSync(transcriptPath, 'r');
+      try {
+        const buffer2 = Buffer.alloc(headerSize);
+        const bytesRead2 = fs.readSync(fd2, buffer2, 0, headerSize, 0);
+        const header = buffer2.toString('utf8', 0, bytesRead2);
+        const agent2 = agentFromText(header);
+        if (agent2) {
+          writeCachedAgent(payload, agent2);
+          return agent2;
+        }
+      } finally {
+        try { fs.closeSync(fd2); } catch {}
+      }
+    }
+  } catch (e) {
+    // Fallback to unknown
   }
 
   return 'unknown';
@@ -94,9 +196,13 @@ async function main() {
     const toolName = payload.toolCall?.name || '';
     const args = payload.toolCall?.args || {};
 
+    // Support both legacy and new tool names
+    const isDenyViewTest = toolName === 'view_file';
+    const isDenyWriteTest = toolName === 'write_to_file' || toolName === 'replace_file_content' || toolName === 'multi_replace_file_content';
+    const isGrep = toolName === 'grep_search';
+
     if (agent === 'senior-implementer') {
-      // Rule 1: No reading test files
-      if (toolName === 'view_file') {
+      if (isDenyViewTest) {
         const filePath = args.AbsolutePath || '';
         if (isTestFile(filePath)) {
           console.log(JSON.stringify({
@@ -107,8 +213,7 @@ async function main() {
         }
       }
 
-      // Rule 2: No modifying / creating test files
-      if (toolName === 'write_to_file' || toolName === 'replace_file_content') {
+      if (isDenyWriteTest) {
         const filePath = args.TargetFile || '';
         if (isTestFile(filePath)) {
           console.log(JSON.stringify({
@@ -119,8 +224,7 @@ async function main() {
         }
       }
 
-      // Rule 3: No searching test files
-      if (toolName === 'grep_search') {
+      if (isGrep) {
         const searchPath = args.SearchPath || '';
         const includes = args.Includes || [];
         if (isTestFile(searchPath) || includes.some(inc => isTestFile(inc))) {
@@ -134,8 +238,7 @@ async function main() {
     }
 
     if (agent === 'senior-qa-engineer') {
-      // Rule 1: No writing to non-test files
-      if (toolName === 'write_to_file' || toolName === 'replace_file_content') {
+      if (isDenyWriteTest) {
         const filePath = args.TargetFile || '';
         if (!isTestFile(filePath)) {
           console.log(JSON.stringify({
@@ -146,8 +249,7 @@ async function main() {
         }
       }
 
-      // Rule 2: Black-Box reading - only tests, contracts, docs, configs
-      if (toolName === 'view_file') {
+      if (isDenyViewTest) {
         const filePath = args.AbsolutePath || '';
         if (!isAllowedQAReadPath(filePath)) {
           console.log(JSON.stringify({
@@ -158,8 +260,7 @@ async function main() {
         }
       }
 
-      // Rule 3: Grep searching internal app code without filtering to tests
-      if (toolName === 'grep_search') {
+      if (isGrep) {
         const searchPath = args.SearchPath || '';
         const includes = args.Includes || [];
         const isTargetingAppCode = /src\/(apps|modules|services|controllers|repositories)/i.test(normalizePath(searchPath));

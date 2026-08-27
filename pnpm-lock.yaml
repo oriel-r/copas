@@ -246,6 +246,9 @@ importers:
       '@copas/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@copas/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@copas/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -414,6 +417,9 @@ importers:
 
   src/apps/extractor:
     dependencies:
+      '@copas/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       hono:
         specifier: ^4.12.33
         version: 4.12.33

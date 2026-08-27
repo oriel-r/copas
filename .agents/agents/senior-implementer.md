@@ -5,6 +5,8 @@ model: pro
 commandExecutionPolicy: sandbox
 mainAgent: true
 subagent: true
+rules:
+  - senior-implementer-boundaries
 tools:
   - view_file
   - write_to_file

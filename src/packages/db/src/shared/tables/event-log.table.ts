@@ -9,7 +9,7 @@ import { id } from './id.table'
  * @see DER §Convenciones: "Logs de eventos ... llevan solo created_at"
  */
 export const eventLog = {
-  created_at: integer('created_at', { mode: 'timestamp_ms' })
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
 }

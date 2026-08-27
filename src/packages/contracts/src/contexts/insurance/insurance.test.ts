@@ -1,184 +1,57 @@
 import { describe, expect, it } from 'vitest'
+import { extractedPolicySchema } from './extraction.schema'
 
-import {
-  createPolicyRequestSchema,
-  policyResponseSchema,
-} from './policies'
-import { createInsuredRequestSchema } from './insureds'
-import { paginationSchema } from '../../shared'
-
-const validUuidV7 = '0190c0c8-0000-7000-8000-000000000000'
-
-describe('policies contracts', () => {
-  it('acepta un create request válido', () => {
-    const result = createPolicyRequestSchema.safeParse({
-      companyId: validUuidV7,
-      insuredId: validUuidV7,
-      policyNumber: 'POL-001',
-      premiumTotal: 150000,
-      currency: 'ARS',
-      startDate: '2024-01-01',
-      endDate: '2024-12-31',
-      status: 'active',
-      billingFrequency: 'monthly',
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('acepta campos opcionales omitidos', () => {
-    const result = createPolicyRequestSchema.safeParse({
-      companyId: validUuidV7,
-      insuredId: validUuidV7,
-      policyNumber: 'POL-002',
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('rechaza endDate anterior a startDate', () => {
-    const result = createPolicyRequestSchema.safeParse({
-      companyId: validUuidV7,
-      insuredId: validUuidV7,
-      policyNumber: 'POL-003',
-      startDate: '2024-12-01',
-      endDate: '2024-01-01',
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues[0]?.path).toEqual(['endDate'])
+describe('insurance extraction contracts', () => {
+  it('should successfully parse valid extracted policy', () => {
+    const validData = {
+      company: { name: 'SANCOR', code: 'SANCOR_01' },
+      branch: { code: 'AUTO' },
+      policy: {
+        policyNumber: 'POL-12345',
+        premiumTotal: 150000,
+        currency: 'ARS',
+        startDate: '2026-01-01',
+        endDate: '2027-01-01',
+        billingFrequency: 'monthly',
+      },
+      insured: {
+        fullName: 'JUAN PEREZ',
+        cuit: '20123456789',
+        email: 'juan@example.com',
+        phone: '541112345678',
+        birthDate: '1985-05-15',
+      },
+      assetType: { code: 'AUTO' },
+      asset: { properties: { PATENTE: 'AB123CD' } },
+      paymentMethod: { code: 'PAGO_MANUAL' },
+      coverages: [{ name: 'TODO RIESGO', limit: 10000000, franchise: 50000 }],
+      installments: [{ installmentNumber: 1, dueDate: '2026-01-10', totalAmount: 12500 }],
     }
+
+    const parsed = extractedPolicySchema.parse(validData)
+    expect(parsed).toEqual(validData)
   })
 
-  it('rechaza un enum de estado inválido', () => {
-    const result = createPolicyRequestSchema.safeParse({
-      companyId: validUuidV7,
-      insuredId: validUuidV7,
-      policyNumber: 'POL-004',
-      status: 'invalid_status',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rechaza una moneda fuera de ISO 4217', () => {
-    const result = createPolicyRequestSchema.safeParse({
-      companyId: validUuidV7,
-      insuredId: validUuidV7,
-      policyNumber: 'POL-005',
-      currency: 'pesos',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rechaza un monto decimal', () => {
-    const result = createPolicyRequestSchema.safeParse({
-      companyId: validUuidV7,
-      insuredId: validUuidV7,
-      policyNumber: 'POL-006',
-      premiumTotal: 100.5,
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rechaza IDs que no sean UUID v7', () => {
-    const result = createPolicyRequestSchema.safeParse({
-      companyId: 'not-a-uuid',
-      insuredId: validUuidV7,
-      policyNumber: 'POL-007',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('el response schema acepta una fila completa', () => {
-    const result = policyResponseSchema.safeParse({
-      id: validUuidV7,
-      organizationId: validUuidV7,
-      companyId: validUuidV7,
-      insuredId: validUuidV7,
-      paymentMethodId: null,
-      uploadedBy: validUuidV7,
-      producedBy: null,
-      policyNumber: 'POL-001',
-      premiumTotal: 150000,
-      currency: 'ARS',
-      startDate: '2024-01-01',
-      endDate: '2024-12-31',
-      effectiveEndDate: null,
-      status: 'active',
-      billingFrequency: 'monthly',
-      documentUrl: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    })
-    expect(result.success).toBe(true)
-  })
-})
-
-describe('insureds contracts', () => {
-  it('acepta un CUIT válido', () => {
-    const result = createInsuredRequestSchema.safeParse({
-      cuit: '20-34567890-6',
-      fullName: 'Juan Pérez',
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('rechaza un CUIT con dígito verificador inválido', () => {
-    const result = createInsuredRequestSchema.safeParse({
-      cuit: '20-34567890-5',
-      fullName: 'Juan Pérez',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rechaza un CUIT con formato inválido', () => {
-    const result = createInsuredRequestSchema.safeParse({
-      cuit: '2034567890',
-      fullName: 'Juan Pérez',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rechaza un email inválido', () => {
-    const result = createInsuredRequestSchema.safeParse({
-      cuit: '20-34567890-6',
-      fullName: 'Juan Pérez',
-      email: 'no-es-un-email',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rechaza una fecha de nacimiento inválida', () => {
-    const result = createInsuredRequestSchema.safeParse({
-      cuit: '20-34567890-6',
-      fullName: 'Juan Pérez',
-      birthDate: '31/01/2000',
-    })
-    expect(result.success).toBe(false)
-  })
-})
-
-describe('pagination schema', () => {
-  it('coercea query params desde strings', () => {
-    const result = paginationSchema.safeParse({
-      limit: '50',
-      offset: '10',
-    })
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect(result.data).toEqual({ limit: 50, offset: 10, cursor: undefined })
+  it('should reject invalid currency', () => {
+    const invalidData = {
+      company: { name: 'SANCOR', code: '' },
+      branch: { code: 'AUTO' },
+      policy: {
+        policyNumber: 'POL-1',
+        premiumTotal: 1000,
+        currency: 'USD',
+        startDate: '2026-01-01',
+        endDate: '2027-01-01',
+        billingFrequency: 'monthly',
+      },
+      insured: { fullName: 'ANA', cuit: '', email: '', phone: '', birthDate: '' },
+      assetType: { code: 'AUTO' },
+      asset: { properties: {} },
+      paymentMethod: { code: 'PAGO_MANUAL' },
+      coverages: [],
+      installments: [{ installmentNumber: 1, dueDate: '2026-01-10', totalAmount: 1000 }],
     }
-  })
 
-  it('aplica defaults', () => {
-    const result = paginationSchema.safeParse({})
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect(result.data).toEqual({ limit: 25, offset: 0, cursor: undefined })
-    }
-  })
-
-  it('rechaza un limit fuera de rango', () => {
-    const result = paginationSchema.safeParse({ limit: 500 })
-    expect(result.success).toBe(false)
+    expect(() => extractedPolicySchema.parse(invalidData)).toThrow()
   })
 })

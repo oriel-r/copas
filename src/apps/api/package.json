@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@copas/auth": "workspace:*",
+    "@copas/contracts": "workspace:*",
     "@copas/db": "workspace:*",
     "better-auth": "^1.7.1",
     "drizzle-orm": "1.0.0-rc.4",

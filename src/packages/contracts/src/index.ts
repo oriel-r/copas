@@ -4,3 +4,5 @@ export * from './contexts/reminders'
 export * from './contexts/communications'
 export * from './contexts/ai'
 export * from './shared'
+export { z } from 'zod'
+

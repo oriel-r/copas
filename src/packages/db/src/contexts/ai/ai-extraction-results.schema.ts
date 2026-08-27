@@ -10,13 +10,10 @@ export const aiExtractionResults = sqliteTable(
   'ai_extraction_results',
   {
     ...entity,
-    // TODO: make nullable — result is created before policy (link only).
-    // Change to: fk('policyId').references(() => policies.id, { onDelete: 'cascade' }),
-    policyId: fk('policyId', true).references(() => policies.id, {
+    policyId: fk('policyId').references(() => policies.id, {
       onDelete: 'cascade',
     }),
-    // TODO: add document link column (e.g. documentUrl: text('documentUrl')).
-    // Pending result holds only the R2 key; policies.documentUrl does not exist yet.
+    documentUrl: text('documentUrl'),
     status: text('status').notNull().default('pending'),
     result: json<Record<string, unknown>>('result'),
     corrections: json<Record<string, unknown>>('corrections'),

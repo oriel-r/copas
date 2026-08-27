@@ -5,6 +5,8 @@ model: flash
 commandExecutionPolicy: sandbox
 mainAgent: true
 subagent: true
+rules:
+  - senior-qa-engineer-boundaries
 tools:
   - view_file
   - write_to_file

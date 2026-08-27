@@ -40,10 +40,7 @@ export const policies = sqliteTable(
     producedBy: fk('producedBy').references(() => user.id, {
       onDelete: 'set null',
     }),
-    // TODO: make nullable — policy is created from extraction result; number may
-    // arrive later (filled by PAS). Adjust unique index to partial WHERE policyNumber IS NOT NULL.
-    // Change to: text('policyNumber'),
-    policyNumber: text('policyNumber').notNull(),
+    policyNumber: text('policyNumber'),
     premiumTotal: money('premiumTotal'),
     currency: currency(),
     startDate: dateCivil('startDate'),
@@ -54,11 +51,9 @@ export const policies = sqliteTable(
     documentUrl: text('documentUrl'),
   },
   (table) => [
-    uniqueIndex('policies_org_company_number_uq').on(
-      table.organizationId,
-      table.companyId,
-      table.policyNumber,
-    ),
+    uniqueIndex('policies_org_company_number_uq')
+      .on(table.organizationId, table.companyId, table.policyNumber)
+      .where(sql`${table.policyNumber} IS NOT NULL`),
     index('policies_insured_id_idx').on(table.insuredId),
     index('policies_company_id_idx').on(table.companyId),
     index('policies_payment_method_id_idx').on(table.paymentMethodId),

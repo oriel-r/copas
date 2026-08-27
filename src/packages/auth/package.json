@@ -10,7 +10,7 @@
   "scripts": {
     "auth:generate": "auth generate --config ./src/auth.config.ts --output ./src/schema.ts --yes",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.1",

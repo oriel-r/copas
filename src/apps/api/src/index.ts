@@ -1,24 +1,41 @@
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
+import { Hono } from 'hono';
+import { applyMiddlewares } from './core/setup/app.middlewares';
+import { registerRoutes } from './core/setup/app.router';
+import { registerErrorHandlers } from './core/setup/app.errors';
+import type { AppEnv } from './core/types/env';
 
-import { authRoutes } from './modules/auth'
+// 1. Create the main instance
+const app = new Hono<AppEnv>();
 
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+// 2. Bootstrap in strict order
+applyMiddlewares(app);
+registerRoutes(app);
+registerErrorHandlers(app);
 
-app.get('/', (c) => {
-  return c.json({ service: 'api', status: 'ok' })
-})
+import { createInsuranceModule } from './modules/insurance/insurance.module';
 
-app.use(
-  '/auth/*',
-  cors({
-    origin: (origin, c) => {
-      return origin === c.env.CLIENT_URL ? origin : ''
-    },
-    credentials: true,
-  }),
-)
+// 3. Export app with queue handler
+const handler = Object.assign(app, {
+  fetch: app.fetch.bind(app),
+  async queue(batch: MessageBatch<any>, env: any, ctx: ExecutionContext) {
+    if (batch?.messages) {
+      for (const message of batch.messages) {
+        const body = message.body;
+        if (body?.type === 'ai-result' || body?.structuredPayload) {
+          const payload = body.payload ?? body;
+          const tenantId = body.metadata?.organizationId || payload.tenantId || 'default';
+          const insuranceModule = createInsuranceModule(
+            env.DB,
+            tenantId,
+            env.DOCUMENT_BUCKET,
+            env.AI_QUEUE
+          );
+          await insuranceModule.policies.processAiResult(payload);
+        }
+      }
+    }
+  }
+});
 
-app.route('/auth', authRoutes)
+export default handler;
 
-export default app
