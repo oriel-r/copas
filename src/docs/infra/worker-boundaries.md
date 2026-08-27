@@ -3,7 +3,7 @@ type: convention
 producer: oriel
 status: draft
 created: 2026-08-25
-updated:
+updated: 2026-08-26
 expires:
 deprecatedReason: ""
 supersededBy: ""
@@ -11,27 +11,27 @@ supersededBy: ""
 
 # Worker Boundaries
 
-Reglas para separar el código en Workers. Refleja la
-[topología de servicios](/docs/servicios/topologia_de_servicios.md).
+Rules for splitting code across Workers. Mirrors the
+[service topology](/docs/servicios/topologia_de_servicios.md).
 
-## Un solo escritor del dominio
+## Single domain writer
 
-- Solo `api` escribe tablas de dominio en D1.
-- Los adapters no tienen binding D1 de escritura.
-- Evitar leer el dominio en un adapter: pasar lo necesario en el payload de la cola.
-  Si es indispensable, solo lectura.
+- Only `api` writes domain tables in D1.
+- Adapters have no write D1 binding.
+- Avoid reading the domain in an adapter: pass what's needed in the queue payload.
+  If unavoidable, read-only.
 
 ## Adapter
 
-- Sin estado: I/O con servicio externo (Resend, WhatsApp Cloud, IA).
-- Los contratos de cola (payloads) viven en `@copas/contracts`.
+- Stateless: I/O with an external service (Resend, WhatsApp Cloud, AI).
+- Queue contracts (payloads) live in `@copas/contracts`.
 
-## Comunicación
+## Communication
 
-- **Queue** para todo lo async (envío, extracción, webhooks).
-- **Service binding** solo si un worker necesita una llamada sincrónica a otro.
+- **Queue** for all async work (sending, extraction, webhooks).
+- **Service binding** only when a worker needs a synchronous call to another.
 
 ## Deploy
 
-- Cada worker es un deploy separado.
-- Con service binding, el worker llamado se deploya primero.
+- Each worker is a separate deploy.
+- With service binding, the called worker deploys first.

@@ -40,6 +40,9 @@ export const policies = sqliteTable(
     producedBy: fk('producedBy').references(() => user.id, {
       onDelete: 'set null',
     }),
+    // TODO: make nullable — policy is created from extraction result; number may
+    // arrive later (filled by PAS). Adjust unique index to partial WHERE policyNumber IS NOT NULL.
+    // Change to: text('policyNumber'),
     policyNumber: text('policyNumber').notNull(),
     premiumTotal: money('premiumTotal'),
     currency: currency(),

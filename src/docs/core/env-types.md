@@ -3,7 +3,7 @@ type: convention
 producer: oriel
 status: draft
 created: 2026-08-25T14:05:00.000Z
-updated:
+updated: 2026-08-26
 expires: 
 deprecatedReason: ""
 supersededBy: ""
@@ -11,11 +11,11 @@ supersededBy: ""
 
 # Env Types
 
-`AppEnv` solo vive en `core/types/env.ts`; el resto de docs y módulos lo importan, nunca lo redefinen.
+`AppEnv` lives only in `core/types/env.ts`. Everything else imports it, never redefines it.
 
-- `services` se tipa con el tipo exportado de cada servicio (`XService`), uno por módulo.
-- `InfraEnv` (bindings: `DB`, `AUTH_KV`, secrets) viene de `infra/types` y se fusiona con `&`.
-- `tenantId` se inyecta vía middleware global.
+- `services` is typed with each service's exported type (`XService`), one per module.
+- `InfraEnv` (bindings: `DB`, `AUTH_KV`, secrets) comes from `infra/types` and is merged with `&`.
+- `tenantId` is injected via a global middleware.
 
 ```typescript
 // src/core/types/env.ts

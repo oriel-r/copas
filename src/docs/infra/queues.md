@@ -3,7 +3,7 @@ type: convention
 producer: oriel
 status: draft
 created: 2026-08-25
-updated:
+updated: 2026-08-26
 expires:
 deprecatedReason: ""
 supersededBy: ""
@@ -11,9 +11,9 @@ supersededBy: ""
 
 # Queues
 
-## Colas
+## Queues
 
-| Cola | Productor | Consumidor |
+| Queue | Producer | Consumer |
 |---|---|---|
 | `email` | `api` | `email-service` |
 | `whatsapp` | `api`, `scheduler` | `whatsapp-service` |
@@ -25,7 +25,7 @@ supersededBy: ""
 
 ```ts
 type Envelope<T = unknown> = {
-  type: string // discrimina el caso
+  type: string // discriminates the case
   payload: T
   metadata?: {
     organizationId: string
@@ -34,9 +34,9 @@ type Envelope<T = unknown> = {
 }
 ```
 
-## Reglas
+## Rules
 
-- Por la cola pasan claves de R2 (`policyAssetKey`), nunca binarios.
-- Entrega at-least-once: el consumer es idempotente por `idempotencyKey`
-  (o `deduplication_hash` donde aplique).
-- El consumer hace ack/retry; no asume entrega única.
+- Queues carry identifiers and temporary access URLs (e.g. `documentUrl`), never binaries.
+- At-least-once delivery: consumers are idempotent via `idempotencyKey`
+  (or `deduplication_hash` where applicable).
+- Consumers ack/retry; they never assume single delivery.

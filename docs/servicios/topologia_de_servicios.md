@@ -31,8 +31,9 @@ hacen I/O externa y no escriben el dominio.
 
 ## Decisiones
 
-- **`extractor` extrae, `api` registra.** El extractor devuelve JSON; `api` escribe
-  `ai_extraction_results` y, tras revisión, crea la póliza (transaccional).
+- **`extractor` extrae, `api` registra.** El extractor devuelve JSON; `api` persiste
+  `ai_extraction_results` (`on_review`) y, al recibir el resultado, crea la póliza
+  y sus entidades (transaccional). La revisión humana es posterior (aprobación).
 - **WhatsApp enruta por `conversation_id`.** El webhook llega a `whatsapp-service`,
   que re-encola con `conversation_id`; `api` resuelve a qué asegurado/póliza pertenece.
 - **Email renderiza en `api`.** `email-service` solo envía; recibe el mensaje listo.

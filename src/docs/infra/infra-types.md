@@ -3,7 +3,7 @@ type: convention
 producer: oriel
 status: draft
 created: 2026-08-25T14:10:00.000Z
-updated:
+updated: 2026-08-26
 expires: 
 deprecatedReason: ""
 supersededBy: ""
@@ -11,7 +11,7 @@ supersededBy: ""
 
 # Infra Types
 
-`InfraEnv` vive en `infra/types.ts` y define los bindings de la app (nombres ilustrativos). Se fusiona con las `Variables` del core vía `&` para componer `AppEnv` (ver [Env Types](/core/env-types.md)).
+`InfraEnv` lives in `infra/types.ts` and defines the app bindings (illustrative names). It merges with core `Variables` via `&` to compose `AppEnv` (see [Env Types](/core/env-types.md)).
 
 ```typescript
 // infra/types.ts
