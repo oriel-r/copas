@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription } from '@copas/ui'
 import { useSession } from '@/lib/session'
-import { PageLoader } from '@/components/ui/page-loader'
+import { PageLoader } from '@copas/ui'
 import { AppShell } from '@/components/layout/app-shell'
 
 export function RequireSession() {

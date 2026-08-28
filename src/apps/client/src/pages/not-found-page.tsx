@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@copas/ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@copas/ui'
 import { AppShell } from '@/components/layout/app-shell'
 
 export function NotFoundPage() {

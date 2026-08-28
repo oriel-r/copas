@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router'
 import { useSession } from '@/lib/session'
-import { PageLoader } from '@/components/ui/page-loader'
+import { PageLoader } from '@copas/ui'
 
 export function PublicOnly() {
   const { data: session, isPending } = useSession()

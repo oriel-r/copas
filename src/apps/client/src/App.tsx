@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { lazy, Suspense } from 'react'
 import { PublicOnly } from '@/components/auth/public-only'
 import { RequireSession } from '@/components/auth/require-session'
-import { PageLoader } from '@/components/ui/page-loader'
+import { PageLoader } from '@copas/ui'
 
 const LoginPage = lazy(() => import('@/pages/auth/login-page').then((m) => ({ default: m.LoginPage })))
 const DashboardPage = lazy(() => import('@/pages/dashboard/dashboard-page').then((m) => ({ default: m.DashboardPage })))

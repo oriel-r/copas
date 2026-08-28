@@ -1,12 +1,12 @@
 import { useMutation } from '@tanstack/react-query'
 import LogoutIcon from '~icons/material-symbols/logout'
 import LoadingIcon from '~icons/material-symbols/progress-activity'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@copas/ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@copas/ui'
 import { signOut } from '@/lib/session'
 import { getErrorMessage } from '@/lib/errors'
 import { AppShell } from '@/components/layout/app-shell'
-import { FormError } from '@/components/ui/form-error'
+import { FormError } from '@copas/ui'
 
 export function DashboardPage() {
   const signOutMutation = useMutation({

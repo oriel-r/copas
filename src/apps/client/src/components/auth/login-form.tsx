@@ -2,12 +2,12 @@ import { useMutation } from '@tanstack/react-query'
 import GoogleIcon from '~icons/logos/google-icon'
 import MicrosoftIcon from '~icons/logos/microsoft-icon'
 import LoadingIcon from '~icons/material-symbols/progress-activity'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@copas/ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@copas/ui'
 import { signInSocial, type OAuthProvider } from '@/lib/session'
 import { getErrorMessage } from '@/lib/errors'
-import { cn } from '@/lib/utils'
-import { FormError } from '@/components/ui/form-error'
+import { cn } from '@copas/ui'
+import { FormError } from '@copas/ui'
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const signInMutation = useMutation({
