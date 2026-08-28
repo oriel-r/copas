@@ -3,6 +3,7 @@ export * from './contexts/billing'
 export * from './contexts/reminders'
 export * from './contexts/communications'
 export * from './contexts/ai'
+export * from './contexts/auth'
 export * from './shared'
 export { z } from 'zod'
 

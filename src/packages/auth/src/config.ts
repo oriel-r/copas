@@ -158,6 +158,17 @@ function baseConfig(config: AuthConfig) {
     },
 
     databaseHooks: {
+      user: {
+        create: {
+          before: async (user, ctx) => {
+            // TODO: Implement Whitelist logic for Admin Portal
+            // 1. Check ctx.request?.url for '/admin/user/create'
+            // 2. Validate ctx.session role is 'admin'
+            // 3. Throw APIError if public signup
+            throw new Error('Not implemented: Admin Whitelist Database Hook');
+          },
+        },
+      },
       organization: {
         create: {
           before: async (org: any) => {
