@@ -49,6 +49,18 @@ describe('policy-assets.repository', () => {
       const result = await repository.findByAssetId('ast-1')
       expect(result).toEqual(junctions)
     })
+
+    it('should use transaction tx in findByAssetId when provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce([{ policyId: 'pol-1', assetId: 'ast-1' }]),
+      }
+
+      const result = await repository.findByAssetId('ast-1', mockTx as any)
+      expect(result).toEqual([{ policyId: 'pol-1', assetId: 'ast-1' }])
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('create', () => {
@@ -82,5 +94,16 @@ describe('policy-assets.repository', () => {
       await repository.delete('pol-1', 'ast-1')
       expect(mockDb.delete).toHaveBeenCalled()
     })
+
+    it('should propagate transaction tx in delete', async () => {
+      const mockTx = {
+        delete: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),
+      }
+
+      await repository.delete('pol-1', 'ast-1', mockTx as any)
+      expect(mockTx.delete).toHaveBeenCalled()
+    })
   })
 })
+

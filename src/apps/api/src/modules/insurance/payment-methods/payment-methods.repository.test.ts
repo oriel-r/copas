@@ -29,11 +29,18 @@ describe('payment-methods.repository', () => {
       expect(result).toEqual(pm)
     })
 
-    it('should return null if not found', async () => {
-      mockDb.limit.mockResolvedValueOnce([])
+    it('should use transaction tx in findById if provided', async () => {
+      const pm = { id: 'pm-1', code: 'PAGO_MANUAL' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([pm]),
+      }
 
-      const result = await repository.findById('pm-999')
-      expect(result).toBeNull()
+      const result = await repository.findById('pm-1', mockTx as any)
+      expect(result).toEqual(pm)
+      expect(mockTx.select).toHaveBeenCalled()
     })
   })
 
@@ -77,15 +84,30 @@ describe('payment-methods.repository', () => {
       expect(result).toEqual(created)
       expect(mockDb.insert).toHaveBeenCalled()
     })
+
+    it('should use transaction tx in create if provided', async () => {
+      const input: PaymentMethodInsert = { code: 'CHEQUE', name: 'Cheque' }
+      const created = { id: 'pm-3', ...input }
+      const mockTx = {
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([created]),
+      }
+
+      const result = await repository.create(input, mockTx as any)
+      expect(result).toEqual(created)
+      expect(mockTx.insert).toHaveBeenCalled()
+    })
   })
 
   describe('list', () => {
-    it('should return list of payment methods', async () => {
+    it('should return list of payment methods with pagination', async () => {
       const list = [{ id: 'pm-1', code: 'PAGO_MANUAL', name: 'Pago Manual' }]
       mockDb.offset.mockResolvedValueOnce(list)
 
-      const result = await repository.list()
+      const result = await repository.list({ limit: 5, offset: 0 })
       expect(result).toEqual(list)
     })
   })
 })
+

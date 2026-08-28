@@ -49,11 +49,18 @@ describe('policies.repository', () => {
       expect(result).toEqual(policy)
     })
 
-    it('should return null if policy not found', async () => {
-      mockDb.limit.mockResolvedValueOnce([])
+    it('should use transaction tx in findById if provided', async () => {
+      const policy = { id: 'pol-1', policyNumber: 'POL-TX' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([policy]),
+      }
 
-      const result = await repository.findById('pol-999')
-      expect(result).toBeNull()
+      const result = await repository.findById('pol-1', mockTx as any)
+      expect(result).toEqual(policy)
+      expect(mockTx.select).toHaveBeenCalled()
     })
   })
 
@@ -72,6 +79,20 @@ describe('policies.repository', () => {
 
       const result = await repository.findByNumber('org-1', 'comp-1', 'NON-EXISTENT')
       expect(result).toBeNull()
+    })
+
+    it('should use transaction tx in findByNumber if provided', async () => {
+      const policy = { id: 'pol-1', policyNumber: 'POL-TX' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([policy]),
+      }
+
+      const result = await repository.findByNumber('org-1', 'comp-1', 'POL-TX', mockTx as any)
+      expect(result).toEqual(policy)
+      expect(mockTx.select).toHaveBeenCalled()
     })
   })
 
@@ -128,6 +149,39 @@ describe('policies.repository', () => {
       const result = await repository.update('pol-1', { status: 'renewed' })
       expect(result).toEqual(updated)
     })
+
+    it('should use transaction tx in update if provided', async () => {
+      const updated = { id: 'pol-1', status: 'renewed' }
+      const mockTx = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([updated]),
+      }
+
+      const result = await repository.update('pol-1', { status: 'renewed' }, mockTx as any)
+      expect(result).toEqual(updated)
+      expect(mockTx.update).toHaveBeenCalled()
+    })
+  })
+
+  describe('delete', () => {
+    it('should delete policy by id', async () => {
+      mockDb.where.mockResolvedValueOnce({ rowCount: 1 })
+
+      await repository.delete('pol-1')
+      expect(mockDb.delete).toHaveBeenCalled()
+    })
+
+    it('should use transaction tx in delete if provided', async () => {
+      const mockTx = {
+        delete: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),
+      }
+
+      await repository.delete('pol-1', mockTx as any)
+      expect(mockTx.delete).toHaveBeenCalled()
+    })
   })
 
   describe('list', () => {
@@ -140,3 +194,4 @@ describe('policies.repository', () => {
     })
   })
 })
+

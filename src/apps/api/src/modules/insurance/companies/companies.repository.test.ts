@@ -100,6 +100,19 @@ describe('companies.repository', () => {
       const result = await repository.findByName('UNKNOWN')
       expect(result).toBeNull()
     })
+
+    it('should use transaction tx in findByName when provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([{ id: 'comp-1', name: 'SANCOR' }]),
+      }
+
+      const result = await repository.findByName('SANCOR', mockTx as any)
+      expect(result).toEqual({ id: 'comp-1', name: 'SANCOR' })
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('create', () => {
@@ -129,6 +142,31 @@ describe('companies.repository', () => {
     })
   })
 
+  describe('update', () => {
+    it('should update company and return updated record', async () => {
+      const updated = { id: 'comp-1', name: 'SANCOR UPDATED' }
+      mockDb.returning.mockResolvedValueOnce([updated])
+
+      const result = await (repository as any).update('comp-1', { name: 'SANCOR UPDATED' })
+      expect(result).toEqual(updated)
+      expect(mockDb.update).toHaveBeenCalled()
+    })
+
+    it('should use transaction tx in update if provided', async () => {
+      const updated = { id: 'comp-1', name: 'SANCOR TX' }
+      const mockTx = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([updated]),
+      }
+
+      const result = await (repository as any).update('comp-1', { name: 'SANCOR TX' }, mockTx as any)
+      expect(result).toEqual(updated)
+      expect(mockTx.update).toHaveBeenCalled()
+    })
+  })
+
   describe('list', () => {
     it('should return list of companies', async () => {
       const list = [
@@ -149,3 +187,6 @@ describe('companies.repository', () => {
     })
   })
 })
+
+
+

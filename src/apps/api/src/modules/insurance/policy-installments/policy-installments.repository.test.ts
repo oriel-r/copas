@@ -58,6 +58,20 @@ describe('policy-installments.repository', () => {
       const result = await repository.findById('inst-1')
       expect(result).toEqual(installment)
     })
+
+    it('should use transaction tx in findById if provided', async () => {
+      const installment = { id: 'inst-1', policyId: 'pol-1', installmentNumber: 1 }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([installment]),
+      }
+
+      const result = await repository.findById('inst-1', mockTx as any)
+      expect(result).toEqual(installment)
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('create', () => {
@@ -77,6 +91,28 @@ describe('policy-installments.repository', () => {
       const result = await repository.create(input)
       expect(result).toEqual(created)
       expect(mockDb.insert).toHaveBeenCalled()
+    })
+
+    it('should use transaction tx in create if provided', async () => {
+      const input: PolicyInstallmentInsert = {
+        organizationId: 'org-1',
+        policyId: 'pol-1',
+        uploadedBy: 'usr-1',
+        installmentNumber: 1,
+        dueDate: '2026-01-10',
+        totalAmount: 15000,
+        currency: 'ARS',
+      }
+      const created = { id: 'inst-1', ...input }
+      const mockTx = {
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([created]),
+      }
+
+      const result = await repository.create(input, mockTx as any)
+      expect(result).toEqual(created)
+      expect(mockTx.insert).toHaveBeenCalled()
     })
   })
 
@@ -120,5 +156,20 @@ describe('policy-installments.repository', () => {
       const result = await repository.update('inst-1', { status: 'paid' })
       expect(result).toEqual(updated)
     })
+
+    it('should use transaction tx in update if provided', async () => {
+      const updated = { id: 'inst-1', status: 'paid' }
+      const mockTx = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([updated]),
+      }
+
+      const result = await repository.update('inst-1', { status: 'paid' }, mockTx as any)
+      expect(result).toEqual(updated)
+      expect(mockTx.update).toHaveBeenCalled()
+    })
   })
 })
+

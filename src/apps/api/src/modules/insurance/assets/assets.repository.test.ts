@@ -58,6 +58,18 @@ describe('assets.repository', () => {
       const result = await repository.findByInsuredId('ins-1')
       expect(result).toEqual(assets)
     })
+
+    it('should use transaction tx in findByInsuredId if provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce([{ id: 'ast-1', insuredId: 'ins-1' }]),
+      }
+
+      const result = await repository.findByInsuredId('ins-1', mockTx as any)
+      expect(result).toEqual([{ id: 'ast-1', insuredId: 'ins-1' }])
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('create', () => {
@@ -105,6 +117,20 @@ describe('assets.repository', () => {
       expect(result).toEqual(updated)
       expect(mockDb.update).toHaveBeenCalled()
     })
+
+    it('should use transaction tx in update if provided', async () => {
+      const updated = { id: 'ast-1', properties: { PATENTE: 'TX123' } }
+      const mockTx = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([updated]),
+      }
+
+      const result = await repository.update('ast-1', { properties: { PATENTE: 'TX123' } }, mockTx as any)
+      expect(result).toEqual(updated)
+      expect(mockTx.update).toHaveBeenCalled()
+    })
   })
 
   describe('delete', () => {
@@ -114,5 +140,16 @@ describe('assets.repository', () => {
       await repository.delete('ast-1')
       expect(mockDb.delete).toHaveBeenCalled()
     })
+
+    it('should use transaction tx in delete if provided', async () => {
+      const mockTx = {
+        delete: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),
+      }
+
+      await repository.delete('ast-1', mockTx as any)
+      expect(mockTx.delete).toHaveBeenCalled()
+    })
   })
 })
+

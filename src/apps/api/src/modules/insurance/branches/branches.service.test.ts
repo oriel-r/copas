@@ -77,13 +77,27 @@ describe('branches.service', () => {
     })
   })
 
+  describe('create', () => {
+    it('should delegate create to repository', async () => {
+      const input: BranchInsert = { code: 'LIFE', name: 'Vida' }
+      const created = { id: 'branch-5', ...input }
+      mockRepo.create.mockResolvedValueOnce(created)
+
+      const result = await service.create(input)
+      expect(result).toEqual(created)
+      expect(mockRepo.create).toHaveBeenCalledWith(input, undefined)
+    })
+  })
+
   describe('list', () => {
     it('should return list from repository', async () => {
       const branches = [{ id: 'branch-1', code: 'AUTO', name: 'Automotores' }]
       mockRepo.list.mockResolvedValueOnce(branches)
 
-      const result = await service.list()
+      const result = await service.list({ limit: 5 } as any)
       expect(result).toEqual(branches)
+      expect(mockRepo.list).toHaveBeenCalledWith({ limit: 5 }, undefined)
     })
   })
 })
+

@@ -173,5 +173,145 @@ describe('extractor: ai.service', () => {
         expect.objectContaining({ markdown: '# OCR Text Object' }),
       )
     })
+
+    it('should support LLM response wrapped in markdown json code block', async () => {
+      mockOcrClient.process.mockResolvedValueOnce('OCR Content')
+      const jsonMarkdown = `\`\`\`json\n${JSON.stringify(sampleValidExtraction)}\n\`\`\``
+      mockLlmClient.generateStructured.mockResolvedValueOnce(jsonMarkdown)
+
+      const result = await aiService.extractPolicy('https://r2.copas.app/policies/doc-markdown-fence.pdf')
+      expect(result).toEqual(sampleValidExtraction)
+    })
+
+    it('should support LLM response wrapped in code block without json tag', async () => {
+      mockOcrClient.process.mockResolvedValueOnce('OCR Content')
+      const codeBlock = `\`\`\`\n${JSON.stringify(sampleValidExtraction)}\n\`\`\``
+      mockLlmClient.generateStructured.mockResolvedValueOnce(codeBlock)
+
+      const result = await aiService.extractPolicy('https://r2.copas.app/policies/doc-codeblock.pdf')
+      expect(result).toEqual(sampleValidExtraction)
+    })
+
+    it('should support LLM response as raw JSON string', async () => {
+      mockOcrClient.process.mockResolvedValueOnce('OCR Content')
+      mockLlmClient.generateStructured.mockResolvedValueOnce(JSON.stringify(sampleValidExtraction))
+
+      const result = await aiService.extractPolicy('https://r2.copas.app/policies/doc-rawjson.pdf')
+      expect(result).toEqual(sampleValidExtraction)
+    })
+  })
+
+
+  describe('createAiService constructor variations', () => {
+    it('supports dependencies object with aiResultQueue', async () => {
+      const mockQueue = { send: vi.fn().mockResolvedValue(undefined) }
+      const service = createAiService({
+        ocrClient: mockOcrClient,
+        llmClient: mockLlmClient,
+        aiResultQueue: mockQueue as any,
+      })
+
+      mockOcrClient.process.mockResolvedValueOnce('OCR text')
+      mockLlmClient.generateStructured.mockResolvedValueOnce(sampleValidExtraction)
+
+      const result = await (service as any).processDocument({
+        documentUrl: 'https://r2.copas.app/policies/doc.pdf',
+        aiExtractionResultId: 'ext-123',
+        organizationId: 'org-abc',
+      })
+
+      expect(result).toEqual(sampleValidExtraction)
+      expect(mockQueue.send).toHaveBeenCalledWith({
+        type: 'ai-result',
+        payload: {
+          aiExtractionResultId: 'ext-123',
+          structuredPayload: sampleValidExtraction,
+        },
+        metadata: {
+          organizationId: 'org-abc',
+          idempotencyKey: 'ext-123',
+        },
+      })
+    })
+
+    it('handles default empty constructor without arguments', () => {
+      const service = createAiService()
+      expect(service).toBeDefined()
+      expect(typeof service.extractPolicy).toBe('function')
+    })
+  })
+
+  describe('processDocument', () => {
+    it('falls back to tenantId when organizationId is not present in payload', async () => {
+      const mockQueue = { send: vi.fn().mockResolvedValue(undefined) }
+      const service = createAiService({
+        ocrClient: mockOcrClient,
+        llmClient: mockLlmClient,
+        aiResultQueue: mockQueue as any,
+      })
+
+      mockOcrClient.process.mockResolvedValueOnce('OCR text')
+      mockLlmClient.generateStructured.mockResolvedValueOnce(sampleValidExtraction)
+
+      await (service as any).processDocument({
+        documentUrl: 'https://r2.copas.app/policies/doc.pdf',
+        aiExtractionResultId: 'ext-456',
+        tenantId: 'tenant-xyz',
+      })
+
+      expect(mockQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            organizationId: 'tenant-xyz',
+            idempotencyKey: 'ext-456',
+          }),
+        }),
+      )
+    })
+
+    it('falls back to "default" when neither organizationId nor tenantId is provided', async () => {
+      const mockQueue = { send: vi.fn().mockResolvedValue(undefined) }
+      const service = createAiService({
+        ocrClient: mockOcrClient,
+        llmClient: mockLlmClient,
+        aiResultQueue: mockQueue as any,
+      })
+
+      mockOcrClient.process.mockResolvedValueOnce('OCR text')
+      mockLlmClient.generateStructured.mockResolvedValueOnce(sampleValidExtraction)
+
+      await (service as any).processDocument({
+        documentUrl: 'https://r2.copas.app/policies/doc.pdf',
+        aiExtractionResultId: 'ext-789',
+      })
+
+      expect(mockQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            organizationId: 'default',
+            idempotencyKey: 'ext-789',
+          }),
+        }),
+      )
+    })
+
+    it('processes document successfully without queue when aiResultQueue is null or has no send method', async () => {
+      const service = createAiService({
+        ocrClient: mockOcrClient,
+        llmClient: mockLlmClient,
+        aiResultQueue: null as any,
+      })
+
+      mockOcrClient.process.mockResolvedValueOnce('OCR text')
+      mockLlmClient.generateStructured.mockResolvedValueOnce(sampleValidExtraction)
+
+      const result = await (service as any).processDocument({
+        documentUrl: 'https://r2.copas.app/policies/doc.pdf',
+        aiExtractionResultId: 'ext-noqueue',
+      })
+
+      expect(result).toEqual(sampleValidExtraction)
+    })
   })
 })
+

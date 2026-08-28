@@ -127,4 +127,16 @@ describe('insureds.service', () => {
       expect(mockRepo.update).toHaveBeenCalledWith('ins-1', { phone: '541199998888' }, undefined)
     })
   })
+
+  describe('list', () => {
+    it('should list insureds and delegate filters to repository', async () => {
+      const list = [{ id: 'ins-1', fullName: 'JUAN PEREZ' }]
+      mockRepo.list.mockResolvedValueOnce(list)
+
+      const result = await service.list({ organizationId: 'org-1' } as any)
+      expect(result).toEqual(list)
+      expect(mockRepo.list).toHaveBeenCalledWith({ organizationId: 'org-1' }, undefined)
+    })
+  })
 })
+

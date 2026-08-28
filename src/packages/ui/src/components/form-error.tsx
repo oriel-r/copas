@@ -1,5 +1,5 @@
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { cn } from '@/lib/utils'
+import { Alert, AlertDescription } from './alert'
+import { cn } from '../lib/utils'
 
 interface FormErrorProps {
   message: string | null

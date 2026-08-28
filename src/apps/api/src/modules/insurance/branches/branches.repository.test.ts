@@ -66,6 +66,19 @@ describe('branches.repository', () => {
       const result = await repository.findByCode('UNKNOWN')
       expect(result).toBeNull()
     })
+    it('should use transaction tx in findByCode if provided', async () => {
+      const branch = { id: 'branch-1', code: 'MOTO', name: 'Motos' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([branch]),
+      }
+
+      const result = await repository.findByCode('MOTO', mockTx as any)
+      expect(result).toEqual(branch)
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('create', () => {
@@ -78,15 +91,30 @@ describe('branches.repository', () => {
       expect(result).toEqual(created)
       expect(mockDb.insert).toHaveBeenCalled()
     })
+
+    it('should use transaction tx in create if provided', async () => {
+      const input: BranchInsert = { code: 'ART', name: 'ART' }
+      const created = { id: 'branch-3', ...input }
+      const mockTx = {
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([created]),
+      }
+
+      const result = await repository.create(input, mockTx as any)
+      expect(result).toEqual(created)
+      expect(mockTx.insert).toHaveBeenCalled()
+    })
   })
 
   describe('list', () => {
-    it('should return list of branches', async () => {
+    it('should return list of branches with pagination', async () => {
       const list = [{ id: 'branch-1', code: 'AUTO', name: 'Automotores' }]
       mockDb.offset.mockResolvedValueOnce(list)
 
-      const result = await repository.list()
+      const result = await repository.list({ limit: 5, offset: 0 })
       expect(result).toEqual(list)
     })
   })
 })
+

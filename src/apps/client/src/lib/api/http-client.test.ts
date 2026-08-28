@@ -136,5 +136,57 @@ describe('http client', () => {
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     const headers = init.headers as Record<string, string>
     expect(headers['X-Custom-Header']).toBe('custom-val')
+    expect(headers['Accept']).toBe('application/json')
+  })
+
+  it('handles FormData bodies without setting application/json Content-Type', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ uploaded: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const formData = new FormData()
+    formData.append('file', 'test-file-content')
+
+    const result = await http.post<{ uploaded: boolean }>('/api/upload', formData)
+    expect(result).toEqual({ uploaded: true })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(init.body).toBe(formData)
+    const headers = init.headers as Record<string, string>
+    expect(headers['Content-Type']).toBeUndefined()
+  })
+
+  it('returns raw text response when response content-type is not JSON', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('raw text content', {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await http.get<string>('/api/text')
+    expect(result).toBe('raw text content')
+  })
+
+  it('supports direct http.request calls with custom options', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ custom: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await http.request<{ custom: boolean }>('/api/direct', { method: 'OPTIONS' })
+    expect(result).toEqual({ custom: true })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(init.method).toBe('OPTIONS')
   })
 })
+

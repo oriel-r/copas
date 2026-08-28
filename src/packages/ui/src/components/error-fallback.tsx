@@ -1,6 +1,5 @@
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AppShell } from '@/components/layout/app-shell'
+import { Button } from './button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card'
 
 interface ErrorFallbackProps {
   error: Error
@@ -9,7 +8,7 @@ interface ErrorFallbackProps {
 
 export function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
   return (
-    <AppShell>
+    <main className="app-shell">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Algo salió mal</CardTitle>
@@ -25,6 +24,6 @@ export function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps)
           </Button>
         </CardContent>
       </Card>
-    </AppShell>
+    </main>
   )
 }

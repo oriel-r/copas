@@ -122,14 +122,28 @@ describe('companies.service', () => {
     })
   })
 
-  describe('list', () => {
-    it('should delegate list to repository', async () => {
-      const list = [{ id: 'comp-1', code: 'SANCOR', name: 'SANCOR' }]
-      mockRepo.list.mockResolvedValueOnce(list)
+  describe('findByName', () => {
+    it('should delegate findByName to repository', async () => {
+      const company = { id: 'comp-1', code: 'ZURICH', name: 'ZURICH' }
+      mockRepo.findByName.mockResolvedValueOnce(company)
 
-      const result = await service.list({ limit: 10 })
-      expect(result).toEqual(list)
-      expect(mockRepo.list).toHaveBeenCalledWith({ limit: 10 }, undefined)
+      const result = await service.findByName('ZURICH')
+      expect(result).toEqual(company)
+      expect(mockRepo.findByName).toHaveBeenCalledWith('ZURICH', undefined)
+    })
+  })
+
+  describe('update', () => {
+    it('should delegate update to repository', async () => {
+      const updated = { id: 'comp-1', code: 'SANCOR', name: 'SANCOR SEGUROS UPDATED' }
+      mockRepo.update.mockResolvedValueOnce(updated)
+
+      const result = await (service as any).update('comp-1', { name: 'SANCOR SEGUROS UPDATED' } as any)
+      expect(result).toEqual(updated)
+      expect(mockRepo.update).toHaveBeenCalledWith('comp-1', { name: 'SANCOR SEGUROS UPDATED' }, undefined)
     })
   })
 })
+
+
+

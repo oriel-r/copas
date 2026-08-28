@@ -1,11 +1,35 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router'
+import { Alert, AlertDescription, PageLoader } from '@copas/ui'
 import { authClient } from '@/lib/auth-client'
+import { AppShell } from '@/components/layout/app-shell'
 
 export function RequireAgency() {
-  // Subagent instruction:
-  // 1. Check if the user has an agency using authClient.useListOrganizations() or similar.
-  // 2. Handle loading state (e.g. return <PageLoader />)
-  // 3. If the user has NO agency (organizations length === 0), return <Navigate to="/onboarding" replace />
-  // 4. If the user HAS an agency, ensure it's set as active, then return <Outlet />
-  throw new Error('RequireAgency Not implemented')
+  const { data: organizations, isPending, error } = authClient.useListOrganizations()
+
+  useEffect(() => {
+    if (organizations && organizations.length > 0) {
+      void authClient.organization.setActive({ organizationId: organizations[0].id })
+    }
+  }, [organizations])
+
+  if (isPending) {
+    return <PageLoader />
+  }
+
+  if (error) {
+    return (
+      <AppShell>
+        <Alert className="max-w-md" variant="destructive">
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      </AppShell>
+    )
+  }
+
+  if (!organizations || organizations.length === 0) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  return <Outlet />
 }

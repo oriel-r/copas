@@ -53,6 +53,20 @@ describe('policy-coverages.repository', () => {
       const result = await repository.findById('cov-1')
       expect(result).toEqual(coverage)
     })
+
+    it('should use transaction tx in findById when provided', async () => {
+      const coverage = { id: 'cov-1', policyId: 'pol-1', data: { name: 'INCENDIO' } }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([coverage]),
+      }
+
+      const result = await repository.findById('cov-1', mockTx as any)
+      expect(result).toEqual(coverage)
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('create', () => {
@@ -64,6 +78,20 @@ describe('policy-coverages.repository', () => {
       const result = await repository.create(input)
       expect(result).toEqual(created)
       expect(mockDb.insert).toHaveBeenCalled()
+    })
+
+    it('should propagate transaction tx in create', async () => {
+      const input: PolicyCoverageInsert = { policyId: 'pol-1', data: { name: 'TODO RIESGO', limit: 10000000 } }
+      const created = { id: 'cov-3', ...input }
+      const mockTx = {
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([created]),
+      }
+
+      const result = await repository.create(input, mockTx as any)
+      expect(result).toEqual(created)
+      expect(mockTx.insert).toHaveBeenCalled()
     })
   })
 
@@ -106,5 +134,16 @@ describe('policy-coverages.repository', () => {
       await repository.deleteByPolicyId('pol-1')
       expect(mockDb.delete).toHaveBeenCalled()
     })
+
+    it('should propagate transaction tx in deleteByPolicyId', async () => {
+      const mockTx = {
+        delete: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce({ rowCount: 2 }),
+      }
+
+      await repository.deleteByPolicyId('pol-1', mockTx as any)
+      expect(mockTx.delete).toHaveBeenCalled()
+    })
   })
 })
+

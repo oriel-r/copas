@@ -76,13 +76,27 @@ describe('payment-methods.service', () => {
     })
   })
 
+  describe('create', () => {
+    it('should delegate create to repository', async () => {
+      const input: PaymentMethodInsert = { code: 'CHEQUE', name: 'Cheque' }
+      const created = { id: 'pm-4', ...input }
+      mockRepo.create.mockResolvedValueOnce(created)
+
+      const result = await service.create(input)
+      expect(result).toEqual(created)
+      expect(mockRepo.create).toHaveBeenCalledWith(input, undefined)
+    })
+  })
+
   describe('list', () => {
-    it('should return list from repository', async () => {
+    it('should return list from repository and delegate filters', async () => {
       const list = [{ id: 'pm-1', code: 'PAGO_MANUAL', name: 'Pago Manual' }]
       mockRepo.list.mockResolvedValueOnce(list)
 
-      const result = await service.list()
+      const result = await service.list({ limit: 10 } as any)
       expect(result).toEqual(list)
+      expect(mockRepo.list).toHaveBeenCalledWith({ limit: 10 }, undefined)
     })
   })
 })
+

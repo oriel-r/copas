@@ -131,6 +131,52 @@ describe('policies.service', () => {
     })
   })
 
+  describe('update', () => {
+    it('should update policy through repository', async () => {
+      const updateData = { premiumTotal: 150000 }
+      const updated = { id: 'pol-1', ...updateData }
+      mockPoliciesRepo.update.mockResolvedValueOnce(updated)
+
+      const result = await (service as any).update('pol-1', updateData as any)
+      expect(result).toEqual(updated)
+      expect(mockPoliciesRepo.update).toHaveBeenCalledWith('pol-1', updateData, undefined)
+    })
+  })
+
+  describe('delete', () => {
+    it('should delete policy through repository', async () => {
+      mockPoliciesRepo.delete.mockResolvedValueOnce(true)
+
+      const result = await (service as any).delete('pol-1')
+      expect(result).toBe(true)
+      expect(mockPoliciesRepo.delete).toHaveBeenCalledWith('pol-1', undefined)
+    })
+  })
+
+  describe('list', () => {
+    it('should list policies with filter through repository', async () => {
+      const filter = { organizationId: 'org-1', status: 'active' }
+      const list = [{ id: 'pol-1', policyNumber: 'POL-1' }]
+      mockPoliciesRepo.list.mockResolvedValueOnce(list)
+
+      const result = await service.list(filter as any)
+      expect(result).toEqual(list)
+      expect(mockPoliciesRepo.list).toHaveBeenCalledWith(filter, undefined)
+    })
+  })
+
+  describe('findByNumber', () => {
+    it('should find policy by number through repository', async () => {
+      const policy = { id: 'pol-1', policyNumber: 'POL-123' }
+      mockPoliciesRepo.findByNumber.mockResolvedValueOnce(policy)
+
+      const result = await (service as any).findByNumber('org-1', 'POL-123')
+      expect(result).toEqual(policy)
+      expect(mockPoliciesRepo.findByNumber).toHaveBeenCalledWith('org-1', 'POL-123', undefined)
+    })
+  })
+
+
   describe('processAiResult', () => {
     const validExtractedPolicy: ExtractedPolicy = {
       company: {

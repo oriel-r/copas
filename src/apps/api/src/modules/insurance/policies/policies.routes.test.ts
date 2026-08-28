@@ -94,6 +94,37 @@ describe('policies.routes', () => {
     })
   })
 
+  describe('PUT /policies/:id', () => {
+    it('should return 200 when policy is updated successfully', async () => {
+      const updatePayload = { policyNumber: 'POL-UPDATED', premiumTotal: 120000 }
+      const updated = { id: 'pol-1', ...updatePayload }
+      mockPoliciesService.update.mockResolvedValueOnce(updated)
+
+      const res = await app.request('/policies/pol-1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload),
+      })
+
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data).toEqual(updated)
+      expect(mockPoliciesService.update).toHaveBeenCalledWith('pol-1', expect.objectContaining(updatePayload))
+    })
+
+    it('should return 404 when updating non-existent policy', async () => {
+      mockPoliciesService.update.mockResolvedValueOnce(null)
+
+      const res = await app.request('/policies/pol-999', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policyNumber: 'POL-NONE' }),
+      })
+
+      expect([400, 404]).toContain(res.status)
+    })
+  })
+
   describe('POST /policies/process-ai-result', () => {
     it('should return 200/201 when valid extraction payload is sent', async () => {
       const payload = {
@@ -138,5 +169,18 @@ describe('policies.routes', () => {
 
       expect([200, 201]).toContain(res.status)
     })
+
+    it('should return 400 when invalid payload is sent to process-ai-result', async () => {
+      const res = await app.request('/policies/process-ai-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invalidField: true }),
+      })
+
+      expect(res.status).toBe(400)
+    })
   })
 })
+
+
+

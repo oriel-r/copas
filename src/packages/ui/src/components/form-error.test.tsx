@@ -9,7 +9,10 @@ describe('FormError component', () => {
   })
 
   it('renders nothing when message is empty or undefined', () => {
-    const { container } = render(<FormError message="" />)
-    expect(container.firstChild).toBeNull()
+    const { container: emptyContainer } = render(<FormError message="" />)
+    expect(emptyContainer.firstChild).toBeNull()
+
+    const { container: undefinedContainer } = render(<FormError message={undefined} />)
+    expect(undefinedContainer.firstChild).toBeNull()
   })
 })

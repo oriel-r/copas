@@ -113,6 +113,30 @@ describe('assets.service', () => {
 
       const result = await service.create(input)
       expect(result).toEqual(created)
+      expect(mockRepo.create).toHaveBeenCalledWith(input, undefined)
+    })
+  })
+
+  describe('update', () => {
+    it('should update asset and delegate to repository', async () => {
+      const updateData = { properties: { PATENTE: 'AB123CD', COLOR: 'RED' } }
+      const updated = { id: 'ast-1', ...updateData }
+      mockRepo.update.mockResolvedValueOnce(updated)
+
+      const result = await service.update('ast-1', updateData as any)
+      expect(result).toEqual(updated)
+      expect(mockRepo.update).toHaveBeenCalledWith('ast-1', updateData, undefined)
+    })
+  })
+
+  describe('delete', () => {
+    it('should delete asset and delegate to repository', async () => {
+      mockRepo.delete.mockResolvedValueOnce(true)
+
+      const result = await service.delete('ast-1')
+      expect(result).toBe(true)
+      expect(mockRepo.delete).toHaveBeenCalledWith('ast-1', undefined)
     })
   })
 })
+

@@ -35,6 +35,20 @@ describe('asset-types.repository', () => {
       const result = await repository.findById('at-999')
       expect(result).toBeNull()
     })
+
+    it('should use transaction tx in findById if provided', async () => {
+      const assetType = { id: 'at-1', code: 'AUTO' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([assetType]),
+      }
+
+      const result = await repository.findById('at-1', mockTx as any)
+      expect(result).toEqual(assetType)
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('findByCode', () => {
@@ -53,6 +67,20 @@ describe('asset-types.repository', () => {
       const result = await repository.findByCode('AUTO', 'b-1')
       expect(result).toEqual(assetType)
       expect(mockDb.where).toHaveBeenCalled()
+    })
+
+    it('should use transaction tx in findByCode if provided', async () => {
+      const assetType = { id: 'at-3', code: 'BOAT', name: 'Barco' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([assetType]),
+      }
+
+      const result = await repository.findByCode('BOAT', undefined, mockTx as any)
+      expect(result).toEqual(assetType)
+      expect(mockTx.select).toHaveBeenCalled()
     })
   })
 
@@ -83,12 +111,13 @@ describe('asset-types.repository', () => {
   })
 
   describe('list', () => {
-    it('should return list of asset types', async () => {
+    it('should return list of asset types with branch filter and pagination', async () => {
       const list = [{ id: 'at-1', code: 'AUTO', name: 'Auto' }]
       mockDb.offset.mockResolvedValueOnce(list)
 
-      const result = await repository.list()
+      const result = await repository.list({ branchId: 'b-1', limit: 10, offset: 0 })
       expect(result).toEqual(list)
     })
   })
 })
+

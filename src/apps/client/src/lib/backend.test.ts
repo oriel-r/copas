@@ -63,5 +63,17 @@ describe('backend', () => {
       const result = await probeBackend(200)
       expect(result).toBe(true)
     })
+
+    it('uses default timeout of 2000ms when no timeout is provided', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({})
+      vi.stubGlobal('fetch', fetchMock)
+
+      const result = await probeBackend()
+      expect(result).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/',
+        expect.objectContaining({ method: 'GET', mode: 'no-cors' }),
+      )
+    })
   })
 })

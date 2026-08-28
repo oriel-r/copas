@@ -79,13 +79,27 @@ describe('asset-types.service', () => {
     })
   })
 
+  describe('create', () => {
+    it('should delegate create to repository', async () => {
+      const input: AssetTypeInsert = { code: 'BOAT', name: 'Barco' }
+      const created = { id: 'at-4', ...input }
+      mockRepo.create.mockResolvedValueOnce(created)
+
+      const result = await service.create(input)
+      expect(result).toEqual(created)
+      expect(mockRepo.create).toHaveBeenCalledWith(input, undefined)
+    })
+  })
+
   describe('list', () => {
-    it('should return list of asset types', async () => {
+    it('should return list of asset types and delegate filters', async () => {
       const list = [{ id: 'at-1', code: 'AUTO', name: 'Auto' }]
       mockRepo.list.mockResolvedValueOnce(list)
 
-      const result = await service.list()
+      const result = await service.list({ branchId: 'b-1' } as any)
       expect(result).toEqual(list)
+      expect(mockRepo.list).toHaveBeenCalledWith({ branchId: 'b-1' }, undefined)
     })
   })
 })
+

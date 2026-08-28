@@ -46,6 +46,19 @@ describe('insureds.repository', () => {
       const result = await repository.findById('ins-999')
       expect(result).toBeNull()
     })
+    it('should use transaction tx in findById if provided', async () => {
+      const insured = { id: 'ins-1', fullName: 'JUAN PEREZ' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([insured]),
+      }
+
+      const result = await repository.findById('ins-1', mockTx as any)
+      expect(result).toEqual(insured)
+      expect(mockTx.select).toHaveBeenCalled()
+    })
   })
 
   describe('findByCuit', () => {
@@ -97,6 +110,25 @@ describe('insureds.repository', () => {
       expect(result).toEqual(created)
       expect(mockDb.insert).toHaveBeenCalled()
     })
+
+    it('should use transaction tx in create if provided', async () => {
+      const input: InsuredInsert = {
+        organizationId: 'org-1',
+        uploadedBy: 'usr-1',
+        cuit: '20123456789',
+        fullName: 'JUAN PEREZ',
+      }
+      const created = { id: 'ins-3', ...input }
+      const mockTx = {
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([created]),
+      }
+
+      const result = await repository.create(input, mockTx as any)
+      expect(result).toEqual(created)
+      expect(mockTx.insert).toHaveBeenCalled()
+    })
   })
 
   describe('update', () => {
@@ -108,5 +140,30 @@ describe('insureds.repository', () => {
       expect(result).toEqual(updated)
       expect(mockDb.update).toHaveBeenCalled()
     })
+
+    it('should use transaction tx in update if provided', async () => {
+      const updated = { id: 'ins-1', fullName: 'JUAN TX' }
+      const mockTx = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([updated]),
+      }
+
+      const result = await repository.update('ins-1', { fullName: 'JUAN TX' }, mockTx as any)
+      expect(result).toEqual(updated)
+      expect(mockTx.update).toHaveBeenCalled()
+    })
+  })
+
+  describe('list', () => {
+    it('should return list of insureds', async () => {
+      const list = [{ id: 'ins-1', fullName: 'JUAN PEREZ' }]
+      mockDb.offset.mockResolvedValueOnce(list)
+
+      const result = await repository.list({ organizationId: 'org-1', limit: 10, offset: 0 })
+      expect(result).toEqual(list)
+    })
   })
 })
+
