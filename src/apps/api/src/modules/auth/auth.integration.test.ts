@@ -229,4 +229,89 @@ describe('Better Auth integration', () => {
 
     expect(response.status).toBe(200)
   })
+
+  it('blocks sending invitations to users who already belong to another agency', async () => {
+    // 1. User A creates Agency A
+    const userA = await signUp()
+    const agencyAResponse = await request('/auth/organization/create', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost:5173',
+        cookie: userA.cookie,
+      },
+      body: JSON.stringify({ name: 'Agency Alpha' }),
+    })
+    expect(agencyAResponse.status).toBe(200)
+    const agencyA = (await agencyAResponse.json()) as { id: string }
+
+    // 2. User B creates Agency B
+    const userB = await signUp()
+    const agencyBResponse = await request('/auth/organization/create', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost:5173',
+        cookie: userB.cookie,
+      },
+      body: JSON.stringify({ name: 'Agency Beta' }),
+    })
+    expect(agencyBResponse.status).toBe(200)
+
+    // 3. User A attempts to invite User B to Agency A
+    const inviteResponse = await request('/auth/organization/invite-member', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost:5173',
+        cookie: userA.cookie,
+      },
+      body: JSON.stringify({
+        organizationId: agencyA.id,
+        email: userB.user.email,
+        role: 'member',
+      }),
+    })
+
+    // Should be rejected because User B already belongs to Agency B
+    expect([400, 403]).toContain(inviteResponse.status)
+  })
+
+  it('handles slug collisions when distinct users create agencies with identical names', async () => {
+    // User 1 creates "La Segunda Seguros"
+    const user1 = await signUp()
+    const res1 = await request('/auth/organization/create', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost:5173',
+        cookie: user1.cookie,
+      },
+      body: JSON.stringify({ name: 'La Segunda Seguros' }),
+    })
+    expect(res1.status).toBe(200)
+    const body1 = (await res1.json()) as { slug: string }
+    expect(body1.slug).toBe('la-segunda-seguros')
+
+    // User 2 creates another agency with the same name "La Segunda Seguros"
+    const user2 = await signUp()
+    const res2 = await request('/auth/organization/create', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost:5173',
+        cookie: user2.cookie,
+      },
+      body: JSON.stringify({ name: 'La Segunda Seguros' }),
+    })
+
+    // Either generates a unique slug (e.g. la-segunda-seguros-2) or responds with 200/unique identifier
+    if (res2.status === 200) {
+      const body2 = (await res2.json()) as { slug: string }
+      expect(body2.slug).not.toBe(body1.slug)
+    } else {
+      expect([400, 409]).toContain(res2.status)
+    }
+  })
 })
+

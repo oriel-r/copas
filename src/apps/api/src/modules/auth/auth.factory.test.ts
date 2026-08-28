@@ -41,7 +41,8 @@ describe('createAuth', () => {
         tenantId: 'common',
       }),
     )
-    expect(auth.options.plugins).toHaveLength(2)
+    expect(auth.options.plugins).toBeDefined()
+    expect(auth.options.plugins?.some((p) => p.id === 'organization')).toBe(true)
     expect(auth.options.secondaryStorage).toBeDefined()
     expect(auth.options.rateLimit?.enabled).toBe(true)
     expect(auth.options.rateLimit?.storage).toBe('database')

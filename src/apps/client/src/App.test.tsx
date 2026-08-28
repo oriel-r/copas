@@ -8,6 +8,7 @@ import App from './App'
 
 const authMocks = vi.hoisted(() => ({
   useSession: vi.fn(),
+  useListOrganizations: vi.fn(),
   social: vi.fn(),
   signOut: vi.fn(),
 }))
@@ -15,8 +16,14 @@ const authMocks = vi.hoisted(() => ({
 vi.mock('./lib/auth-client', () => ({
   authClient: {
     useSession: authMocks.useSession,
+    useListOrganizations: authMocks.useListOrganizations,
     signIn: { social: authMocks.social },
     signOut: authMocks.signOut,
+    organization: {
+      list: vi.fn(),
+      setActive: vi.fn(),
+      create: vi.fn(),
+    },
   },
 }))
 
@@ -59,9 +66,11 @@ describe('App', () => {
   beforeEach(() => {
     useSessionStore.setState({ status: 'online', realSession: { data: null, isPending: false, error: null }, demoSession: null })
     authMocks.useSession.mockReset()
+    authMocks.useListOrganizations.mockReset()
     authMocks.social.mockReset()
     authMocks.signOut.mockReset()
     authMocks.useSession.mockReturnValue({ data: null, isPending: false, error: null })
+    authMocks.useListOrganizations.mockReturnValue({ data: [{ id: 'org-1', name: 'My Agency' }], isPending: false, error: null })
     authMocks.social.mockResolvedValue({ error: null })
     authMocks.signOut.mockResolvedValue({ error: null })
   })
@@ -76,6 +85,12 @@ describe('App', () => {
 
   it('redirects unauthenticated users from /app to /login', async () => {
     renderApp(['/app'])
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument())
+  })
+
+  it('redirects unauthenticated users from /onboarding to /login', async () => {
+    renderApp(['/onboarding'])
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument())
   })
@@ -140,5 +155,29 @@ describe('App', () => {
     renderApp(['/app'])
 
     expect(screen.getByLabelText('Cargando sesión')).toBeInTheDocument()
+  })
+
+  describe('Agency Onboarding Router Integration', () => {
+    it('redirects authenticated user without agency from /dashboard to /onboarding', async () => {
+      authMocks.useSession.mockReturnValue(authenticatedSession())
+      authMocks.useListOrganizations.mockReturnValue({ data: [], isPending: false, error: null })
+
+      renderApp(['/dashboard'])
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/¿Cómo se llama tu agencia\?/i)).toBeInTheDocument()
+      })
+    })
+
+    it('renders onboarding page for authenticated user without agency navigating to /onboarding', async () => {
+      authMocks.useSession.mockReturnValue(authenticatedSession())
+      authMocks.useListOrganizations.mockReturnValue({ data: [], isPending: false, error: null })
+
+      renderApp(['/onboarding'])
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/¿Cómo se llama tu agencia\?/i)).toBeInTheDocument()
+      })
+    })
   })
 })

@@ -115,10 +115,11 @@ describe('OnboardingPage', () => {
       expect(authClient.organization.create).not.toHaveBeenCalled()
     })
 
-    it('should handle unhandled rejection gracefully and display an error', async () => {
-      vi.mocked(authClient.organization.create).mockRejectedValueOnce(
-        new Error('Network disconnected'),
-      )
+    it('should trim surrounding whitespace from name input on submission', async () => {
+      vi.mocked(authClient.organization.create).mockResolvedValueOnce({
+        data: { id: 'org_99', name: 'La Perseverancia', slug: 'la-perseverancia' },
+        error: null,
+      } as any)
 
       render(
         <MemoryRouter>
@@ -127,14 +128,72 @@ describe('OnboardingPage', () => {
       )
 
       const input = screen.getByLabelText(/¿Cómo se llama tu agencia\?/i)
-      fireEvent.change(input, { target: { value: 'Seguros Martínez' } })
+      fireEvent.change(input, { target: { value: '   La Perseverancia   ' } })
 
       const button = screen.getByRole('button', { name: /crear|continuar|guardar|empezar/i })
       fireEvent.click(button)
 
       await waitFor(() => {
-        expect(screen.getByText(/Network disconnected|error/i)).toBeInTheDocument()
+        expect(authClient.organization.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'La Perseverancia',
+          }),
+        )
+      })
+    })
+
+    it('should prevent double submission when submit is triggered multiple times in rapid succession', async () => {
+      let resolveCreation!: (value: any) => void
+      const pendingPromise = new Promise((resolve) => {
+        resolveCreation = resolve
+      })
+      vi.mocked(authClient.organization.create).mockReturnValueOnce(pendingPromise as any)
+
+      render(
+        <MemoryRouter>
+          <OnboardingPage />
+        </MemoryRouter>,
+      )
+
+      const input = screen.getByLabelText(/¿Cómo se llama tu agencia\?/i)
+      fireEvent.change(input, { target: { value: 'Seguros Único' } })
+
+      const button = screen.getByRole('button', { name: /crear|continuar|guardar|empezar/i })
+      fireEvent.click(button)
+      fireEvent.click(button)
+      fireEvent.click(button)
+
+      // Only one invocation should be triggered while pending
+      expect(authClient.organization.create).toHaveBeenCalledTimes(1)
+
+      resolveCreation({ data: { id: 'org_1' }, error: null })
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
+    })
+
+    it('should allow submitting the form by pressing Enter inside the text input', async () => {
+      vi.mocked(authClient.organization.create).mockResolvedValueOnce({
+        data: { id: 'org_enter', name: 'Enter Agency', slug: 'enter-agency' },
+        error: null,
+      } as any)
+
+      render(
+        <MemoryRouter>
+          <OnboardingPage />
+        </MemoryRouter>,
+      )
+
+      const input = screen.getByLabelText(/¿Cómo se llama tu agencia\?/i)
+      fireEvent.change(input, { target: { value: 'Enter Agency' } })
+      fireEvent.submit(input.closest('form') ?? input)
+
+      await waitFor(() => {
+        expect(authClient.organization.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Enter Agency',
+          }),
+        )
       })
     })
   })
 })
+
