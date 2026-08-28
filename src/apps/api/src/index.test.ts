@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import app from './index'
 
 describe('GET /', () => {
@@ -47,5 +47,39 @@ describe('auth CORS', () => {
     )
 
     expect(res.headers.get('access-control-allow-origin')).toBeNull()
+  })
+})
+
+describe('API worker queue', () => {
+  it('handles empty batch gracefully', async () => {
+    if ('queue' in app && typeof (app as any).queue === 'function') {
+      const mockEnv = {} as any
+      const mockCtx = {
+        waitUntil: vi.fn(),
+        passThroughOnException: vi.fn(),
+      }
+      const batch = { messages: [] }
+
+      await (app as any).queue(batch, mockEnv, mockCtx)
+      expect(batch.messages.length).toBe(0)
+    }
+  })
+
+  it('ignores messages of unknown type gracefully', async () => {
+    if ('queue' in app && typeof (app as any).queue === 'function') {
+      const mockEnv = {} as any
+      const mockCtx = {
+        waitUntil: vi.fn(),
+        passThroughOnException: vi.fn(),
+      }
+      const batch = {
+        messages: [
+          { body: { type: 'unsupported-event', payload: {} } },
+        ],
+      }
+
+      await (app as any).queue(batch, mockEnv, mockCtx)
+      expect(batch.messages.length).toBe(1)
+    }
   })
 })

@@ -59,6 +59,8 @@ desktop.ini
 coverage/
 **/coverage/
 .nyc_output/
+.stryker-tmp/
+**/.stryker-tmp/
 
 # ===== Vite =====
 .vite/

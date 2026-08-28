@@ -138,4 +138,37 @@ describe('session port', () => {
 
     expect(authMocks.signOut).toHaveBeenCalledOnce()
   })
+
+  it('correctly reports isOffline state', () => {
+    useSessionStore.setState({ status: 'offline' })
+    expect(useSessionStore.getState().status === 'offline').toBe(true)
+
+    useSessionStore.setState({ status: 'online' })
+    expect(useSessionStore.getState().status === 'offline').toBe(false)
+
+    useSessionStore.setState({ status: 'checking' })
+    expect(useSessionStore.getState().status === 'offline').toBe(false)
+  })
+
+  it('syncs error and pending states in RealSessionSync', async () => {
+    const errorObj = { message: 'Auth failed', status: 401 }
+    authMocks.useSession.mockReturnValue({ data: null, isPending: true, error: errorObj })
+
+    render(<RealSessionSync />)
+
+    await waitFor(() => {
+      const state = useSessionStore.getState().realSession
+      expect(state?.data).toBeNull()
+      expect(state?.isPending).toBe(true)
+      expect(state?.error).toEqual(errorObj)
+    })
+  })
+
+  it('defaults to pending state when in online mode but realSession is not yet set', () => {
+    useSessionStore.setState({ status: 'online', realSession: null })
+
+    const { result } = renderHook(() => useSession())
+
+    expect(result.current).toEqual({ data: null, isPending: true, error: null })
+  })
 })

@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useSessionStore } from './lib/session'
 import App from './App'
 
 const authMocks = vi.hoisted(() => ({
@@ -56,6 +57,7 @@ function authenticatedSession() {
 
 describe('App', () => {
   beforeEach(() => {
+    useSessionStore.setState({ status: 'online', realSession: { data: null, isPending: false, error: null }, demoSession: null })
     authMocks.useSession.mockReset()
     authMocks.social.mockReset()
     authMocks.signOut.mockReset()

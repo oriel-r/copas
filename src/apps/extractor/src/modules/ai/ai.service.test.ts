@@ -151,5 +151,27 @@ describe('extractor: ai.service', () => {
       const result = await aiService.extractPolicy('https://r2.copas.app/policies/home.pdf')
       expect(result).toEqual(minimalValid)
     })
+
+    it('should support OCR response as an object with markdown property', async () => {
+      mockOcrClient.process.mockResolvedValueOnce({ markdown: '# OCR Markdown Object' })
+      mockLlmClient.generateStructured.mockResolvedValueOnce(sampleValidExtraction)
+
+      const result = await aiService.extractPolicy('https://r2.copas.app/policies/doc-md.pdf')
+      expect(result).toEqual(sampleValidExtraction)
+      expect(mockLlmClient.generateStructured).toHaveBeenCalledWith(
+        expect.objectContaining({ markdown: '# OCR Markdown Object' }),
+      )
+    })
+
+    it('should support OCR response as an object with text property', async () => {
+      mockOcrClient.process.mockResolvedValueOnce({ text: '# OCR Text Object' })
+      mockLlmClient.generateStructured.mockResolvedValueOnce(sampleValidExtraction)
+
+      const result = await aiService.extractPolicy('https://r2.copas.app/policies/doc-text.pdf')
+      expect(result).toEqual(sampleValidExtraction)
+      expect(mockLlmClient.generateStructured).toHaveBeenCalledWith(
+        expect.objectContaining({ markdown: '# OCR Text Object' }),
+      )
+    })
   })
 })

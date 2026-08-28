@@ -3,12 +3,9 @@
   "testRunner": "vitest",
   "concurrency": 1,
   "coverageAnalysis": "perTest",
-  "checkers": ["typescript"],
-  "tsconfigFile": "tsconfig.json",
   "reporters": ["clear-text", "progress", "html"],
   "plugins": [
-    "@stryker-mutator/vitest-runner",
-    "@stryker-mutator/typescript-checker"
+    "@stryker-mutator/vitest-runner"
   ],
   "ignoreStatic": true,
   "mutate": [

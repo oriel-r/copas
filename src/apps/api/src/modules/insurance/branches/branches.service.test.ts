@@ -25,6 +25,12 @@ describe('branches.service', () => {
       expect(result).toEqual(branch)
       expect(mockRepo.findById).toHaveBeenCalledWith('branch-1', undefined)
     })
+
+    it('should return null when not found', async () => {
+      mockRepo.findById.mockResolvedValueOnce(null)
+      const result = await service.getById('branch-999')
+      expect(result).toBeNull()
+    })
   })
 
   describe('findByCode', () => {
