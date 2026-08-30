@@ -56,21 +56,29 @@ function OAuthButtons({ isPending, onSignIn }: OAuthButtonsProps) {
     <div className="flex flex-col gap-4">
       <Button
         variant="outline"
-        className="w-full"
+        className="flex w-full items-center justify-center gap-2 whitespace-nowrap"
         onClick={() => onSignIn('google')}
         disabled={isPending}
       >
-        {isPending ? <LoadingIcon className="animate-spin" /> : <GoogleIcon />}
-        Continuar con Google
+        {isPending ? (
+          <LoadingIcon className="h-5 w-5 shrink-0 animate-spin" />
+        ) : (
+          <GoogleIcon className="h-5 w-5 shrink-0" />
+        )}
+        <span className="whitespace-nowrap">Continuar con Google</span>
       </Button>
       <Button
         variant="outline"
-        className="w-full"
+        className="flex w-full items-center justify-center gap-2 whitespace-nowrap"
         onClick={() => onSignIn('microsoft')}
         disabled={isPending}
       >
-        {isPending ? <LoadingIcon className="animate-spin" /> : <MicrosoftIcon />}
-        Continuar con Microsoft
+        {isPending ? (
+          <LoadingIcon className="h-5 w-5 shrink-0 animate-spin" />
+        ) : (
+          <MicrosoftIcon className="h-5 w-5 shrink-0" />
+        )}
+        <span className="whitespace-nowrap">Continuar con Microsoft</span>
       </Button>
     </div>
   )

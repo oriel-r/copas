@@ -12,7 +12,7 @@ function getClient(db: any, tx?: any) {
   return typeof base?.prepare === 'function' ? drizzle(base) : base;
 }
 
-export function createPolicyAssetsRepository(db: D1Database | any, tenantId: string) {
+export function createPolicyAssetsRepository(db: D1Database | any, organizationId: string) {
   return {
     create: async (data: CreatePolicyAssetRequest | { policyId: string; assetId: string }, tx?: any): Promise<PolicyAsset> => {
       const client = getClient(db, tx);

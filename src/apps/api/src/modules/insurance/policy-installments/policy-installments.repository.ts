@@ -12,14 +12,14 @@ function getClient(db: any, tx?: any) {
   return typeof base?.prepare === 'function' ? drizzle(base) : base;
 }
 
-export function createPolicyInstallmentsRepository(db: D1Database | any, tenantId: string) {
+export function createPolicyInstallmentsRepository(db: D1Database | any, organizationId: string) {
   return {
     findById: async (id: string, tx?: any): Promise<PolicyInstallment | null> => {
       const client = getClient(db, tx);
       const rows = await client
         .select()
         .from(policyInstallments)
-        .where(and(eq(policyInstallments.organizationId, tenantId), eq(policyInstallments.id, id)))
+        .where(and(eq(policyInstallments.organizationId, organizationId), eq(policyInstallments.id, id)))
         .limit(1);
       return rows?.[0] ?? null;
     },
@@ -29,7 +29,7 @@ export function createPolicyInstallmentsRepository(db: D1Database | any, tenantI
       let q = client
         .select()
         .from(policyInstallments)
-        .where(and(eq(policyInstallments.organizationId, tenantId), eq(policyInstallments.policyId, policyId)));
+        .where(and(eq(policyInstallments.organizationId, organizationId), eq(policyInstallments.policyId, policyId)));
       if (typeof q.orderBy === 'function') {
         q = q.orderBy(policyInstallments.installmentNumber);
       }
@@ -42,7 +42,7 @@ export function createPolicyInstallmentsRepository(db: D1Database | any, tenantI
       const rows = await client
         .insert(policyInstallments)
         .values({
-          organizationId: data.organizationId || tenantId,
+          organizationId: data.organizationId || organizationId,
           policyId: data.policyId,
           uploadedBy: data.uploadedBy || 'system',
           installmentNumber: data.installmentNumber ?? data.installment_number,
@@ -59,7 +59,7 @@ export function createPolicyInstallmentsRepository(db: D1Database | any, tenantI
       if (!data || data.length === 0) return [];
       const client = getClient(db, tx);
       const values = data.map((d) => ({
-        organizationId: d.organizationId || tenantId,
+        organizationId: d.organizationId || organizationId,
         policyId: d.policyId,
         uploadedBy: d.uploadedBy || 'system',
         installmentNumber: d.installmentNumber ?? d.installment_number,
@@ -80,7 +80,7 @@ export function createPolicyInstallmentsRepository(db: D1Database | any, tenantI
       const rows = await client
         .update(policyInstallments)
         .set(data)
-        .where(and(eq(policyInstallments.organizationId, tenantId), eq(policyInstallments.id, id)))
+        .where(and(eq(policyInstallments.organizationId, organizationId), eq(policyInstallments.id, id)))
         .returning();
       return Array.isArray(rows) ? rows[0] : rows;
     },
@@ -89,16 +89,16 @@ export function createPolicyInstallmentsRepository(db: D1Database | any, tenantI
       const client = getClient(db, tx);
       await client
         .delete(policyInstallments)
-        .where(and(eq(policyInstallments.organizationId, tenantId), eq(policyInstallments.id, id)));
+        .where(and(eq(policyInstallments.organizationId, organizationId), eq(policyInstallments.id, id)));
     },
 
     list: async (params?: { policyId?: string; limit?: number; offset?: number }, tx?: any): Promise<PolicyInstallment[]> => {
       const client = getClient(db, tx);
       let q = client.select().from(policyInstallments);
       if (params?.policyId) {
-        q = q.where(and(eq(policyInstallments.organizationId, tenantId), eq(policyInstallments.policyId, params.policyId)));
+        q = q.where(and(eq(policyInstallments.organizationId, organizationId), eq(policyInstallments.policyId, params.policyId)));
       } else {
-        q = q.where(eq(policyInstallments.organizationId, tenantId));
+        q = q.where(eq(policyInstallments.organizationId, organizationId));
       }
       const rows = await q.limit(params?.limit ?? 50).offset(params?.offset ?? 0);
       return rows ?? [];

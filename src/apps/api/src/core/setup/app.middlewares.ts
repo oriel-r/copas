@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { sessionMiddleware } from '../middlewares/session';
 import { injectAppServices } from '../di';
 import type { AppEnv } from '../types/env';
 
@@ -14,5 +15,6 @@ export const applyMiddlewares = (app: Hono<AppEnv>) => {
     }),
   );
 
+  app.use('*', sessionMiddleware);
   app.use('*', injectAppServices);
 };

@@ -12,14 +12,14 @@ function getClient(db: any, tx?: any) {
   return typeof base?.prepare === 'function' ? drizzle(base) : base;
 }
 
-export function createPoliciesRepository(db: D1Database | any, tenantId: string) {
+export function createPoliciesRepository(db: D1Database | any, organizationId: string) {
   return {
     findById: async (id: string, tx?: any): Promise<Policy | null> => {
       const client = getClient(db, tx);
       const rows = await client
         .select()
         .from(policies)
-        .where(and(eq(policies.organizationId, tenantId), eq(policies.id, id)))
+        .where(and(eq(policies.organizationId, organizationId), eq(policies.id, id)))
         .limit(1);
       return rows?.[0] ?? null;
     },
@@ -39,7 +39,7 @@ export function createPoliciesRepository(db: D1Database | any, tenantId: string)
       const rows = await client
         .insert(policies)
         .values({
-          organizationId: data.organizationId || tenantId,
+          organizationId: data.organizationId || organizationId,
           companyId: data.companyId,
           insuredId: data.insuredId,
           paymentMethodId: data.paymentMethodId || null,
@@ -64,7 +64,7 @@ export function createPoliciesRepository(db: D1Database | any, tenantId: string)
       const rows = await client
         .insert(policies)
         .values({
-          organizationId: data.organizationId || tenantId,
+          organizationId: data.organizationId || organizationId,
           companyId: data.companyId,
           insuredId: data.insuredId,
           paymentMethodId: data.paymentMethodId || null,
@@ -88,7 +88,7 @@ export function createPoliciesRepository(db: D1Database | any, tenantId: string)
       const rows = await client
         .update(policies)
         .set(data)
-        .where(and(eq(policies.organizationId, tenantId), eq(policies.id, id)))
+        .where(and(eq(policies.organizationId, organizationId), eq(policies.id, id)))
         .returning();
       return Array.isArray(rows) ? rows[0] : rows;
     },
@@ -97,17 +97,17 @@ export function createPoliciesRepository(db: D1Database | any, tenantId: string)
       const client = getClient(db, tx);
       await client
         .delete(policies)
-        .where(and(eq(policies.organizationId, tenantId), eq(policies.id, id)));
+        .where(and(eq(policies.organizationId, organizationId), eq(policies.id, id)));
     },
 
     list: async (params?: { insuredId?: string; companyId?: string; limit?: number; offset?: number }, tx?: any): Promise<Policy[]> => {
       const client = getClient(db, tx);
-      let q = client.select().from(policies).where(eq(policies.organizationId, tenantId));
+      let q = client.select().from(policies).where(eq(policies.organizationId, organizationId));
       if (params?.insuredId) {
-        q = q.where(and(eq(policies.organizationId, tenantId), eq(policies.insuredId, params.insuredId)));
+        q = q.where(and(eq(policies.organizationId, organizationId), eq(policies.insuredId, params.insuredId)));
       }
       if (params?.companyId) {
-        q = q.where(and(eq(policies.organizationId, tenantId), eq(policies.companyId, params.companyId)));
+        q = q.where(and(eq(policies.organizationId, organizationId), eq(policies.companyId, params.companyId)));
       }
       const rows = await q.limit(params?.limit ?? 50).offset(params?.offset ?? 0);
       return rows ?? [];

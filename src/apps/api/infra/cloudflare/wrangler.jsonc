@@ -24,7 +24,35 @@
     }
   ],
 
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENT_BUCKET",
+      "bucket_name": "copas-documents",
+      "preview_bucket_name": "local-copas-documents"
+    }
+  ],
+
+  "queues": {
+    "producers": [
+      {
+        "binding": "AI_QUEUE",
+        "queue": "copas-ai-extraction"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "copas-ai-result",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "copas-ai-result-dlq",
+        "retry_delay": 60
+      }
+    ]
+  },
+
   "vars": {
+    "BACKEND_URL": "http://localhost:8787",
     "BETTER_AUTH_URL": "http://localhost:8787",
     "CLIENT_URL": "http://localhost:5173",
     "NODE_ENV": "development"
@@ -55,6 +83,7 @@
         ]
       },
       "vars": {
+        "BACKEND_URL": "https://api-staging.example.com",
         "BETTER_AUTH_URL": "https://api-staging.example.com",
         "CLIENT_URL": "https://app-staging.example.com",
         "NODE_ENV": "staging"
@@ -73,7 +102,31 @@
           "binding": "AUTH_KV",
           "id": "<STAGING_KV_NAMESPACE_ID>"
         }
-      ]
+      ],
+      "r2_buckets": [
+        {
+          "binding": "DOCUMENT_BUCKET",
+          "bucket_name": "copas-documents-staging"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "AI_QUEUE",
+            "queue": "copas-ai-extraction-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "copas-ai-result-staging",
+            "max_batch_size": 10,
+            "max_batch_timeout": 30,
+            "max_retries": 3,
+            "dead_letter_queue": "copas-ai-result-dlq-staging",
+            "retry_delay": 60
+          }
+        ]
+      }
     }
   }
 }

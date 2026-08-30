@@ -242,7 +242,7 @@ describe('extractor: ai.service', () => {
   })
 
   describe('processDocument', () => {
-    it('falls back to tenantId when organizationId is not present in payload', async () => {
+    it('uses organizationId from payload when present', async () => {
       const mockQueue = { send: vi.fn().mockResolvedValue(undefined) }
       const service = createAiService({
         ocrClient: mockOcrClient,
@@ -256,20 +256,20 @@ describe('extractor: ai.service', () => {
       await (service as any).processDocument({
         documentUrl: 'https://r2.copas.app/policies/doc.pdf',
         aiExtractionResultId: 'ext-456',
-        tenantId: 'tenant-xyz',
+        organizationId: 'org-xyz',
       })
 
       expect(mockQueue.send).toHaveBeenCalledWith(
         expect.objectContaining({
           metadata: expect.objectContaining({
-            organizationId: 'tenant-xyz',
+            organizationId: 'org-xyz',
             idempotencyKey: 'ext-456',
           }),
         }),
       )
     })
 
-    it('falls back to "default" when neither organizationId nor tenantId is provided', async () => {
+    it('sends undefined organizationId when not provided (strict prod mode)', async () => {
       const mockQueue = { send: vi.fn().mockResolvedValue(undefined) }
       const service = createAiService({
         ocrClient: mockOcrClient,
@@ -288,7 +288,7 @@ describe('extractor: ai.service', () => {
       expect(mockQueue.send).toHaveBeenCalledWith(
         expect.objectContaining({
           metadata: expect.objectContaining({
-            organizationId: 'default',
+            organizationId: undefined,
             idempotencyKey: 'ext-789',
           }),
         }),

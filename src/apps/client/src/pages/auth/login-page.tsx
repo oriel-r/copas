@@ -8,10 +8,10 @@ export function LoginPage() {
       <DemoBanner />
       <div className="flex w-full max-w-sm flex-col gap-6">
         <a href="#" className="flex items-center gap-2 self-center font-medium">
-          <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <WineBarIcon className="size-4" />
+          <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <WineBarIcon className="size-4 shrink-0" />
           </div>
-          Copas
+          <span className="whitespace-nowrap">Copas</span>
         </a>
         <LoginForm />
       </div>

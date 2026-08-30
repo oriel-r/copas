@@ -3,9 +3,87 @@
   "name": "extractor",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENT_BUCKET",
+      "bucket_name": "copas-documents",
+      "preview_bucket_name": "local-copas-documents"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "AI_RESULT_QUEUE",
+        "queue": "copas-ai-result"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "copas-ai-extraction",
+        "max_batch_size": 5,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "copas-ai-extraction-dlq",
+        "retry_delay": 60
+      }
+    ]
+  },
+  "vars": {
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    "PROMPT_R2_KEY": "prompts/extraction.md"
+  },
+  "secrets": {
+    "required": [
+      "MISTRAL_API_KEY"
+    ]
+  },
   "env": {
     "staging": {
-      "name": "extractor-staging"
+      "name": "extractor-staging",
+      "ai": {
+        "binding": "AI",
+        "remote": true
+      },
+      "secrets": {
+        "required": ["MISTRAL_API_KEY"]
+      },
+      "r2_buckets": [
+        {
+          "binding": "DOCUMENT_BUCKET",
+          "bucket_name": "copas-documents-staging",
+          "preview_bucket_name": "local-copas-documents"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "AI_RESULT_QUEUE",
+            "queue": "copas-ai-result-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "copas-ai-extraction-staging",
+            "max_batch_size": 5,
+            "max_batch_timeout": 30,
+            "max_retries": 3,
+            "dead_letter_queue": "copas-ai-extraction-dlq-staging",
+            "retry_delay": 60
+          }
+        ]
+      },
+      "vars": {
+        "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+        "PROMPT_R2_KEY": "prompts/extraction.md"
+      }
     }
   }
 }

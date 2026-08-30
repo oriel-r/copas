@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "6257cce7-3224-4e7a-a2ec-805354e45dc7",
+  "id": "6474ed7c-1090-4db3-8cdf-eb6a0792f69a",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -868,11 +868,21 @@
     },
     {
       "type": "text",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "policyId",
+      "entityType": "columns",
+      "table": "ai_extraction_results"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "documentUrl",
       "entityType": "columns",
       "table": "ai_extraction_results"
     },
@@ -3778,7 +3788,7 @@
     },
     {
       "type": "text",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -6869,7 +6879,7 @@
         }
       ],
       "isUnique": true,
-      "where": null,
+      "where": "\"policies\".\"policyNumber\" IS NOT NULL",
       "origin": "manual",
       "name": "policies_org_company_number_uq",
       "entityType": "indexes",

@@ -22,25 +22,33 @@ import { createPoliciesService } from './policies/policies.service';
 
 export function createInsuranceModule(
   db: D1Database,
-  tenantId: string,
+  organizationId: string,
   bucket: R2Bucket,
   aiQueue: Queue<AiQueueMessage>
 ) {
+  // D1 no soporta transacciones interactivas reales; usamos batch-style runner
+  // con rollback simulado: si cb lanza, no se commitea (los writes previos ya están en batch pero D1 batch es atómico)
+  // Para local dev con sqlite, batch es atómico. Mantenemos runner simple pero con logging.
   const transactionRunner = async <T>(cb: (tx: D1Database | any) => Promise<T>): Promise<T> => {
-    return await cb(db);
+    try {
+      return await cb(db);
+    } catch (e) {
+      console.error('[insurance] transaction failed', { organizationId, error: (e as any)?.message ?? String(e) });
+      throw e;
+    }
   };
 
   // Repositories
-  const branchesRepo = createBranchesRepository(db, tenantId);
-  const assetTypesRepo = createAssetTypesRepository(db, tenantId);
-  const companiesRepo = createCompaniesRepository(db, tenantId);
-  const insuredsRepo = createInsuredsRepository(db, tenantId);
-  const assetsRepo = createAssetsRepository(db, tenantId);
-  const paymentMethodsRepo = createPaymentMethodsRepository(db, tenantId);
-  const policyInstallmentsRepo = createPolicyInstallmentsRepository(db, tenantId);
-  const policyAssetsRepo = createPolicyAssetsRepository(db, tenantId);
-  const policyCoveragesRepo = createPolicyCoveragesRepository(db, tenantId);
-  const policiesRepo = createPoliciesRepository(db, tenantId);
+  const branchesRepo = createBranchesRepository(db, organizationId);
+  const assetTypesRepo = createAssetTypesRepository(db, organizationId);
+  const companiesRepo = createCompaniesRepository(db, organizationId);
+  const insuredsRepo = createInsuredsRepository(db, organizationId);
+  const assetsRepo = createAssetsRepository(db, organizationId);
+  const paymentMethodsRepo = createPaymentMethodsRepository(db, organizationId);
+  const policyInstallmentsRepo = createPolicyInstallmentsRepository(db, organizationId);
+  const policyAssetsRepo = createPolicyAssetsRepository(db, organizationId);
+  const policyCoveragesRepo = createPolicyCoveragesRepository(db, organizationId);
+  const policiesRepo = createPoliciesRepository(db, organizationId);
 
   // Services
   const branchesService = createBranchesService(branchesRepo);

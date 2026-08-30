@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@copas/contracts": "workspace:*",
-    "hono": "^4.12.33"
+    "hono": "^4.12.33",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "4.20250822.0",
     "wrangler": "^4.110.0"
   }
 }

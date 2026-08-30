@@ -48,9 +48,10 @@ export function createPoliciesService(
 
 
   return {
-    generateUploadUrl: async (req: UploadUrlRequest, tenantId: string = 'default'): Promise<UploadUrlResponse> => {
+    generateUploadUrl: async (req: UploadUrlRequest, organizationId: string = 'default'): Promise<UploadUrlResponse> => {
       const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-1';
-      const key = `${tenantId}/${id}-${req.filename}`;
+      const filename = req.filename || 'document.pdf';
+      const key = `${organizationId}/${id}-${filename}`;
       const uploadUrl = `https://storage.copas.local/${key}`;
       return {
         uploadUrl,
@@ -60,7 +61,7 @@ export function createPoliciesService(
 
     processObjectCreateEvent: async (bucketName: string, key: string, eTag: string): Promise<void> => {
       const parts = key.split('/');
-      const tenantId = parts.length > 1 ? parts[0] : 'default';
+      const organizationId = parts.length > 1 ? parts[0] : 'default';
       const extractionResultId = await repo.createExtractionResult({
         documentUrl: key,
         status: 'pending',
@@ -75,62 +76,115 @@ export function createPoliciesService(
             documentUrl: key,
           },
           metadata: {
-            organizationId: tenantId,
+            organizationId: organizationId,
             idempotencyKey: eTag || key || id,
           },
         });
       }
     },
 
+    triggerExtraction: async (documentUrl: string, organizationId: string = 'default', userId: string = 'usr-1'): Promise<any> => {
+      const extractionResultId = await repo.createExtractionResult({
+        documentUrl,
+        status: 'pending',
+      });
+      const id = typeof extractionResultId === 'object' ? extractionResultId.id : extractionResultId;
+
+      if (queue && typeof queue.send === 'function') {
+        await queue.send({
+          type: 'ai-extraction',
+          payload: {
+            aiExtractionResultId: id,
+            documentUrl,
+          },
+          metadata: {
+            organizationId: organizationId,
+            idempotencyKey: id,
+          },
+        });
+      }
+
+      return {
+        aiExtractionResultId: id,
+        status: 'pending',
+        documentUrl,
+      };
+    },
+
     create: async (data: CreatePolicyRequest | any, tx?: any): Promise<Policy> => {
       return await repo.create(data, tx);
     },
 
-    processAiResult: async (payload: AiResultQueuePayload & { tenantId?: string }): Promise<any> => {
+    processAiResult: async (payload: AiResultQueuePayload & { organizationId?: string; userId?: string }): Promise<any> => {
       return await runner(async (tx: any) => {
-        const extracted = payload.structuredPayload;
-        const tenantId = (payload as any).tenantId || (payload as any).organizationId || 'default';
+        // Idempotencia: si ya existe extractionResult con policyId, devolver policy existente (at-least-once queue)
+        if (payload.aiExtractionResultId && typeof repo.getExtractionResult === 'function') {
+          try {
+            const existing = await repo.getExtractionResult(payload.aiExtractionResultId, tx);
+            if (existing?.policyId) {
+              const already = typeof repo.findById === 'function' ? await repo.findById(existing.policyId, tx) : null;
+              if (already) return already;
+            }
+            // si está en failed, permitir reintento; si on_review sin policyId, continuar
+            if (existing && existing.status === 'on_review' && existing.policyId) {
+              return await repo.findById(existing.policyId, tx);
+            }
+          } catch {
+            // no bloquear flujo si lookup falla
+          }
+        }
 
-        // 1. Company
+        const extracted = payload.structuredPayload;
+        const organizationId = payload.organizationId || (payload as any).metadata?.organizationId;
+        if (!organizationId) throw new Error('organizationId required in payload');
+        const userId = payload.userId ?? (payload as any).uploadedBy ?? 'usr-1';
+
+        // 1. Company (search by code, fallback name = code)
+        const compData = extracted.company;
+        const compCode = compData?.code && compData.code.trim() !== '' ? compData.code : compData?.name;
+        const compName = compData?.name && compData.name.trim() !== '' ? compData.name : compCode;
         const company = compSvc ? (
           typeof compSvc.findOrCreate === 'function'
-            ? await compSvc.findOrCreate(extracted.company, tx)
+            ? await compSvc.findOrCreate({ code: compCode, name: compName }, tx)
             : typeof compSvc.findByCode === 'function'
-              ? await compSvc.findByCode(extracted.company.code, tx)
+              ? await compSvc.findByCode(compCode, tx)
               : null
         ) : null;
         const companyId = typeof company === 'object' ? company?.id : company;
 
-        // 2. Branch
+        // 2. Branch (search by code, fallback name = code)
+        const branchCode = extracted.branch?.code || 'OTROS';
         const branch = branchSvc ? (
           typeof branchSvc.findOrCreate === 'function'
-            ? await branchSvc.findOrCreate(extracted.branch, tx)
+            ? await branchSvc.findOrCreate({ code: branchCode, name: branchCode }, tx)
             : typeof branchSvc.findByCode === 'function'
-              ? await branchSvc.findByCode(extracted.branch.code, tx)
+              ? await branchSvc.findByCode(branchCode, tx)
               : null
         ) : null;
         const branchId = typeof branch === 'object' ? branch?.id : branch;
 
-        // 3. AssetType
+        // 3. AssetType (search by code + branchId, fallback name = code)
+        const assetTypeCode = extracted.assetType?.code || 'OTHER';
         const assetType = assetTypeSvc ? (
           typeof assetTypeSvc.findOrCreate === 'function'
             ? await assetTypeSvc.findOrCreate({
-                code: extracted.assetType.code,
-                name: extracted.assetType.name || extracted.assetType.code,
+                code: assetTypeCode,
+                name: (extracted.assetType as any)?.name || assetTypeCode,
                 branchId,
               }, tx)
             : typeof assetTypeSvc.findByCode === 'function'
-              ? await assetTypeSvc.findByCode(extracted.assetType.code, branchId, tx)
+              ? await assetTypeSvc.findByCode(assetTypeCode, branchId, tx)
               : null
         ) : null;
         const assetTypeId = typeof assetType === 'object' ? assetType?.id : assetType;
 
-        // 4. Insured
+        // 4. Insured (search by cuit in organization, fallback create)
+        const insuredCuit = extracted.insured?.cuit && extracted.insured.cuit.trim() !== '' ? extracted.insured.cuit : '00000000000';
         const insuredPayload = {
-          organizationId: tenantId,
-          uploadedBy: (payload as any).userId ?? (payload as any).uploadedBy ?? 'usr-1',
-          cuit: extracted.insured?.cuit,
-          fullName: extracted.insured?.fullName,
+          organizationId: organizationId,
+          uploadedBy: userId,
+          cuit: insuredCuit,
+          fullName: extracted.insured?.fullName || 'CONSUMIDOR FINAL',
           phone: extracted.insured?.phone ?? null,
           email: extracted.insured?.email ?? null,
           birthDate: extracted.insured?.birthDate ?? null,
@@ -139,7 +193,7 @@ export function createPoliciesService(
           typeof insuredSvc.findOrCreate === 'function'
             ? await insuredSvc.findOrCreate(insuredPayload, tx)
             : typeof insuredSvc.findByCuit === 'function'
-              ? await insuredSvc.findByCuit(extracted.insured.cuit, tx)
+              ? await insuredSvc.findByCuit(organizationId, insuredCuit, tx)
               : null
         ) : null;
         const insuredId = typeof insured === 'object' ? insured?.id : insured;
@@ -148,7 +202,7 @@ export function createPoliciesService(
         const assetPayload = {
           insuredId,
           assetTypeId,
-          uploadedBy: (payload as any).userId ?? (payload as any).uploadedBy ?? 'usr-1',
+          uploadedBy: userId,
           properties: extracted.asset?.properties || {},
         };
         const asset = assetSvc ? (
@@ -160,13 +214,14 @@ export function createPoliciesService(
         ) : null;
         const assetId = typeof asset === 'object' ? asset?.id : asset;
 
-        // 6. PaymentMethod
+        // 6. PaymentMethod (search by code, fallback name = code)
         let paymentMethodId: string | null = null;
         if (extracted.paymentMethod && payMethodSvc) {
+          const pmCode = extracted.paymentMethod.code || 'PAGO_MANUAL';
           const pm = typeof payMethodSvc.findOrCreate === 'function'
-            ? await payMethodSvc.findOrCreate(extracted.paymentMethod, tx)
+            ? await payMethodSvc.findOrCreate({ code: pmCode, name: pmCode }, tx)
             : typeof payMethodSvc.findByCode === 'function'
-              ? await payMethodSvc.findByCode(extracted.paymentMethod.code, tx)
+              ? await payMethodSvc.findByCode(pmCode, tx)
               : null;
           paymentMethodId = typeof pm === 'object' ? pm?.id : pm;
         }
@@ -174,17 +229,17 @@ export function createPoliciesService(
         // 7. Policy
         const polData = extracted.policy ?? extracted;
         const policyPayload = {
-          organizationId: tenantId,
-          uploadedBy: (payload as any).userId ?? (payload as any).uploadedBy ?? 'usr-1',
+          organizationId: organizationId,
+          uploadedBy: userId,
           companyId,
           insuredId,
           paymentMethodId,
           policyNumber: polData.policyNumber ?? '',
           premiumTotal: polData.premiumTotal ?? null,
-          currency: polData.currency ?? null,
+          currency: polData.currency ?? 'ARS',
           startDate: polData.startDate ?? null,
           endDate: polData.endDate ?? null,
-          billingFrequency: polData.billingFrequency ?? null,
+          billingFrequency: polData.billingFrequency ?? 'monthly',
           status: 'active',
         };
         const policy = typeof repo.create === 'function'
@@ -215,9 +270,9 @@ export function createPoliciesService(
         // 10. Installments
         if (extracted.installments && extracted.installments.length > 0 && polInstSvc) {
           const instData = extracted.installments.map((inst: any) => ({
-            organizationId: tenantId,
+            organizationId: organizationId,
             policyId,
-            uploadedBy: (payload as any).userId ?? (payload as any).uploadedBy ?? 'usr-1',
+            uploadedBy: userId,
             installmentNumber: inst.installmentNumber,
             dueDate: inst.dueDate,
             totalAmount: inst.totalAmount,
@@ -246,6 +301,32 @@ export function createPoliciesService(
 
     getById: async (id: string, tx?: any): Promise<Policy | null> => {
       return await repo.findById(id, tx);
+    },
+
+    getExtractionResult: async (id: string, tx?: any): Promise<any> => {
+      if (typeof repo.getExtractionResult === 'function') return await repo.getExtractionResult(id, tx);
+      return null;
+    },
+
+    update: async (id: string, data: any, tx?: any): Promise<any> => {
+      if (typeof repo.update === 'function') return await repo.update(id, data, tx);
+      throw new Error('update not implemented');
+    },
+
+    delete: async (id: string, tx?: any): Promise<any> => {
+      if (typeof repo.delete === 'function') return await repo.delete(id, tx);
+      throw new Error('delete not implemented');
+    },
+
+    findByNumber: async (orgId: string, companyIdOrNumber: string, maybeNumber?: string, tx?: any): Promise<any> => {
+      // supports (orgId, policyNumber) or (orgId, companyId, policyNumber)
+      if (maybeNumber !== undefined && typeof repo.findByNumber === 'function') {
+        return await repo.findByNumber(orgId, companyIdOrNumber, maybeNumber, tx);
+      }
+      if (typeof repo.findByNumber === 'function') {
+        return await repo.findByNumber(orgId, companyIdOrNumber, tx);
+      }
+      return null;
     },
 
     list: async (params?: { insuredId?: string; companyId?: string; limit?: number; offset?: number }, tx?: any): Promise<Policy[]> => {

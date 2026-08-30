@@ -12,20 +12,20 @@ function getClient(db: any, tx?: any) {
   return typeof base?.prepare === 'function' ? drizzle(base) : base;
 }
 
-export function createInsuredsRepository(db: D1Database | any, tenantId: string) {
+export function createInsuredsRepository(db: D1Database | any, organizationId: string) {
   return {
     findById: async (id: string, tx?: any): Promise<Insured | null> => {
       const client = getClient(db, tx);
       const rows = await client
         .select()
         .from(insureds)
-        .where(and(eq(insureds.organizationId, tenantId), eq(insureds.id, id)))
+        .where(and(eq(insureds.organizationId, organizationId), eq(insureds.id, id)))
         .limit(1);
       return rows?.[0] ?? null;
     },
 
     findByCuit: async (orgIdOrCuit: string, cuitOrTx?: string | any, tx?: any): Promise<Insured | null> => {
-      let orgId = tenantId;
+      let orgId = organizationId;
       let cuit = orgIdOrCuit;
       let actualTx = cuitOrTx;
       if (typeof cuitOrTx === 'string') {
@@ -47,7 +47,7 @@ export function createInsuredsRepository(db: D1Database | any, tenantId: string)
       const rows = await client
         .insert(insureds)
         .values({
-          organizationId: data.organizationId || tenantId,
+          organizationId: data.organizationId || organizationId,
           uploadedBy: data.uploadedBy || 'system',
           cuit: data.cuit || '',
           fullName: data.fullName || data.full_name || '',
@@ -64,7 +64,7 @@ export function createInsuredsRepository(db: D1Database | any, tenantId: string)
       const rows = await client
         .update(insureds)
         .set(data)
-        .where(and(eq(insureds.organizationId, tenantId), eq(insureds.id, id)))
+        .where(and(eq(insureds.organizationId, organizationId), eq(insureds.id, id)))
         .returning();
       return Array.isArray(rows) ? rows[0] : rows;
     },
@@ -74,7 +74,7 @@ export function createInsuredsRepository(db: D1Database | any, tenantId: string)
       const rows = await client
         .select()
         .from(insureds)
-        .where(eq(insureds.organizationId, tenantId))
+        .where(eq(insureds.organizationId, organizationId))
         .limit(params?.limit ?? 50)
         .offset(params?.offset ?? 0);
       return rows ?? [];

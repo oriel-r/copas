@@ -4,8 +4,8 @@ import { authRoutes } from '../../modules/auth/auth.routes';
 import { policiesRouter } from '../../modules/insurance/policies/policies.routes';
 
 export const registerRoutes = (app: Hono<AppEnv>) => {
-  app.get('/', (c) => c.json({ service: 'api', status: 'ok' }));
-
-  app.route('/auth', authRoutes as any);
-  app.route('/policies', policiesRouter as any);
+  return app
+    .get('/', (c) => c.json({ service: 'api', status: 'ok' }))
+    .route('/auth', authRoutes as any)
+    .route('/policies', policiesRouter);
 };

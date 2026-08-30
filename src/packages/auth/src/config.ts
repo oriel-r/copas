@@ -1,4 +1,5 @@
-import { betterAuth, APIError, createAuthMiddleware, type SecondaryStorage } from 'better-auth'
+import { betterAuth, APIError, type SecondaryStorage } from 'better-auth'
+import { createAuthMiddleware } from 'better-auth/api'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter/relations-v2'
 import { admin, organization } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
@@ -160,7 +161,7 @@ function baseConfig(config: AuthConfig) {
     databaseHooks: {
       user: {
         create: {
-          before: async (user, ctx) => {
+          before: async (user: any, ctx: any) => {
             // TODO: Implement Whitelist logic for Admin Portal
             // 1. Check ctx.request?.url for '/admin/user/create'
             // 2. Validate ctx.session role is 'admin'

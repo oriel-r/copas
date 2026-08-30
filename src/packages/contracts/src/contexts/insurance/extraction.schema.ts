@@ -39,7 +39,7 @@ export const extractedPolicySchema = z.object({
   }),
 
   asset: z.object({
-    properties: z.record(z.any()).describe('Propiedades clave-valor extraídas del bien (ej. patente, marca, modelo, año, motor, chasis, suma_asegurada, ubicacion). Todos los valores de texto deben estar en MAYÚSCULAS y SIN ACENTOS. Extraer exhaustivamente.'),
+    properties: z.record(z.string(), z.any()).describe('Propiedades clave-valor extraídas del bien (ej. patente, marca, modelo, año, motor, chasis, suma_asegurada, ubicacion). Todos los valores de texto deben estar en MAYÚSCULAS y SIN ACENTOS. Extraer exhaustivamente.'),
   }).describe('Bien asegurado.'),
 
   paymentMethod: z.object({

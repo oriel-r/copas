@@ -97,7 +97,8 @@ CREATE TABLE `ai_extraction_results` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`deleted_at` integer,
-	`policyId` text NOT NULL,
+	`policyId` text,
+	`documentUrl` text,
 	`status` text DEFAULT 'pending' NOT NULL,
 	`result` text,
 	`corrections` text,
@@ -596,7 +597,7 @@ CREATE TABLE `policies` (
 	`paymentMethodId` text,
 	`uploaded_by` text NOT NULL,
 	`producedBy` text,
-	`policyNumber` text NOT NULL,
+	`policyNumber` text,
 	`premiumTotal` integer DEFAULT 0 NOT NULL,
 	`currency` text DEFAULT 'ARS' NOT NULL,
 	`startDate` text,
@@ -744,7 +745,7 @@ CREATE INDEX `insureds_uploaded_by_idx` ON `insureds` (`uploaded_by`);--> statem
 CREATE INDEX `assets_insured_id_idx` ON `assets` (`insuredId`);--> statement-breakpoint
 CREATE INDEX `assets_asset_type_id_idx` ON `assets` (`assetTypeId`);--> statement-breakpoint
 CREATE INDEX `assets_uploaded_by_idx` ON `assets` (`uploaded_by`);--> statement-breakpoint
-CREATE UNIQUE INDEX `policies_org_company_number_uq` ON `policies` (`organizationId`,`companyId`,`policyNumber`);--> statement-breakpoint
+CREATE UNIQUE INDEX `policies_org_company_number_uq` ON `policies` (`organizationId`,`companyId`,`policyNumber`) WHERE "policies"."policyNumber" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX `policies_insured_id_idx` ON `policies` (`insuredId`);--> statement-breakpoint
 CREATE INDEX `policies_company_id_idx` ON `policies` (`companyId`);--> statement-breakpoint
 CREATE INDEX `policies_payment_method_id_idx` ON `policies` (`paymentMethodId`);--> statement-breakpoint

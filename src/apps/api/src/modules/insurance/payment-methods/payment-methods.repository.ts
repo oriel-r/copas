@@ -12,7 +12,7 @@ function getClient(db: any, tx?: any) {
   return typeof base?.prepare === 'function' ? drizzle(base) : base;
 }
 
-export function createPaymentMethodsRepository(db: D1Database | any, tenantId: string) {
+export function createPaymentMethodsRepository(db: D1Database | any, organizationId: string) {
   return {
     findById: async (id: string, tx?: any): Promise<PaymentMethod | null> => {
       const client = getClient(db, tx);
