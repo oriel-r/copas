@@ -52,8 +52,8 @@
   },
 
   "vars": {
-    "BACKEND_URL": "http://localhost:8787",
-    "BETTER_AUTH_URL": "http://localhost:8787",
+    "BACKEND_URL": "http://localhost:8788",
+    "BETTER_AUTH_URL": "http://localhost:8788",
     "CLIENT_URL": "http://localhost:5173",
     "NODE_ENV": "development"
   },
@@ -83,16 +83,16 @@
         ]
       },
       "vars": {
-        "BACKEND_URL": "https://api-staging.example.com",
-        "BETTER_AUTH_URL": "https://api-staging.example.com",
-        "CLIENT_URL": "https://app-staging.example.com",
+        "BACKEND_URL": "https://api-staging.orielromero-work.workers.dev",
+        "BETTER_AUTH_URL": "https://api-staging.orielromero-work.workers.dev",
+        "CLIENT_URL": "https://client-staging.orielromero-work.workers.dev",
         "NODE_ENV": "staging"
       },
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "copas-auth-staging",
-          "database_id": "<STAGING_DATABASE_ID>",
+          "database_name": "copas-db-staging",
+          "database_id": "67e4d215-9600-4a10-9e97-58a0a1b3fcfa",
           "migrations_dir": "../../../../packages/db/migrations",
           "migrations_pattern": "../../../../packages/db/migrations/*/migration.sql"
         }
@@ -100,7 +100,7 @@
       "kv_namespaces": [
         {
           "binding": "AUTH_KV",
-          "id": "<STAGING_KV_NAMESPACE_ID>"
+          "id": "39b5a26b060c4b20acf2a05d6fc6ceaf"
         }
       ],
       "r2_buckets": [

@@ -126,7 +126,7 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
         });
       }
 
-      const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8787';
+      const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8788';
       const documentUrl = `${baseUrl}/policies/documents/${policyAssetKey}`;
 
       return c.json({
@@ -145,7 +145,7 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       const organizationId = c.get('organizationId' as any) as string | null;
       if (!organizationId) return c.json({ error: 'organization required' }, 401);
 
-      const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8787';
+      const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8788';
       const documentUrl = policyAssetKey.startsWith('http://') || policyAssetKey.startsWith('https://')
         ? policyAssetKey
         : `${baseUrl}/policies/documents/${policyAssetKey}`;

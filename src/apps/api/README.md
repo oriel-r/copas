@@ -15,8 +15,8 @@ The Better Auth routes are exposed under `/auth`.
 OAuth callback URLs:
 
 ```txt
-http://localhost:8787/auth/callback/google
-http://localhost:8787/auth/callback/microsoft
+http://localhost:8788/auth/callback/google
+http://localhost:8788/auth/callback/microsoft
 ```
 
 ## Migrations
