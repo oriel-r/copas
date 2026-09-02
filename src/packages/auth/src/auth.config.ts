@@ -11,7 +11,7 @@ import { createAuth } from './config'
 export const auth = createAuth({
   database: undefined as never,
   secret: 'cli-placeholder-secret-for-schema-generation',
-  baseURL: 'http://localhost:8787',
+  baseURL: 'http://localhost:8788',
   googleClientId: 'cli-placeholder',
   googleClientSecret: 'cli-placeholder',
   microsoftClientId: 'cli-placeholder',

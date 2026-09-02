@@ -1,7 +1,7 @@
 import { betterAuth, APIError, type SecondaryStorage } from 'better-auth'
 import { createAuthMiddleware } from 'better-auth/api'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter/relations-v2'
-import { admin, organization } from 'better-auth/plugins'
+import { admin, organization, openAPI } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 
@@ -48,6 +48,16 @@ function baseConfig(config: AuthConfig) {
       schema: authSchema,
     }),
 
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ['google', 'microsoft', 'email-password'],
+      },
+      // Estrategia 1.7: provider-id genera issuer determinístico `local:oauth:<providerId>` (ej: google -> local:oauth:google)
+      // Evita el compatibility mode que dejaba issuer vacío y disparaba NOT NULL en D1
+      identityStrategy: 'provider-id' as const,
+    },
+
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 8,
@@ -68,17 +78,11 @@ function baseConfig(config: AuthConfig) {
     plugins: [
       admin(),
       organization({
-        allowUserToCreateOrganization: async (userOrCtx: any) => {
-          const u = userOrCtx?.id ? userOrCtx : userOrCtx?.user
-          const userId = u?.id ?? userOrCtx?.userId
-          if (!userId) return false
-          const userMembers = await (config.database as any)
-            .select()
-            .from(member)
-            .where(eq(member.userId, userId))
-          return userMembers.length === 0
-        },
+        allowUserToCreateOrganization: true,
+        organizationLimit: 1,
+        creatorRole: 'owner',
       }),
+      openAPI()
     ],
 
     hooks: {
@@ -162,11 +166,12 @@ function baseConfig(config: AuthConfig) {
       user: {
         create: {
           before: async (user: any, ctx: any) => {
-            // TODO: Implement Whitelist logic for Admin Portal
-            // 1. Check ctx.request?.url for '/admin/user/create'
-            // 2. Validate ctx.session role is 'admin'
-            // 3. Throw APIError if public signup
-            throw new Error('Not implemented: Admin Whitelist Database Hook');
+            // Whitelist Admin Portal: pendiente de implementar.
+            // Comportamiento actual: permitir todo registro (email+password y OAuth Google/Microsoft)
+            // para no bloquear login social. El throw anterior causaba internal_server_error en /auth/callback/google
+            // al intentar crear el user y dejar issuer/account sin popular.
+            // TODO futuro: validar ctx.path / ctx.request url para bloquear sign-up público no admin
+            return { data: user }
           },
         },
       },

@@ -5,7 +5,7 @@ function createEnvironment(overrides: Partial<CloudflareBindings> = {}) {
   return {
     DB: {} as D1Database,
     AUTH_KV: {} as KVNamespace,
-    BETTER_AUTH_URL: 'http://localhost:8787',
+    BETTER_AUTH_URL: 'http://localhost:8788',
     CLIENT_URL: 'http://localhost:5173',
     NODE_ENV: 'development',
     BETTER_AUTH_SECRET: 'test-secret',
@@ -24,7 +24,7 @@ describe('createAuth', () => {
 
     expect(auth.handler).toBeTypeOf('function')
     expect(auth.options.appName).toBe('Copas')
-    expect(auth.options.baseURL).toBe('http://localhost:8787')
+    expect(auth.options.baseURL).toBe('http://localhost:8788')
     expect(auth.options.basePath).toBe('/auth')
     expect(auth.options.emailAndPassword?.enabled).toBe(true)
     expect(auth.options.emailAndPassword?.minPasswordLength).toBe(8)
