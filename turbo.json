@@ -17,6 +17,10 @@
       "outputs": ["coverage/stryker/**"],
       "passThroughEnv": ["*"]
     },
+    "db:migrate:staging": {
+      "cache": false,
+      "passThroughEnv": ["*"]
+    },
     "deploy": {
       "dependsOn": ["^build", "build" ],
       "cache": false,
