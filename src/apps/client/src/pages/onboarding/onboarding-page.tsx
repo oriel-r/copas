@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, FormError } from '@copas/ui'
 import { authClient } from '@/lib/auth-client'
@@ -9,6 +9,13 @@ export function OnboardingPage() {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const navigate = useNavigate()
+  const { data: organizations, refetch } = authClient.useListOrganizations?.() ?? {}
+
+  useEffect(() => {
+    if (organizations && organizations.length > 0) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [organizations, navigate])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -28,6 +35,14 @@ export function OnboardingPage() {
         setError(res.error.message ?? 'No se pudo crear la agencia.')
         setIsPending(false)
         return
+      }
+
+      if (res?.data?.id && typeof authClient.organization?.setActive === 'function') {
+        await authClient.organization.setActive({ organizationId: res.data.id })
+      }
+
+      if (typeof refetch === 'function') {
+        await refetch()
       }
 
       navigate('/dashboard')

@@ -5,15 +5,20 @@ import { authClient } from '@/lib/auth-client'
 import { AppShell } from '@/components/layout/app-shell'
 
 export function RequireAgency() {
-  const { data: organizations, isPending, error } = authClient.useListOrganizations()
+  const { data: organizations, isPending, isRefetching, error } = authClient.useListOrganizations?.() ?? {
+    data: null,
+    isPending: false,
+    isRefetching: false,
+    error: null,
+  }
 
   useEffect(() => {
     if (organizations && organizations.length > 0) {
-      void authClient.organization.setActive({ organizationId: organizations[0].id })
+      void authClient.organization?.setActive?.({ organizationId: organizations[0].id })
     }
   }, [organizations])
 
-  if (isPending) {
+  if (isPending || isRefetching) {
     return <PageLoader />
   }
 

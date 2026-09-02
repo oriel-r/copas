@@ -20,7 +20,7 @@ backend caído no cae en modo demo: muestra el error de sesión normal.
 
 ### Con backend (auth real)
 
-Requisitos previos: levantar la API en `http://localhost:8787` y aplicar sus
+Requisitos previos: levantar la API en `http://localhost:8788` y aplicar sus
 migraciones D1 locales (ver `src/apps/api/README.md`).
 
 ```txt
@@ -30,7 +30,7 @@ pnpm --filter client dev
 ```
 
 El client apunta a la API vía `VITE_BACKEND_URL` en `.env.development`
-(`http://localhost:8787`). Ese archivo solo se carga en `vite dev`, por lo que
+(`http://localhost:8788`). Ese archivo solo se carga en `vite dev`, por lo que
 no afecta el build ni el deploy.
 
 Variables disponibles (ver `.env.example`):
