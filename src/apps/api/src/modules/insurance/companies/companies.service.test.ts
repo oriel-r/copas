@@ -138,7 +138,7 @@ describe('companies.service', () => {
       const updated = { id: 'comp-1', code: 'SANCOR', name: 'SANCOR SEGUROS UPDATED' }
       mockRepo.update.mockResolvedValueOnce(updated)
 
-      const result = await (service as any).update('comp-1', { name: 'SANCOR SEGUROS UPDATED' } as any)
+      const result = await service.update('comp-1', { name: 'SANCOR SEGUROS UPDATED' })
       expect(result).toEqual(updated)
       expect(mockRepo.update).toHaveBeenCalledWith('comp-1', { name: 'SANCOR SEGUROS UPDATED' }, undefined)
     })

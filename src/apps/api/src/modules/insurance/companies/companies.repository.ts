@@ -2,7 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { companies } from '@copas/db';
-import type { Company, CreateCompanyRequest } from '@copas/contracts';
+import type { Company, CreateCompanyRequest, UpdateCompanyRequest } from '@copas/contracts';
 
 function getClient(db: any, tx?: any) {
   if (tx) {
@@ -35,6 +35,16 @@ export function createCompaniesRepository(db: D1Database | any, organizationId: 
     create: async (data: CreateCompanyRequest, tx?: any): Promise<Company> => {
       const client = getClient(db, tx);
       const rows = await client.insert(companies).values(data).returning();
+      return Array.isArray(rows) ? rows[0] : rows;
+    },
+
+    update: async (id: string, data: UpdateCompanyRequest | any, tx?: any): Promise<Company> => {
+      const client = getClient(db, tx);
+      const rows = await client
+        .update(companies)
+        .set(data)
+        .where(eq(companies.id, id))
+        .returning();
       return Array.isArray(rows) ? rows[0] : rows;
     },
 

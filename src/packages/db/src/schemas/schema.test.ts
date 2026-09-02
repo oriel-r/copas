@@ -3,13 +3,18 @@ import { getColumns } from 'drizzle-orm'
 import { dbSchema } from './index'
 import { dbRelations, dbDomainRelations } from './relations'
 import { authRelations } from '@copas/auth'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const MIGRATION_SQL = readFileSync(
-  join(__dirname, '../../migrations/20260820004415_0000_init/migration.sql'),
-  'utf8',
-)
+const migrationsDir = join(__dirname, '../../migrations')
+const migrationDirs = readdirSync(migrationsDir, { withFileTypes: true })
+  .filter((d) => d.isDirectory())
+  .map((d) => d.name)
+  .sort()
+
+const MIGRATION_SQL = migrationDirs
+  .map((dir) => readFileSync(join(migrationsDir, dir, 'migration.sql'), 'utf8'))
+  .join('\n')
 
 const tableKeys = Object.keys(dbSchema).sort()
 

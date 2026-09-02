@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompaniesRepository } from './companies.repository';
-import type { Company, CreateCompanyRequest } from '@copas/contracts';
+import type { Company, CreateCompanyRequest, UpdateCompanyRequest } from '@copas/contracts';
 
 export function createCompaniesService(repository: CompaniesRepository | { companiesRepository: CompaniesRepository }) {
   const repo = (repository as any)?.companiesRepository ?? repository;
@@ -19,6 +19,10 @@ export function createCompaniesService(repository: CompaniesRepository | { compa
 
     create: async (data: CreateCompanyRequest, tx?: any): Promise<Company> => {
       return await repo.create(data, tx);
+    },
+
+    update: async (id: string, data: UpdateCompanyRequest | any, tx?: any): Promise<Company> => {
+      return await repo.update(id, data, tx);
     },
 
     findOrCreate: async (data: { name: string; code?: string }, tx?: any): Promise<Company> => {

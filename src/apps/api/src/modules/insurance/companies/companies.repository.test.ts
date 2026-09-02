@@ -147,7 +147,7 @@ describe('companies.repository', () => {
       const updated = { id: 'comp-1', name: 'SANCOR UPDATED' }
       mockDb.returning.mockResolvedValueOnce([updated])
 
-      const result = await (repository as any).update('comp-1', { name: 'SANCOR UPDATED' })
+      const result = await repository.update('comp-1', { name: 'SANCOR UPDATED' })
       expect(result).toEqual(updated)
       expect(mockDb.update).toHaveBeenCalled()
     })
@@ -161,7 +161,7 @@ describe('companies.repository', () => {
         returning: vi.fn().mockResolvedValueOnce([updated]),
       }
 
-      const result = await (repository as any).update('comp-1', { name: 'SANCOR TX' }, mockTx as any)
+      const result = await repository.update('comp-1', { name: 'SANCOR TX' }, mockTx as any)
       expect(result).toEqual(updated)
       expect(mockTx.update).toHaveBeenCalled()
     })
