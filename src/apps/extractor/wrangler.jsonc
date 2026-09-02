@@ -11,11 +11,11 @@
     "binding": "AI",
     "remote": true
   },
-  "r2_buckets": [
+  "rules": [
     {
-      "binding": "DOCUMENT_BUCKET",
-      "bucket_name": "copas-documents",
-      "preview_bucket_name": "local-copas-documents"
+      "type": "Text",
+      "globs": ["**/*.md"],
+      "fallthrough": true
     }
   ],
   "queues": {
@@ -37,8 +37,7 @@
     ]
   },
   "vars": {
-    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
-    "PROMPT_R2_KEY": "prompts/extraction.md"
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
   },
   "secrets": {
     "required": [
@@ -55,13 +54,6 @@
       "secrets": {
         "required": ["MISTRAL_API_KEY"]
       },
-      "r2_buckets": [
-        {
-          "binding": "DOCUMENT_BUCKET",
-          "bucket_name": "copas-documents-staging",
-          "preview_bucket_name": "local-copas-documents"
-        }
-      ],
       "queues": {
         "producers": [
           {
@@ -81,8 +73,7 @@
         ]
       },
       "vars": {
-        "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
-        "PROMPT_R2_KEY": "prompts/extraction.md"
+        "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
       }
     }
   }

@@ -39,9 +39,7 @@ const handler = Object.assign(app, {
       aiResultQueue: env.AI_RESULT_QUEUE,
       mistralApiKey: env.MISTRAL_API_KEY,
       workersAi: env.AI,
-      bucket: env.DOCUMENT_BUCKET,
       aiModel: env.AI_MODEL,
-      promptR2Key: env.PROMPT_R2_KEY,
     });
 
     for (const message of batch.messages) {

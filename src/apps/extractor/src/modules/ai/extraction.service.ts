@@ -10,12 +10,9 @@ export const createExtractionService = (deps: {
   aiResultQueue?: any;
   mistralApiKey?: string;
   workersAi?: any;
-  bucket?: any;
   aiModel?: string;
-  promptR2Key?: string;
 } = {}) => {
   const aiModel = deps.aiModel ?? '@cf/google/gemma-4-26b-a4b-it';
-  const promptR2Key = deps.promptR2Key ?? 'prompts/extraction.md';
 
   const ocr: MistralOcrClient | { process: (url: string) => Promise<string> } =
     deps.ocrClient ??
@@ -30,8 +27,6 @@ export const createExtractionService = (deps: {
   const llm: StructuredOutputService = createStructuredOutputService({
     workersAi: deps.workersAi,
     aiModel,
-    bucket: deps.bucket,
-    promptR2Key,
     llmClient: deps.llmClient,
   });
 

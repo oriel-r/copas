@@ -1,6 +1,6 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { extractedPolicySchema } from '@copas/contracts';
-import { loadSystemPrompt } from './prompt.loader.js';
+import { DEFAULT_SYSTEM_PROMPT } from './system-prompt.js';
 
 const jsonSchema = (() => {
   const schema = zodToJsonSchema(extractedPolicySchema as any, {
@@ -14,8 +14,6 @@ const jsonSchema = (() => {
 export const createStructuredOutputService = (deps: {
   workersAi: any;
   aiModel: string;
-  bucket: any;
-  promptR2Key: string;
   llmClient?: { generateStructured: (p: any) => Promise<any> };
 }) => ({
   normalizeToSchema: async (markdownText: string) => {
@@ -38,7 +36,7 @@ export const createStructuredOutputService = (deps: {
       throw new Error('Missing AI binding: workersAi.run not available');
     }
 
-    const systemPrompt = await loadSystemPrompt(deps.bucket, deps.promptR2Key);
+    const systemPrompt = DEFAULT_SYSTEM_PROMPT;
 
     let response: any;
     try {
