@@ -15,7 +15,7 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "4.20250822.0",
+    "@cloudflare/workers-types": "^5.20260804.1",
     "wrangler": "^4.110.0"
   }
 }
