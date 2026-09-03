@@ -4,5 +4,6 @@ export type Envelope<T = unknown> = {
   metadata?: {
     organizationId: string
     idempotencyKey: string
+    requestId?: string
   }
 }

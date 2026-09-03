@@ -1,4 +1,5 @@
 import { createMiddleware } from 'hono/factory';
+import { withLogContext } from '@copas/logger';
 import { createAuth } from '../../modules/auth/auth.factory';
 import type { AppEnv } from '../types/env';
 
@@ -10,6 +11,9 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     return;
   }
 
+  let organizationId: string | null = null;
+  let userId: string | null = null;
+
   try {
     const auth = createAuth(c.env as CloudflareBindings);
     // Docs exact: auth.api.getSession({ headers: c.req.raw.headers })
@@ -18,9 +22,9 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     });
 
     // Better Auth Infer: { session: {activeOrganizationId,...}, user: {...} } | null
-    const organizationId = (session as any)?.session?.activeOrganizationId ?? null;
+    organizationId = (session as any)?.session?.activeOrganizationId ?? null;
     const user = (session as any)?.user ?? null;
-    const userId = user?.id ?? (session as any)?.session?.userId ?? null;
+    userId = user?.id ?? (session as any)?.session?.userId ?? null;
 
     c.set('session' as any, session);
     c.set('user' as any, user);
@@ -33,5 +37,5 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     c.set('organizationId' as any, null);
   }
 
-  await next();
+  return await withLogContext({ organizationId, userId }, () => next());
 });

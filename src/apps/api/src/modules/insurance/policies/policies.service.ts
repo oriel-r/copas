@@ -1,5 +1,6 @@
 import type { UploadUrlRequest, UploadUrlResponse } from './policies.schema';
 import type { AiResultQueuePayload, CreatePolicyRequest, Policy } from '@copas/contracts';
+import { getLogger } from '@copas/logger';
 
 export function createPoliciesService(
   repository: any,
@@ -35,12 +36,21 @@ export function createPoliciesService(
   const runner = depsObj.transactionRunner ?? transactionRunner ?? (async (cb: any) => await cb(undefined));
 
 
+  const logger = getLogger(['api', 'insurance']);
+
   return {
     generateUploadUrl: async (req: UploadUrlRequest, organizationId: string = 'default'): Promise<UploadUrlResponse> => {
       const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-1';
       const filename = req.filename || 'document.pdf';
       const key = `${organizationId}/${id}-${filename}`;
       const uploadUrl = `https://storage.copas.local/${key}`;
+
+      logger.info('Generated upload URL for policy document: {key}', {
+        key,
+        filename,
+        organizationId,
+      });
+
       return {
         uploadUrl,
         policyAssetKey: key,
@@ -55,6 +65,15 @@ export function createPoliciesService(
         status: 'pending',
       });
       const id = typeof extractionResultId === 'object' ? extractionResultId.id : extractionResultId;
+      const reqId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `extract-${id}`;
+
+      logger.info('Processing R2 object-create event for key: {key}', {
+        key,
+        eTag,
+        organizationId,
+        aiExtractionResultId: id,
+        requestId: reqId,
+      });
 
       if (queue && typeof queue.send === 'function') {
         await queue.send({
@@ -66,7 +85,15 @@ export function createPoliciesService(
           metadata: {
             organizationId: organizationId,
             idempotencyKey: eTag || key || id,
+            requestId: reqId,
           },
+        });
+
+        logger.info('Enqueued ai-extraction job for key: {key}', {
+          key,
+          aiExtractionResultId: id,
+          organizationId,
+          requestId: reqId,
         });
       }
     },
@@ -77,6 +104,14 @@ export function createPoliciesService(
         status: 'pending',
       });
       const id = typeof extractionResultId === 'object' ? extractionResultId.id : extractionResultId;
+      const reqId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `extract-${id}`;
+
+      logger.info('Triggering AI extraction for documentUrl: {documentUrl}', {
+        documentUrl,
+        organizationId,
+        aiExtractionResultId: id,
+        requestId: reqId,
+      });
 
       if (queue && typeof queue.send === 'function') {
         await queue.send({
@@ -88,7 +123,15 @@ export function createPoliciesService(
           metadata: {
             organizationId: organizationId,
             idempotencyKey: id,
+            requestId: reqId,
           },
+        });
+
+        logger.info('Enqueued ai-extraction message for documentUrl: {documentUrl}', {
+          documentUrl,
+          aiExtractionResultId: id,
+          organizationId,
+          requestId: reqId,
         });
       }
 
@@ -103,7 +146,7 @@ export function createPoliciesService(
       return await repo.create(data, tx);
     },
 
-    processAiResult: async (payload: AiResultQueuePayload & { organizationId?: string; userId?: string }): Promise<any> => {
+    processAiResult: async (payload: AiResultQueuePayload & { organizationId?: string; userId?: string; uploadedBy?: string }): Promise<any> => {
       return await runner(async (tx: any) => {
         // Idempotencia: si ya existe extractionResult con policyId, devolver policy existente (at-least-once queue)
         if (payload.aiExtractionResultId && typeof repo.getExtractionResult === 'function') {
@@ -282,6 +325,14 @@ export function createPoliciesService(
             result: payload.structuredPayload,
           }, tx);
         }
+
+        logger.info('Successfully persisted policy {policyNumber} (ID: {policyId}) from AI extraction', {
+          policyId,
+          policyNumber: polData.policyNumber,
+          companyId,
+          insuredId,
+          installmentsCount: extracted.installments?.length ?? 0,
+        });
 
         return policy;
       });

@@ -1,3 +1,4 @@
+import { getLogger } from '@copas/logger';
 import { createMistralOcrClient } from './ocr/mistral-ocr.client.js';
 import { createStructuredOutputService } from './llm/structured-output.service.js';
 import type { AiQueuePayload } from '@copas/contracts';
@@ -12,6 +13,7 @@ export const createExtractionService = (deps: {
   workersAi?: any;
   aiModel?: string;
 } = {}) => {
+  const logger = getLogger(['extractor', 'service']);
   const aiModel = deps.aiModel ?? '@cf/google/gemma-4-26b-a4b-it';
 
   const ocr: MistralOcrClient | { process: (url: string) => Promise<string> } =
@@ -45,9 +47,15 @@ export const createExtractionService = (deps: {
     },
 
     processDocument: async (payload: AiQueuePayload) => {
+      logger.info('Processing document pipeline started for {aiExtractionResultId}', {
+        aiExtractionResultId: payload.aiExtractionResultId,
+        documentUrl: payload.documentUrl,
+      });
+
       const extracted = await service.extractPolicy(payload.documentUrl);
 
       if (deps.aiResultQueue && typeof deps.aiResultQueue.send === 'function') {
+        const requestId = (payload as any).requestId || (payload as any).metadata?.requestId;
         await deps.aiResultQueue.send({
           type: 'ai-result',
           payload: {
@@ -57,7 +65,13 @@ export const createExtractionService = (deps: {
           metadata: {
             organizationId: (payload as any).organizationId,
             idempotencyKey: payload.aiExtractionResultId,
+            requestId,
           },
+        });
+
+        logger.info('Dispatched ai-result payload to queue for {aiExtractionResultId}', {
+          aiExtractionResultId: payload.aiExtractionResultId,
+          requestId,
         });
       }
 
