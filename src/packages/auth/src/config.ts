@@ -165,7 +165,7 @@ function baseConfig(config: AuthConfig) {
     databaseHooks: {
       user: {
         create: {
-          before: async (user: any, ctx: any) => {
+          before: async (user: any, _ctx: any) => {
             // Whitelist Admin Portal: pendiente de implementar.
             // Comportamiento actual: permitir todo registro (email+password y OAuth Google/Microsoft)
             // para no bloquear login social. El throw anterior causaba internal_server_error en /auth/callback/google
