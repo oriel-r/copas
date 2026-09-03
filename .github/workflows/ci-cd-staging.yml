@@ -37,7 +37,11 @@ jobs:
   build:
     name: Build Packages and Apps
     needs: test
+    environment: staging
     runs-on: ubuntu-24.04
+    env:
+      VITE_BACKEND_URL: ${{ vars.VITE_BACKEND_URL || 'https://api-staging.orielromero-work.workers.dev' }}
+      VITE_AUTH_PATH: ${{ vars.VITE_AUTH_PATH || '/auth' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -106,6 +110,8 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_ENV: staging
+      VITE_BACKEND_URL: ${{ vars.VITE_BACKEND_URL || 'https://api-staging.orielromero-work.workers.dev' }}
+      VITE_AUTH_PATH: ${{ vars.VITE_AUTH_PATH || '/auth' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
