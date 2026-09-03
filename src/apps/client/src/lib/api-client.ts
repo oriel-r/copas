@@ -1,5 +1,5 @@
 import { hc } from 'hono/client'
-import type { AppType } from '../../../api/src'
+import type { AppType } from '../../../api/src/core/setup/app.router'
 import { backendUrl } from './backend'
 
 const baseUrl = backendUrl('/')

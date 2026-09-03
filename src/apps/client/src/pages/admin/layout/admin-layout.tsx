@@ -1,6 +1,3 @@
-import React from 'react';
-import { Outlet } from 'react-router';
-
 /**
  * Main layout for the Admin Panel.
  * Contains Sidebar/Header with navigation to Users, Dashboard, etc.

@@ -1,6 +1,3 @@
-import React from 'react';
-import { CreateUserFormValues } from '@copas/contracts';
-
 /**
  * Modal to create a new user (admin or normal).
  * Uses adminClient.createUser.

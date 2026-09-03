@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * Dedicated login view for the Admin portal.
  * Uses Better Auth sign-in endpoints.

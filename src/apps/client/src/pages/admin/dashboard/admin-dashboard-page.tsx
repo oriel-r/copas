@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * Admin dashboard overview (Metrics, summaries).
  */

@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * List of users using adminClient.listUsers.
  * Shows data table with filters.
