@@ -46,8 +46,39 @@ describe('createAuth', () => {
     expect(auth.options.secondaryStorage).toBeDefined()
     expect(auth.options.rateLimit?.enabled).toBe(true)
     expect(auth.options.rateLimit?.storage).toBe('database')
-    expect(auth.options.trustedOrigins).toEqual(['http://localhost:5173'])
+    expect(auth.options.trustedOrigins).toEqual([
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5174',
+    ])
     expect(auth.options.advanced?.useSecureCookies).toBe(false)
+  })
+
+  it('restricts trusted origins to CLIENT_URL outside development', () => {
+    const auth = createAuth(
+      createEnvironment({
+        NODE_ENV: 'staging',
+        CLIENT_URL: 'https://client-staging.orielromero-work.workers.dev',
+      }),
+    )
+
+    expect(auth.options.trustedOrigins).toEqual([
+      'https://client-staging.orielromero-work.workers.dev',
+    ])
+  })
+
+  it('normalizes trailing slash in CLIENT_URL for trusted origins', () => {
+    const auth = createAuth(
+      createEnvironment({
+        NODE_ENV: 'staging',
+        CLIENT_URL: 'https://client-staging.orielromero-work.workers.dev/' as any,
+      }),
+    )
+
+    expect(auth.options.trustedOrigins).toEqual([
+      'https://client-staging.orielromero-work.workers.dev',
+    ])
   })
 
   it('uses secure cookies outside development', () => {
