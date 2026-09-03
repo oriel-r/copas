@@ -59,7 +59,7 @@ function renderApp(initialEntries: string[] = ['/']) {
 
 function authenticatedSession() {
   return {
-    data: { user: { id: 'user-1' }, session: { id: 'session-1' } },
+    data: { user: { id: 'user-1', name: 'Test User', email: 'test@example.com' }, session: { id: 'session-1' } },
     isPending: false,
     error: null,
   }
