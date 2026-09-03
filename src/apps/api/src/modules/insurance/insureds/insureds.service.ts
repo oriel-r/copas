@@ -1,4 +1,3 @@
-import type { D1Database } from '@cloudflare/workers-types';
 import type { InsuredsRepository } from './insureds.repository';
 import type { Insured, CreateInsuredRequest } from '@copas/contracts';
 

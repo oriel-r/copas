@@ -1,4 +1,3 @@
-import type { D1Database } from '@cloudflare/workers-types';
 import type { CompaniesRepository } from './companies.repository';
 import type { Company, CreateCompanyRequest, UpdateCompanyRequest } from '@copas/contracts';
 

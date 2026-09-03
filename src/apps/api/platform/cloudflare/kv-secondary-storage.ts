@@ -1,7 +1,7 @@
 import type { SecondaryStorage } from 'better-auth'
 
 export function createKvSecondaryStorage(
-  namespace: KVNamespace,
+  namespace: any,
 ): SecondaryStorage {
   return {
     get(key) {

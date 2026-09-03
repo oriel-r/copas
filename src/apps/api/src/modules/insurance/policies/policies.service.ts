@@ -1,16 +1,5 @@
-import type { Queue, R2Bucket, D1Database } from '@cloudflare/workers-types';
-import type { PoliciesRepository } from './policies.repository';
-import type { BranchesService } from '../branches/branches.service';
-import type { AssetTypesService } from '../asset-types/asset-types.service';
-import type { CompaniesService } from '../companies/companies.service';
-import type { InsuredsService } from '../insureds/insureds.service';
-import type { AssetsService } from '../assets/assets.service';
-import type { PaymentMethodsService } from '../payment-methods/payment-methods.service';
-import type { PolicyInstallmentsService } from '../policy-installments/policy-installments.service';
-import type { PolicyAssetsRepository } from '../policy-assets/policy-assets.repository';
-import type { PolicyCoveragesRepository } from '../policy-coverages/policy-coverages.repository';
 import type { UploadUrlRequest, UploadUrlResponse } from './policies.schema';
-import type { AiQueueMessage, AiResultQueuePayload } from '@copas/contracts';
+import type { AiResultQueuePayload, CreatePolicyRequest, Policy } from '@copas/contracts';
 
 export function createPoliciesService(
   repository: any,
@@ -23,7 +12,7 @@ export function createPoliciesService(
   policyInstallmentsService?: any,
   policyAssetsRepo?: any,
   policyCoveragesRepo?: any,
-  bucket?: any,
+  _bucket?: any,
   aiQueue?: any,
   transactionRunner?: any
 ) {
@@ -42,7 +31,6 @@ export function createPoliciesService(
   const polInstSvc = (depsObj.policyInstallmentsService ?? policyInstallmentsService)?.policyInstallmentsService ?? (depsObj.policyInstallmentsService ?? policyInstallmentsService);
   const polAssetRepo = (depsObj.policyAssetsRepo ?? depsObj.policyAssetsRepository ?? policyAssetsRepo)?.policyAssetsRepository ?? (depsObj.policyAssetsRepo ?? depsObj.policyAssetsRepository ?? policyAssetsRepo);
   const polCovRepo = (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo)?.policyCoveragesRepository ?? (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo);
-  const bkt = depsObj.bucket ?? bucket;
   const queue = depsObj.aiQueue ?? aiQueue;
   const runner = depsObj.transactionRunner ?? transactionRunner ?? (async (cb: any) => await cb(undefined));
 
@@ -59,7 +47,7 @@ export function createPoliciesService(
       };
     },
 
-    processObjectCreateEvent: async (bucketName: string, key: string, eTag: string): Promise<void> => {
+    processObjectCreateEvent: async (_bucketName: string, key: string, eTag: string): Promise<void> => {
       const parts = key.split('/');
       const organizationId = parts.length > 1 ? parts[0] : 'default';
       const extractionResultId = await repo.createExtractionResult({
@@ -83,7 +71,7 @@ export function createPoliciesService(
       }
     },
 
-    triggerExtraction: async (documentUrl: string, organizationId: string = 'default', userId: string = 'usr-1'): Promise<any> => {
+    triggerExtraction: async (documentUrl: string, organizationId: string = 'default', _userId: string = 'usr-1'): Promise<any> => {
       const extractionResultId = await repo.createExtractionResult({
         documentUrl,
         status: 'pending',

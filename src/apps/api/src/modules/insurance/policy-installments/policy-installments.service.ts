@@ -1,4 +1,3 @@
-import type { D1Database } from '@cloudflare/workers-types';
 import type { PolicyInstallmentsRepository } from './policy-installments.repository';
 import type { PolicyInstallment, CreatePolicyInstallmentRequest } from '@copas/contracts';
 

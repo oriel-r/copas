@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { createAuth, type Auth } from './auth.factory'
 
 type AuthEnvironment = {
-  Bindings: CloudflareBindings
+  Bindings: any
   Variables: {
     auth: Auth
   }

@@ -1,4 +1,3 @@
-import type { D1Database } from '@cloudflare/workers-types';
 import type { BranchesRepository } from './branches.repository';
 import type { Branch, CreateBranchRequest } from '@copas/contracts';
 

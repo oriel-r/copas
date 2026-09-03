@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { MessageBatch, ExecutionContext } from '@cloudflare/workers-types';
 import { applyMiddlewares } from './core/setup/app.middlewares';
 import { registerRoutes } from './core/setup/app.router';
 import { registerErrorHandlers } from './core/setup/app.errors';
@@ -21,7 +22,7 @@ function calcApiBackoff(attempts?: number): number {
 // 3. Export app with queue handler
 const handler = Object.assign(app, {
   fetch: app.fetch.bind(app),
-  async queue(batch: MessageBatch<any>, env: CloudflareBindings, _ctx: ExecutionContext): Promise<void> {
+  async queue(batch: MessageBatch<any>, env: any, _ctx: ExecutionContext): Promise<void> {
     if (!batch?.messages?.length) return;
     for (const message of batch.messages) {
       const body: any = message.body;
@@ -67,6 +68,6 @@ const handler = Object.assign(app, {
   }
 });
 
-export type AppType = typeof routes;
+export type { AppType } from './core/setup/app.router';
 export default handler;
 

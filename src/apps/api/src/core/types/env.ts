@@ -1,7 +1,7 @@
 import type { InsuranceModule } from '../../modules/insurance/insurance.module';
 
 export type AppEnv = {
-  Bindings: CloudflareBindings;
+  Bindings: any;
   Variables: {
     organizationId: string | null;
     userId: string | null;

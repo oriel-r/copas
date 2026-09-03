@@ -9,3 +9,5 @@ export const registerRoutes = (app: Hono<AppEnv>) => {
     .route('/auth', authRoutes as any)
     .route('/policies', policiesRouter);
 };
+
+export type AppType = ReturnType<typeof registerRoutes>;

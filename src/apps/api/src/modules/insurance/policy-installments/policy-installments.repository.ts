@@ -12,7 +12,7 @@ function getClient(db: any, tx?: any) {
   return typeof base?.prepare === 'function' ? drizzle(base) : base;
 }
 
-export function createPolicyInstallmentsRepository(db: D1Database | any, organizationId: string) {
+export function createPolicyInstallmentsRepository(db: D1Database | any, organizationId: string = 'default') {
   return {
     findById: async (id: string, tx?: any): Promise<PolicyInstallment | null> => {
       const client = getClient(db, tx);

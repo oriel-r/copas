@@ -1,4 +1,3 @@
-import type { D1Database } from '@cloudflare/workers-types';
 import type { PaymentMethodsRepository } from './payment-methods.repository';
 import type { PaymentMethod, CreatePaymentMethodRequest } from '@copas/contracts';
 

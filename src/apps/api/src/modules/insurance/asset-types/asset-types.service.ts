@@ -1,4 +1,3 @@
-import type { D1Database } from '@cloudflare/workers-types';
 import type { AssetTypesRepository } from './asset-types.repository';
 import type { AssetType, CreateAssetTypeRequest } from '@copas/contracts';
 

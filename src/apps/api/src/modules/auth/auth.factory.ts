@@ -4,7 +4,7 @@ import { createDatabase } from '../../../platform/cloudflare/database'
 import { requireEnvironmentValue } from '../../../platform/cloudflare/environment'
 import { createKvSecondaryStorage } from '../../../platform/cloudflare/kv-secondary-storage'
 
-export function createAuth(env: CloudflareBindings) {
+export function createAuth(env: any) {
   const config: AuthConfig = {
     database: createDatabase(env.DB),
     secret: requireEnvironmentValue(env.BETTER_AUTH_SECRET, 'BETTER_AUTH_SECRET'),

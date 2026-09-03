@@ -96,7 +96,6 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       return c.json(result, 200);
     })
     .post('/upload', async (c) => {
-      const s = getService(c);
       const organizationId = c.get('organizationId' as any) as string | null;
       if (!organizationId) return c.json({ error: 'organization required' }, 401);
       const bucket = (c.env as any)?.DOCUMENT_BUCKET;
