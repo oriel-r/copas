@@ -37,7 +37,7 @@ export function createFilesService(deps: FilesServiceDeps): FilesService {
         return null;
       }
       return {
-        body: object.body as ReadableStream<any>,
+        body: object.body as unknown as ReadableStream<any>,
         contentType: object.httpMetadata?.contentType,
         httpEtag: object.httpEtag,
       };
