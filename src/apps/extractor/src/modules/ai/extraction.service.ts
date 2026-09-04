@@ -36,14 +36,33 @@ export const createExtractionService = (deps: {
     extractMarkdown: async (documentUrl: string): Promise<string> => {
       const res = await (ocr as any).process(documentUrl);
       // Justified: injected ocrClient in tests returns string | {markdown} | {text}
-      return typeof res === 'string' ? res : (res?.markdown ?? res?.text ?? '');
+      const markdown = typeof res === 'string' ? res : (res?.markdown ?? res?.text ?? '');
+      logger.info('OCR markdown extracted for {documentUrl}, length: {textLength}', {
+        documentUrl,
+        textLength: markdown.length,
+      });
+      logger.debug('OCR markdown content for {documentUrl}: {markdown}', {
+        documentUrl,
+        markdown,
+      });
+      return markdown;
     },
 
     normalizeToSchema: async (markdownText: string) => llm.normalizeToSchema(markdownText),
 
     extractPolicy: async (documentUrl: string) => {
       const markdown = await service.extractMarkdown(documentUrl);
-      return service.normalizeToSchema(markdown);
+      const structured = await service.normalizeToSchema(markdown);
+      logger.info('Extracted structured policy data for {documentUrl}: policyNumber={policyNumber}', {
+        documentUrl,
+        policyNumber: structured.policy?.policyNumber,
+        company: structured.company?.name,
+      });
+      logger.debug('Extracted structured policy payload for {documentUrl}: {structuredPayload}', {
+        documentUrl,
+        structuredPayload: structured,
+      });
+      return structured;
     },
 
     processDocument: async (payload: AiQueuePayload) => {
@@ -56,6 +75,12 @@ export const createExtractionService = (deps: {
 
       if (deps.aiResultQueue && typeof deps.aiResultQueue.send === 'function') {
         const requestId = (payload as any).requestId || (payload as any).metadata?.requestId;
+        logger.debug('Dispatching ai-result to queue with payload for {aiExtractionResultId}: {structuredPayload}', {
+          aiExtractionResultId: payload.aiExtractionResultId,
+          requestId,
+          structuredPayload: extracted,
+        });
+
         await deps.aiResultQueue.send({
           type: 'ai-result',
           payload: {

@@ -185,18 +185,36 @@ export function createPoliciesService(
         if (!organizationId) throw new Error('organizationId required in payload');
         const userId = payload.userId ?? (payload as any).uploadedBy ?? 'usr-1';
 
-        // 1. Company (search by code, fallback name = code)
-        const compData = extracted.company;
-        const compCode = compData?.code && compData.code.trim() !== '' ? compData.code : compData?.name;
-        const compName = compData?.name && compData.name.trim() !== '' ? compData.name : compCode;
-        const company = compSvc ? (
-          typeof compSvc.findOrCreate === 'function'
-            ? await compSvc.findOrCreate({ code: compCode, name: compName }, tx)
-            : typeof compSvc.findByCode === 'function'
-              ? await compSvc.findByCode(compCode, tx)
-              : null
-        ) : null;
-        const companyId = typeof company === 'object' ? company?.id : company;
+        logger.info('Processing extracted policy persistence for {aiExtractionResultId}: policy={policyNumber}, company={company}', {
+          aiExtractionResultId: payload.aiExtractionResultId,
+          organizationId,
+          userId,
+          policyNumber: extracted?.policy?.policyNumber,
+          company: extracted?.company?.name,
+          insured: extracted?.insured?.fullName,
+          branch: extracted?.branch?.code,
+          installmentsCount: extracted?.installments?.length ?? 0,
+          coveragesCount: extracted?.coverages?.length ?? 0,
+        });
+
+        logger.debug('Extracted policy full payload for {aiExtractionResultId}: {extractedPolicy}', {
+          aiExtractionResultId: payload.aiExtractionResultId,
+          extractedPolicy: extracted,
+        });
+
+        try {
+          // 1. Company (search by code, fallback name = code)
+          const compData = extracted.company;
+          const compCode = compData?.code && compData.code.trim() !== '' ? compData.code : compData?.name;
+          const compName = compData?.name && compData.name.trim() !== '' ? compData.name : compCode;
+          const company = compSvc ? (
+            typeof compSvc.findOrCreate === 'function'
+              ? await compSvc.findOrCreate({ code: compCode, name: compName }, tx)
+              : typeof compSvc.findByCode === 'function'
+                ? await compSvc.findByCode(compCode, tx)
+                : null
+          ) : null;
+          const companyId = typeof company === 'object' ? company?.id : company;
 
         // 2. Branch (search by code, fallback name = code)
         const branchCode = extracted.branch?.code || 'OTROS';
@@ -350,6 +368,16 @@ export function createPoliciesService(
         });
 
         return policy;
+      } catch (persistErr: any) {
+        logger.error('Failed to persist extracted policy entities for {aiExtractionResultId}: {error}', {
+          aiExtractionResultId: payload.aiExtractionResultId,
+          organizationId,
+          error: persistErr?.message ?? String(persistErr),
+          extractedPolicy: extracted,
+          stack: persistErr?.stack,
+        });
+        throw persistErr;
+      }
       });
     },
 

@@ -76,6 +76,10 @@ export const createMistralOcrClient = (deps: MistralOcrClientDeps) => {
           pagesCount: data.pages.length,
           textLength: markdown.length,
         });
+        logger.debug('Mistral OCR extracted markdown content for {documentUrl}: {markdown}', {
+          documentUrl,
+          markdown,
+        });
         return markdown;
       }
 
@@ -86,6 +90,10 @@ export const createMistralOcrClient = (deps: MistralOcrClientDeps) => {
           durationMs,
           textLength: data.markdown.length,
         });
+        logger.debug('Mistral OCR extracted raw markdown content for {documentUrl}: {markdown}', {
+          documentUrl,
+          markdown: data.markdown,
+        });
         return data.markdown;
       }
 
@@ -94,6 +102,10 @@ export const createMistralOcrClient = (deps: MistralOcrClientDeps) => {
           documentUrl,
           durationMs,
           textLength: data.text.length,
+        });
+        logger.debug('Mistral OCR extracted raw text content for {documentUrl}: {text}', {
+          documentUrl,
+          text: data.text,
         });
         return data.text;
       }

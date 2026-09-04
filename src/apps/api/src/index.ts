@@ -75,9 +75,16 @@ const handler = Object.assign(app, {
           }
 
           const start = performance.now();
-          queueLogger.info('Processing AI result message started', {
+          queueLogger.info('Processing AI result message started for {aiExtractionResultId}', {
             aiExtractionResultId: payload?.aiExtractionResultId,
+            organizationId,
             attempts: (message as any).attempts,
+            policyNumber: payload?.structuredPayload?.policy?.policyNumber,
+            company: payload?.structuredPayload?.company?.name,
+          });
+          queueLogger.debug('AI result message structured payload for {aiExtractionResultId}: {structuredPayload}', {
+            aiExtractionResultId: payload?.aiExtractionResultId,
+            structuredPayload: payload?.structuredPayload,
           });
 
           try {
@@ -112,6 +119,7 @@ const handler = Object.assign(app, {
               durationMs,
               error: msg,
               stack: err?.stack,
+              structuredPayload: payload?.structuredPayload,
             });
 
             if (typeof (message as any).retry === 'function') {
