@@ -258,6 +258,9 @@ importers:
       '@copas/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      aws4fetch:
+        specifier: ^1.0.20
+        version: 1.0.20
       better-auth:
         specifier: ^1.7.1
         version: 1.7.1(@cloudflare/workers-types@5.20260804.1)(@prisma/client@5.22.0)(better-sqlite3@12.11.1)(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260804.1)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(pg@8.23.0)(zod@4.4.3))(pg@8.23.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.10)
@@ -2650,6 +2653,9 @@ packages:
     resolution: {integrity: sha512-4ro0Na2hJBCb6T9Na5mIjY6KRGFGxeLTGY8FQxklNZ93jyAqR2Xn1bkhk9c0qkCAnWQ8AAPBs36C192bShjkeg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   babel-plugin-react-compiler@1.0.0:
     resolution: {integrity: sha512-Ixm8tFfoKKIPYdCCKYTsqv+Fd4IJ0DQqMyEimo+pxUOMUR9cVPlwTrFt9Avu+3cb6Zp3mAzl+t1MrG2fxxKsxw==}
@@ -7312,6 +7318,8 @@ snapshots:
       - svelte
       - vitest
       - vue
+
+  aws4fetch@1.0.20: {}
 
   babel-plugin-react-compiler@1.0.0:
     dependencies:

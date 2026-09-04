@@ -34,12 +34,15 @@ export function createPoliciesService(
   const polCovRepo = (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo)?.policyCoveragesRepository ?? (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo);
   const queue = depsObj.aiQueue ?? aiQueue;
   const runner = depsObj.transactionRunner ?? transactionRunner ?? (async (cb: any) => await cb(undefined));
-
+  const filesService = depsObj.filesService ?? (typeof _bucket?.generateTemporaryPublicUrl === 'function' ? _bucket : undefined);
 
   const logger = getLogger(['api', 'insurance']);
 
   return {
     generateUploadUrl: async (req: UploadUrlRequest, organizationId: string = 'default'): Promise<UploadUrlResponse> => {
+      if (filesService) {
+        return await filesService.generateUploadUrl(req.filename || 'document.pdf', organizationId, 300);
+      }
       const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-1';
       const filename = req.filename || 'document.pdf';
       const key = `${organizationId}/${id}-${filename}`;
@@ -60,8 +63,14 @@ export function createPoliciesService(
     processObjectCreateEvent: async (_bucketName: string, key: string, eTag: string): Promise<void> => {
       const parts = key.split('/');
       const organizationId = parts.length > 1 ? parts[0] : 'default';
+
+      let documentUrl = key;
+      if (filesService) {
+        documentUrl = await filesService.generateTemporaryPublicUrl(key, 300);
+      }
+
       const extractionResultId = await repo.createExtractionResult({
-        documentUrl: key,
+        documentUrl,
         status: 'pending',
       });
       const id = typeof extractionResultId === 'object' ? extractionResultId.id : extractionResultId;
@@ -80,7 +89,7 @@ export function createPoliciesService(
           type: 'ai-extraction',
           payload: {
             aiExtractionResultId: id,
-            documentUrl: key,
+            documentUrl,
           },
           metadata: {
             organizationId: organizationId,
@@ -99,15 +108,21 @@ export function createPoliciesService(
     },
 
     triggerExtraction: async (documentUrl: string, organizationId: string = 'default', _userId: string = 'usr-1'): Promise<any> => {
+      let resolvedDocumentUrl = documentUrl;
+      const isUrl = documentUrl.startsWith('http://') || documentUrl.startsWith('https://') || documentUrl.startsWith('data:');
+      if (!isUrl && filesService) {
+        resolvedDocumentUrl = await filesService.generateTemporaryPublicUrl(documentUrl, 300);
+      }
+
       const extractionResultId = await repo.createExtractionResult({
-        documentUrl,
+        documentUrl: resolvedDocumentUrl,
         status: 'pending',
       });
       const id = typeof extractionResultId === 'object' ? extractionResultId.id : extractionResultId;
       const reqId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `extract-${id}`;
 
       logger.info('Triggering AI extraction for documentUrl: {documentUrl}', {
-        documentUrl,
+        documentUrl: resolvedDocumentUrl,
         organizationId,
         aiExtractionResultId: id,
         requestId: reqId,
@@ -118,7 +133,7 @@ export function createPoliciesService(
           type: 'ai-extraction',
           payload: {
             aiExtractionResultId: id,
-            documentUrl,
+            documentUrl: resolvedDocumentUrl,
           },
           metadata: {
             organizationId: organizationId,
@@ -128,7 +143,7 @@ export function createPoliciesService(
         });
 
         logger.info('Enqueued ai-extraction message for documentUrl: {documentUrl}', {
-          documentUrl,
+          documentUrl: resolvedDocumentUrl,
           aiExtractionResultId: id,
           organizationId,
           requestId: reqId,
@@ -138,7 +153,7 @@ export function createPoliciesService(
       return {
         aiExtractionResultId: id,
         status: 'pending',
-        documentUrl,
+        documentUrl: resolvedDocumentUrl,
       };
     },
 

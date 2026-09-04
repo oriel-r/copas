@@ -58,7 +58,9 @@
     "BACKEND_URL": "http://localhost:8788",
     "BETTER_AUTH_URL": "http://localhost:8788",
     "CLIENT_URL": "http://localhost:5173",
-    "NODE_ENV": "development"
+    "NODE_ENV": "development",
+    "R2_ACCOUNT_ID": "35d060878ef1601397d88e02e01cf4fb",
+    "R2_BUCKET_NAME": "copas-documents"
   },
 
   "secrets": {
@@ -69,6 +71,10 @@
       "MICROSOFT_CLIENT_ID",
       "MICROSOFT_CLIENT_SECRET",
       "MICROSOFT_TENANT_ID"
+    ],
+    "optional": [
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY"
     ]
   },
 
@@ -83,13 +89,19 @@
           "MICROSOFT_CLIENT_ID",
           "MICROSOFT_CLIENT_SECRET",
           "MICROSOFT_TENANT_ID"
+        ],
+        "optional": [
+          "R2_ACCESS_KEY_ID",
+          "R2_SECRET_ACCESS_KEY"
         ]
       },
       "vars": {
         "BACKEND_URL": "https://api-staging.orielromero-work.workers.dev",
         "BETTER_AUTH_URL": "https://api-staging.orielromero-work.workers.dev",
         "CLIENT_URL": "https://client-staging.orielromero-work.workers.dev",
-        "NODE_ENV": "staging"
+        "NODE_ENV": "staging",
+        "R2_ACCOUNT_ID": "35d060878ef1601397d88e02e01cf4fb",
+        "R2_BUCKET_NAME": "copas-documents-staging"
       },
       "d1_databases": [
         {

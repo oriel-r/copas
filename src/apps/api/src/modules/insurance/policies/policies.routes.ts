@@ -18,10 +18,23 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       return c.json(result, 200);
     })
     .get('/documents/*', async (c) => {
-      const bucket = (c.env as any)?.DOCUMENT_BUCKET;
       const prefix = '/policies/documents/';
       const rawPath = c.req.path;
       const key = rawPath.startsWith(prefix) ? rawPath.slice(prefix.length) : rawPath;
+
+      const filesService = c.get('services')?.insurance?.files;
+      const bucket = (c.env as any)?.DOCUMENT_BUCKET;
+
+      if (filesService) {
+        const file = await filesService.get(key);
+        if (!file) {
+          return c.json({ error: 'Document not found' }, 404);
+        }
+        const headers = new Headers();
+        if (file.httpEtag) headers.set('etag', file.httpEtag);
+        headers.set('content-type', file.contentType || 'application/pdf');
+        return new Response(file.body as any, { headers });
+      }
 
       if (!bucket || typeof bucket.get !== 'function') {
         return c.text('Document storage not available', 503);
@@ -98,6 +111,7 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
     .post('/upload', async (c) => {
       const organizationId = c.get('organizationId' as any) as string | null;
       if (!organizationId) return c.json({ error: 'organization required' }, 401);
+      const filesService = c.get('services')?.insurance?.files;
       const bucket = (c.env as any)?.DOCUMENT_BUCKET;
 
       const contentType = c.req.header('content-type') || '';
@@ -119,14 +133,21 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-1';
       const policyAssetKey = `${organizationId}/${id}-${filename}`;
 
-      if (bucket && typeof bucket.put === 'function') {
+      if (filesService) {
+        await filesService.upload(policyAssetKey, fileBuffer, { contentType: 'application/pdf' });
+      } else if (bucket && typeof bucket.put === 'function') {
         await bucket.put(policyAssetKey, fileBuffer, {
           httpMetadata: { contentType: 'application/pdf' },
         });
       }
 
-      const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8788';
-      const documentUrl = `${baseUrl}/policies/documents/${policyAssetKey}`;
+      let documentUrl: string;
+      if (filesService) {
+        documentUrl = await filesService.generateTemporaryPublicUrl(policyAssetKey, 300);
+      } else {
+        const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8788';
+        documentUrl = `${baseUrl}/policies/documents/${policyAssetKey}`;
+      }
 
       return c.json({
         policyAssetKey,
@@ -144,16 +165,8 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       const organizationId = c.get('organizationId' as any) as string | null;
       if (!organizationId) return c.json({ error: 'organization required' }, 401);
 
-      const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8788';
-      const documentUrl =
-        policyAssetKey.startsWith('http://') ||
-        policyAssetKey.startsWith('https://') ||
-        policyAssetKey.startsWith('data:')
-          ? policyAssetKey
-          : `${baseUrl}/policies/documents/${policyAssetKey}`;
-
       const userId = c.get('userId' as any) as string | null;
-      const result = await (s as any).triggerExtraction(documentUrl, organizationId, userId ?? body?.userId ?? 'usr-1');
+      const result = await (s as any).triggerExtraction(policyAssetKey, organizationId, userId ?? body?.userId ?? 'usr-1');
       return c.json(result, 202);
     })
     .post('/process-ai-result', async (c) => {

@@ -14,6 +14,9 @@ describe('policies.service', () => {
   let mockPolicyCoveragesRepo: any
   let mockPolicyInstallmentsService: any
   let mockTransactionRunner: any
+  let mockFilesService: any
+  let mockAiQueue: any
+  let mockAiExtractionResultsRepo: any
   let service: ReturnType<typeof createPoliciesService>
 
   beforeEach(() => {
@@ -24,6 +27,7 @@ describe('policies.service', () => {
       update: vi.fn(),
       list: vi.fn(),
       delete: vi.fn(),
+      createExtractionResult: vi.fn().mockResolvedValue('extraction-res-1'),
     }
     mockCompaniesService = {
       findOrCreate: vi.fn(),
@@ -67,6 +71,24 @@ describe('policies.service', () => {
       return await callback(mockTx)
     })
 
+    mockFilesService = {
+      upload: vi.fn(),
+      get: vi.fn(),
+      delete: vi.fn(),
+      generateUploadUrl: vi.fn(),
+      generateTemporaryPublicUrl: vi.fn().mockResolvedValue('https://mock-r2.cloudflarestorage.com/temp-url-123'),
+    }
+
+    mockAiQueue = {
+      send: vi.fn().mockResolvedValue(undefined),
+    }
+
+    mockAiExtractionResultsRepo = {
+      create: vi.fn().mockResolvedValue({ id: 'extraction-res-1' }),
+      findById: vi.fn().mockResolvedValue({ id: 'extraction-res-1' }),
+      update: vi.fn().mockResolvedValue({ id: 'extraction-res-1' }),
+    }
+
     service = createPoliciesService({
       policiesRepository: mockPoliciesRepo,
       companiesService: mockCompaniesService,
@@ -79,6 +101,9 @@ describe('policies.service', () => {
       policyCoveragesRepository: mockPolicyCoveragesRepo,
       policyInstallmentsService: mockPolicyInstallmentsService,
       transactionRunner: mockTransactionRunner,
+      filesService: mockFilesService,
+      aiQueue: mockAiQueue,
+      aiExtractionResultsRepository: mockAiExtractionResultsRepo,
     })
   })
 
@@ -400,6 +425,77 @@ describe('policies.service', () => {
       ).rejects.toThrow('DB Connection Failed')
 
       expect(mockPoliciesRepo.create).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('processObjectCreateEvent', () => {
+    it('should call filesService.generateTemporaryPublicUrl(key, 300) and dispatch documentUrl to aiQueue', async () => {
+      const bucket = 'copas-documents'
+      const key = 'org-1/uuid-1234-poliza.pdf'
+      const eTag = 'etag-abc-999'
+      const mockPresignedUrl = 'https://account.r2.cloudflarestorage.com/copas-documents/org-1/uuid-1234-poliza.pdf?X-Amz-Expires=300'
+      mockFilesService.generateTemporaryPublicUrl.mockResolvedValueOnce(mockPresignedUrl)
+
+      await (service as any).processObjectCreateEvent(bucket, key, eTag)
+
+      expect(mockFilesService.generateTemporaryPublicUrl).toHaveBeenCalledWith(key, 300)
+      expect(mockAiQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            documentUrl: mockPresignedUrl,
+          }),
+        }),
+      )
+    })
+
+    it('should reject if filesService.generateTemporaryPublicUrl fails during processObjectCreateEvent', async () => {
+      mockFilesService.generateTemporaryPublicUrl.mockRejectedValueOnce(new Error('Failed to generate temporary public URL'))
+
+      await expect(
+        (service as any).processObjectCreateEvent('bucket', 'key.pdf', 'etag'),
+      ).rejects.toThrow('Failed to generate temporary public URL')
+
+      expect(mockAiQueue.send).not.toHaveBeenCalled()
+    })
+
+    it('should reject if aiQueue.send fails during processObjectCreateEvent', async () => {
+      mockFilesService.generateTemporaryPublicUrl.mockResolvedValueOnce('https://temp.url')
+      mockAiQueue.send.mockRejectedValueOnce(new Error('aiQueue failure'))
+
+      await expect(
+        (service as any).processObjectCreateEvent('bucket', 'key.pdf', 'etag'),
+      ).rejects.toThrow('aiQueue failure')
+    })
+  })
+
+  describe('triggerExtraction', () => {
+    it('should call filesService.generateTemporaryPublicUrl and dispatch documentUrl to aiQueue', async () => {
+      const documentUrlOrKey = 'org-1/manual-extract.pdf'
+      const organizationId = '018f9e2b-0000-7000-8000-000000000001'
+      const userId = '018f9e2b-0000-7000-8000-000000000002'
+      const mockPresignedUrl = 'https://account.r2.cloudflarestorage.com/copas-documents/manual-extract.pdf?X-Amz-Expires=300'
+      mockFilesService.generateTemporaryPublicUrl.mockResolvedValueOnce(mockPresignedUrl)
+
+      await (service as any).triggerExtraction(documentUrlOrKey, organizationId, userId)
+
+      expect(mockFilesService.generateTemporaryPublicUrl).toHaveBeenCalledWith(documentUrlOrKey, 300)
+      expect(mockAiQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            documentUrl: mockPresignedUrl,
+          }),
+        }),
+      )
+    })
+
+    it('should reject if filesService.generateTemporaryPublicUrl fails during triggerExtraction', async () => {
+      mockFilesService.generateTemporaryPublicUrl.mockRejectedValueOnce(new Error('Cannot sign URL'))
+
+      await expect(
+        (service as any).triggerExtraction('key.pdf', 'org-1', 'usr-1'),
+      ).rejects.toThrow('Cannot sign URL')
+
+      expect(mockAiQueue.send).not.toHaveBeenCalled()
     })
   })
 })

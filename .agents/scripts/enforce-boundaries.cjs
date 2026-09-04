@@ -59,14 +59,15 @@ function isAllowedQAReadPath(filePath) {
 
 function agentFromText(text) {
   if (!text) return null;
-  if (/senior-implementer|Senior Implementer|Senior TypeScript Developer \/ Implementer/i.test(text)) {
-    return 'senior-implementer';
-  }
-  if (/senior-qa-engineer|Senior QA Engineer|Senior Quality Assurance Engineer/i.test(text)) {
-    return 'senior-qa-engineer';
-  }
   if (/senior-architect|Senior Software Architect/i.test(text)) {
     return 'senior-architect';
+  }
+  const stripped = text.replace(/"invoke_subagent"[\s\S]*?"TypeName"\s*:\s*"[^"]+"/g, '');
+  if (/senior-implementer|Senior Implementer|Senior TypeScript Developer \/ Implementer/i.test(stripped)) {
+    return 'senior-implementer';
+  }
+  if (/senior-qa-engineer|Senior QA Engineer|Senior Quality Assurance Engineer/i.test(stripped)) {
+    return 'senior-qa-engineer';
   }
   return null;
 }

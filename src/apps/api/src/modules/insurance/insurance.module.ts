@@ -19,12 +19,23 @@ import { createPolicyAssetsRepository } from './policy-assets/policy-assets.repo
 import { createPolicyCoveragesRepository } from './policy-coverages/policy-coverages.repository';
 import { createPoliciesRepository } from './policies/policies.repository';
 import { createPoliciesService } from './policies/policies.service';
+import { createFilesService } from './files';
+
+export interface InsuranceModuleOptions {
+  r2AccountId?: string;
+  r2AccessKeyId?: string;
+  r2SecretAccessKey?: string;
+  r2BucketName?: string;
+  backendUrl?: string;
+  signingSecret?: string;
+}
 
 export function createInsuranceModule(
   db: D1Database,
   organizationId: string,
   bucket: R2Bucket,
-  aiQueue: Queue<AiQueueMessage>
+  aiQueue: Queue<AiQueueMessage>,
+  options: InsuranceModuleOptions = {}
 ) {
   // D1 no soporta transacciones interactivas reales; usamos batch-style runner
   // con rollback simulado: si cb lanza, no se commitea (los writes previos ya están en batch pero D1 batch es atómico)
@@ -58,7 +69,18 @@ export function createInsuranceModule(
   const assetsService = createAssetsService(assetsRepo);
   const paymentMethodsService = createPaymentMethodsService(paymentMethodsRepo);
   const policyInstallmentsService = createPolicyInstallmentsService(policyInstallmentsRepo);
-  
+
+  const filesService = createFilesService({
+    bucket,
+    organizationId,
+    r2AccountId: options.r2AccountId,
+    r2AccessKeyId: options.r2AccessKeyId,
+    r2SecretAccessKey: options.r2SecretAccessKey,
+    r2BucketName: options.r2BucketName,
+    backendUrl: options.backendUrl,
+    signingSecret: options.signingSecret,
+  });
+
   const policiesService = createPoliciesService(
     policiesRepo,
     branchesService,
@@ -70,7 +92,7 @@ export function createInsuranceModule(
     policyInstallmentsService,
     policyAssetsRepo,
     policyCoveragesRepo,
-    bucket,
+    filesService,
     aiQueue,
     transactionRunner
   );
@@ -90,6 +112,8 @@ export function createInsuranceModule(
     paymentMethodsService,
     policyInstallments: policyInstallmentsService,
     policyInstallmentsService,
+    files: filesService,
+    filesService,
     policies: policiesService,
     policiesService,
   };
