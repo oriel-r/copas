@@ -145,9 +145,12 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       if (!organizationId) return c.json({ error: 'organization required' }, 401);
 
       const baseUrl = (c.env as any)?.BACKEND_URL || (c.env as any)?.API_URL || (c.req.url ? new URL(c.req.url).origin : '') || 'http://localhost:8788';
-      const documentUrl = policyAssetKey.startsWith('http://') || policyAssetKey.startsWith('https://')
-        ? policyAssetKey
-        : `${baseUrl}/policies/documents/${policyAssetKey}`;
+      const documentUrl =
+        policyAssetKey.startsWith('http://') ||
+        policyAssetKey.startsWith('https://') ||
+        policyAssetKey.startsWith('data:')
+          ? policyAssetKey
+          : `${baseUrl}/policies/documents/${policyAssetKey}`;
 
       const userId = c.get('userId' as any) as string | null;
       const result = await (s as any).triggerExtraction(documentUrl, organizationId, userId ?? body?.userId ?? 'usr-1');

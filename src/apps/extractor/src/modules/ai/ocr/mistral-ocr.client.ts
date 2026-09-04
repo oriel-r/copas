@@ -1,7 +1,22 @@
 import { getLogger } from '@copas/logger';
+import {
+  createDocumentResolver,
+  type DocumentResolver,
+} from './document-resolver.js';
 
-export const createMistralOcrClient = (deps: { mistralApiKey: string }) => {
+export { isPublicWebUrl } from '../utils/network.js';
+export { resolveDocumentForOcr } from './document-resolver.js';
+
+export interface MistralOcrClientDeps {
+  mistralApiKey: string;
+  fetch?: typeof fetch;
+  documentResolver?: DocumentResolver;
+}
+
+export const createMistralOcrClient = (deps: MistralOcrClientDeps) => {
   const logger = getLogger(['extractor', 'ocr']);
+  const fetchFn = deps.fetch ?? fetch;
+  const resolver = deps.documentResolver ?? createDocumentResolver({ fetchFn });
 
   return {
     process: async (documentUrl: string): Promise<string> => {
@@ -12,9 +27,11 @@ export const createMistralOcrClient = (deps: { mistralApiKey: string }) => {
       logger.info('Calling Mistral OCR for document: {documentUrl}', { documentUrl });
       const start = performance.now();
 
+      const resolved = await resolver.resolve(documentUrl);
+
       let res: Response;
       try {
-        res = await fetch('https://api.mistral.ai/v1/ocr', {
+        res = await fetchFn('https://api.mistral.ai/v1/ocr', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${deps.mistralApiKey}`,
@@ -22,7 +39,7 @@ export const createMistralOcrClient = (deps: { mistralApiKey: string }) => {
           },
           body: JSON.stringify({
             model: 'mistral-ocr-latest',
-            document: { type: 'document_url', document_url: documentUrl },
+            document: { type: 'document_url', document_url: resolved.documentUrl },
           }),
         });
       } catch (networkErr: any) {

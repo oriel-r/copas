@@ -1,12 +1,15 @@
 import { Hono } from 'hono';
 import { ensureLogger, getLogger, withLogContext } from '@copas/logger';
-import { createAiService } from './modules/ai/ai.service';
+import { createAiService } from './modules/ai/ai.service.js';
+import { createAiRouter } from './modules/ai/ai.routes.js';
 
-const app = new Hono();
+const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 app.get('/', (c) => {
   return c.text('Hello Hono!');
 });
+
+app.route('/', createAiRouter());
 
 function calculateBackoffDelay(attempts?: number): number {
   const a = typeof attempts === 'number' && attempts > 0 ? attempts : 1;
