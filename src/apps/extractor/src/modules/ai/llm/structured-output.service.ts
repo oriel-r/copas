@@ -2,16 +2,40 @@ import { z, extractedPolicySchema } from '@copas/contracts';
 import { getLogger } from '@copas/logger';
 import { DEFAULT_SYSTEM_PROMPT } from './system-prompt.js';
 
+function sanitizeJsonSchema(schema: any): any {
+  if (!schema || typeof schema !== 'object') return schema;
+  if (Array.isArray(schema)) return schema.map(sanitizeJsonSchema);
+
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    // Exclude keys not implemented by Workers AI grammar engine (llguidance)
+    if (key === '$schema' || key === 'propertyNames') {
+      continue;
+    }
+    // Normalize empty object additionalProperties ({}) to true
+    if (
+      key === 'additionalProperties' &&
+      typeof value === 'object' &&
+      value !== null &&
+      Object.keys(value).length === 0
+    ) {
+      clean[key] = true;
+      continue;
+    }
+    clean[key] = sanitizeJsonSchema(value);
+  }
+  return clean;
+}
+
 const jsonSchema = (() => {
-  const schema = (
+  const raw = (
     typeof (extractedPolicySchema as any).toJSONSchema === 'function'
       ? (extractedPolicySchema as any).toJSONSchema()
       : typeof (z as any).toJSONSchema === 'function'
         ? (z as any).toJSONSchema(extractedPolicySchema)
         : {}
   ) as any;
-  delete schema.$schema;
-  return schema;
+  return sanitizeJsonSchema(raw);
 })();
 
 export const createStructuredOutputService = (deps: {
