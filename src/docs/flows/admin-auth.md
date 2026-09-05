@@ -1,3 +1,14 @@
+---
+type: guide
+producer: agent/deepseek-v4-flash-free
+status: active
+created: 2026-08-01
+updated:
+expires: 2027-08-01
+deprecatedReason: ""
+supersededBy: ""
+---
+
 # Admin Auth Flow
 
 ## 1. Backend (Better Auth)
