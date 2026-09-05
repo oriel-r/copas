@@ -50,5 +50,24 @@ export const createAiRouter = () => {
     }
   });
 
+  router.get('/extractions/:id/status', async (c) => {
+    const id = c.req.param('id');
+    const env = c.env as any;
+    
+    if (!env.EXTRACTION_WORKFLOW) {
+      return c.json({ error: 'EXTRACTION_WORKFLOW binding not configured' }, 500);
+    }
+
+    try {
+      const instance = await env.EXTRACTION_WORKFLOW.get(id);
+      const status = await instance.status();
+      return c.json(status, 200);
+    } catch (err: any) {
+      const logger = getLogger(['extractor', 'http']);
+      logger.error('Failed to get extraction status: {error}', { error: err?.message ?? String(err) });
+      return c.json({ error: err?.message ?? String(err) }, 500);
+    }
+  });
+
   return router;
 };

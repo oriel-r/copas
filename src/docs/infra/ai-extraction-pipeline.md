@@ -1,12 +1,12 @@
 ---
 type: convention
 producer: oriel
-status: draft
+status: superseded
 created: 2026-08-26
-updated:
+updated: 2026-09-04
 expires:
-deprecatedReason: ""
-supersededBy: ""
+deprecatedReason: "Superseded by durable Cloudflare Workflows architecture in ai-extraction-workflow.md"
+supersededBy: "/src/docs/infra/ai-extraction-workflow.md"
 ---
 
 # AI Extraction Pipeline

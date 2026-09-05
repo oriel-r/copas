@@ -22,7 +22,7 @@
 - [Scheduler](/docs/servicios/scheduler.md)
 - [Whatsapp Service](/docs/servicios/whatsapp_service.md)
 - [Email Service](/docs/servicios/email_service.md)
-- [Inteligencia Artificial](/docs/servicios/inteligencia_artificial.md)
+- [Inteligencia Artificial](/docs/servicios/ai-service.md)
 - [Auth Y Organizaciones](/docs/servicios/auth_y_organizaciones.md)
 - [Billing](/docs/servicios/billing.md)
 - [Cartera](/docs/servicios/cartera.md)

@@ -5,3 +5,4 @@ export { createDataProcessingService } from './extraction.service.js';
 export type { DataProcessingService } from './extraction.service.js';
 export type { MistralOcrClient } from './ocr/mistral-ocr.client.js';
 export type { StructuredOutputService } from './llm/structured-output.service.js';
+export { PolicyExtractionWorkflow } from './workflows/policy-extraction.workflow.js';

@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { ensureLogger, getLogger, withLogContext } from '@copas/logger';
-import { createAiService } from './modules/ai/ai.service.js';
 import { createAiRouter } from './modules/ai/ai.routes.js';
+
+export { PolicyExtractionWorkflow } from './modules/ai/workflows/policy-extraction.workflow.js';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -47,12 +48,6 @@ const handler = Object.assign(app, {
       queue: 'copas-ai-extraction',
     });
 
-    const aiService = createAiService({
-      aiResultQueue: env.AI_RESULT_QUEUE,
-      mistralApiKey: env.MISTRAL_API_KEY,
-      workersAi: env.AI,
-      aiModel: env.AI_MODEL,
-    });
 
     for (const message of batch.messages) {
       const body: any = message.body;
@@ -92,9 +87,16 @@ const handler = Object.assign(app, {
           });
 
           try {
-            await aiService.processDocument(payload);
+            await env.EXTRACTION_WORKFLOW.create({
+              id: payload.aiExtractionResultId,
+              params: {
+                ...payload,
+                organizationId,
+                requestId,
+              },
+            });
             const durationMs = Math.round((performance.now() - start) * 100) / 100;
-            logger.info('Document extraction processed and acknowledged successfully in {durationMs}ms', {
+            logger.info('Document extraction workflow triggered successfully in {durationMs}ms', {
               durationMs,
               aiExtractionResultId: payload.aiExtractionResultId,
             });
@@ -102,16 +104,22 @@ const handler = Object.assign(app, {
           } catch (err: any) {
             const durationMs = Math.round((performance.now() - start) * 100) / 100;
             const msg = err?.message ?? String(err);
-            // Workers AI JSON mode impossible state -> not retryable forever, go to DLQ after max_retries
-            const isJsonModeFailed = msg.includes("JSON Mode couldn't be met");
-            // For transient errors (429, OCR) use exponential backoff via retry delay
-            const delaySeconds = isJsonModeFailed ? 0 : calculateBackoffDelay(message.attempts);
+            
+            if (msg.includes('already exists') || err?.name === 'InstanceAlreadyExistsError') {
+              logger.info('Workflow instance already exists for {aiExtractionResultId}, treating as duplicate', {
+                aiExtractionResultId: payload.aiExtractionResultId,
+              });
+              safeAck(message);
+              return;
+            }
 
-            logger.error('Document extraction queue processing failed in {durationMs}ms: {error}', {
+            // For other errors, retry
+            const delaySeconds = calculateBackoffDelay(message.attempts);
+
+            logger.error('Document extraction workflow creation failed in {durationMs}ms: {error}', {
               documentUrl: payload.documentUrl,
               aiExtractionResultId: payload.aiExtractionResultId,
               attempts: message.attempts,
-              isJsonModeFailed,
               delaySeconds,
               durationMs,
               error: msg,

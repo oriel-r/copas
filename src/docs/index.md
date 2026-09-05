@@ -31,4 +31,4 @@ the root [docs](/docs/index.md).
 - [Infra Types](/infra/infra-types.md)
 - [Worker Boundaries](/infra/worker-boundaries.md)
 - [Queues](/infra/queues.md)
-- [AI Extraction Pipeline](/infra/ai-extraction-pipeline.md)
+- [AI Extraction Workflow](/infra/ai-extraction-workflow.md)

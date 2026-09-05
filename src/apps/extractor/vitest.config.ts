@@ -13,6 +13,26 @@ export default defineConfig({
         return null
       },
     },
+    {
+      name: 'cloudflare-workflows-virtual',
+      resolveId(id) {
+        if (id === 'cloudflare:workflows') {
+          return '\0cloudflare:workflows'
+        }
+      },
+      load(id) {
+        if (id === '\0cloudflare:workflows') {
+          return `
+            export class WorkflowEntrypoint {
+              constructor(ctx, env) {
+                this.ctx = ctx;
+                this.env = env;
+              }
+            }
+          `
+        }
+      },
+    },
   ],
   test: {
     environment: 'node',

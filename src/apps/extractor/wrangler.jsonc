@@ -18,6 +18,13 @@
       "fallthrough": true
     }
   ],
+  "workflows": [
+    {
+      "name": "policy-extraction-workflow",
+      "binding": "EXTRACTION_WORKFLOW",
+      "class_name": "PolicyExtractionWorkflow"
+    }
+  ],
   "queues": {
     "producers": [
       {
@@ -54,6 +61,13 @@
       "secrets": {
         "required": ["MISTRAL_API_KEY"]
       },
+      "workflows": [
+        {
+          "name": "policy-extraction-workflow-staging",
+          "binding": "EXTRACTION_WORKFLOW",
+          "class_name": "PolicyExtractionWorkflow"
+        }
+      ],
       "queues": {
         "producers": [
           {

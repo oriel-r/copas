@@ -1,12 +1,12 @@
 ---
 type: concept
 producer: oriel
-status: draft
+status: superseded
 created: 2026-08-25T21:19:54.815Z
-updated: 2026-08-26
+updated: 2026-09-04
 expires: 
-deprecatedReason: ""
-supersededBy: ""
+deprecatedReason: "Superseded by durable AI service architecture in ai-service.md"
+supersededBy: "/docs/servicios/ai-service.md"
 ---
 
 # Inteligencia Artificial
