@@ -70,9 +70,7 @@
       "GOOGLE_CLIENT_SECRET",
       "MICROSOFT_CLIENT_ID",
       "MICROSOFT_CLIENT_SECRET",
-      "MICROSOFT_TENANT_ID"
-    ],
-    "optional": [
+      "MICROSOFT_TENANT_ID",
       "R2_ACCESS_KEY_ID",
       "R2_SECRET_ACCESS_KEY"
     ]
@@ -88,9 +86,7 @@
           "GOOGLE_CLIENT_SECRET",
           "MICROSOFT_CLIENT_ID",
           "MICROSOFT_CLIENT_SECRET",
-          "MICROSOFT_TENANT_ID"
-        ],
-        "optional": [
+          "MICROSOFT_TENANT_ID",
           "R2_ACCESS_KEY_ID",
           "R2_SECRET_ACCESS_KEY"
         ]
