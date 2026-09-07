@@ -11,7 +11,7 @@ supersededBy: ""
 
 # AI Extraction Workflow
 
-Durable execution pipeline for insurance policy extraction using Cloudflare Workflows (`cloudflare:workflows`).
+Durable execution pipeline for insurance policy extraction using Cloudflare Workflows (`cloudflare:workers`).
 
 ```mermaid
 sequenceDiagram

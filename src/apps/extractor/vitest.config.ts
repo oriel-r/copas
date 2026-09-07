@@ -16,12 +16,12 @@ export default defineConfig({
     {
       name: 'cloudflare-workflows-virtual',
       resolveId(id) {
-        if (id === 'cloudflare:workflows') {
-          return '\0cloudflare:workflows'
+        if (id === 'cloudflare:workflows' || id === 'cloudflare:workers') {
+          return `\0${id}`
         }
       },
       load(id) {
-        if (id === '\0cloudflare:workflows') {
+        if (id === '\0cloudflare:workflows' || id === '\0cloudflare:workers') {
           return `
             export class WorkflowEntrypoint {
               constructor(ctx, env) {

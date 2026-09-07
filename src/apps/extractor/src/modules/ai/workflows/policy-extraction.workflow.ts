@@ -1,4 +1,4 @@
-import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workflows';
+import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';
 import { createMistralOcrClient, type MistralOcrClient } from '../ocr/mistral-ocr.client.js';
 import { createStructuredOutputService, type StructuredOutputService } from '../llm/structured-output.service.js';
 import type { ExtractedPolicy } from '@copas/contracts';
