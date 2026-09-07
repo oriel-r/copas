@@ -110,7 +110,6 @@ export const createStructuredOutputService = (deps: {
           ],
           temperature: 0.2,
           reasoning_effort: 'high',
-          chat_template_kwargs: { enable_thinking: true },
           response_format: { type: 'json_schema', json_schema: jsonSchema },
         });
       } catch (err: any) {
@@ -141,8 +140,23 @@ export const createStructuredOutputService = (deps: {
 
       let parsedJson: any;
       try {
-        // Justified: Workers AI returns {response: string|object} depending on binding version
-        let content = (response as any)?.response ?? (response as any)?.result ?? response;
+        // Justified: Workers AI returns different shapes depending on the model:
+        // - ChatCompletions models (Gemma-4, etc.): { choices: [{ message: { content: string } }] }
+        // - Legacy text-generation models: { response: string }
+        // - Some bindings: { result: string|object }
+        let content: any;
+
+        // ChatCompletions format (OpenAI-compatible)
+        if (
+          response?.choices &&
+          Array.isArray(response.choices) &&
+          response.choices[0]?.message?.content != null
+        ) {
+          content = response.choices[0].message.content;
+        } else {
+          // Legacy Workers AI format
+          content = (response as any)?.response ?? (response as any)?.result ?? response;
+        }
 
         // If string contains markdown fences or needs trimming
         if (typeof content === 'string') {
