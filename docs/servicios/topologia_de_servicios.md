@@ -1,10 +1,10 @@
 ---
 type: decision
 producer: oriel
-status: draft
+status: active
 created: 2026-08-25
-updated:
-expires:
+updated: 2026-09-07
+expires: 2027-09-07
 deprecatedReason: ""
 supersededBy: ""
 ---
@@ -47,5 +47,6 @@ hacen I/O externa y no escriben el dominio.
 - [Scheduler](/docs/servicios/scheduler.md)
 - [Whatsapp Service](/docs/servicios/whatsapp_service.md)
 - [Email Service](/docs/servicios/email_service.md)
+- [Triage de Inbound WhatsApp](/docs/decisiones/whatsapp_inbound_triage.md)
 - [Inteligencia Artificial](/docs/servicios/inteligencia_artificial.md)
 - [Arquitectura de la solución](/docs/vencimientos_y_renovaciones/arquitectura_de_la_solucion.md)

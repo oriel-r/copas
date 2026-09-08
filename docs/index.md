@@ -27,6 +27,11 @@
 - [Billing](/docs/servicios/billing.md)
 - [Cartera](/docs/servicios/cartera.md)
 
+## Decisiones
+
+- [Onboarding Agencias](/docs/decisiones/onboarding_agencias.md)
+- [Triage de Inbound WhatsApp](/docs/decisiones/whatsapp_inbound_triage.md)
+
 ## Implementation
 
 Code structure and technical conventions live in [src/docs](/src/docs/index.md).

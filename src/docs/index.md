@@ -28,7 +28,10 @@ the root [docs](/docs/index.md).
 
 ## Infra
 
-- [Infra Types](/infra/infra-types.md)
-- [Worker Boundaries](/infra/worker-boundaries.md)
-- [Queues](/infra/queues.md)
-- [AI Extraction Workflow](/infra/ai-extraction-workflow.md)
+- [Infra Types](/src/docs/infra/infra-types.md)
+- [Worker Boundaries](/src/docs/infra/worker-boundaries.md)
+- [Queues](/src/docs/infra/queues.md)
+- [Email Service](/src/docs/infra/email-service.md)
+- [WhatsApp Outbound Pipeline](/src/docs/infra/whatsapp-outbound-pipeline.md)
+- [WhatsApp Inbound Pipeline](/src/docs/infra/whatsapp-inbound-pipeline.md)
+- [AI Extraction Workflow](/src/docs/infra/ai-extraction-workflow.md)

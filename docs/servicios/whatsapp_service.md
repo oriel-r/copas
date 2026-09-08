@@ -1,20 +1,33 @@
 ---
 type: concept
-producer: oriel
-status: draft
-created: 2026-08-25T21:19:54.815Z
-updated:
-expires: 
+producer: agent/gemini-3.8-flash
+status: active
+created: 2026-08-25
+updated: 2026-09-08
+expires: 2027-09-08
 deprecatedReason: ""
 supersededBy: ""
 ---
 
 # Whatsapp Service
 
-## Preguntas pendientes
+Adapter sin estado para la integración con WhatsApp Cloud API (Meta Graph API).
 
-- ¿Cómo se verifica el webhook de Meta?
-- ¿Qué eventos se procesan (estados de entrega, mensajes inbound)?
-- ¿Cómo se abre y se cierra una conversación?
-- ¿Cómo se enforcea el opt-out (`communication_consents`)?
-- ¿Templates HSM de Meta o texto libre?
+## Responsabilidad y Flujos
+
+- **Saliente (Outbound)**: Consume la cola `whatsapp` y despacha a Meta Graph API.
+- **Entrante (Inbound)**: Recibe webhooks de Meta, valida firma HMAC, normaliza eventos y encola en `whatsapp-inbound`.
+- **Sin D1**: No persiste en base de datos; la lógica de negocio la ejecuta `api`.
+
+## Modelo de Cuentas WABA (Híbrido)
+
+- **Plan Base**: Pool compartido de números de plataforma (`owner_kind = 'platform'`).
+- **Planes Superiores**: Embedded Signup para conectar WABA y números propios (`owner_kind = 'organization'`).
+
+## Ver también
+
+- [Topología de Servicios](/docs/servicios/topologia_de_servicios.md)
+- [Triage de Inbound WhatsApp](/docs/decisiones/whatsapp_inbound_triage.md)
+- [WhatsApp Outbound Pipeline](/src/docs/infra/whatsapp-outbound-pipeline.md)
+- [WhatsApp Inbound Pipeline](/src/docs/infra/whatsapp-inbound-pipeline.md)
+- [Queues](/src/docs/infra/queues.md)
