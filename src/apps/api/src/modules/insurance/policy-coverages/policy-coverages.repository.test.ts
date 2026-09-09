@@ -2,22 +2,70 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPolicyCoveragesRepository } from './policy-coverages.repository'
 import type { PolicyCoverageInsert } from '@copas/contracts'
 
+const { mockDrizzle } = vi.hoisted(() => ({
+  mockDrizzle: vi.fn((d1: any) => ({
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    offset: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    _drizzleWrapped: true,
+    _rawD1: d1,
+  })),
+}))
+
+vi.mock('drizzle-orm/d1', () => ({
+  drizzle: mockDrizzle,
+}))
+
 describe('policy-coverages.repository', () => {
   let mockDb: any
   let repository: ReturnType<typeof createPolicyCoveragesRepository>
 
   beforeEach(() => {
+    mockDrizzle.mockClear()
     mockDb = {
       select: vi.fn().mockReturnThis(),
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      offset: vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnThis(),
       values: vi.fn().mockReturnThis(),
       returning: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      set: vi.fn().mockReturnThis(),
       delete: vi.fn().mockReturnThis(),
     }
     repository = createPolicyCoveragesRepository({ db: mockDb })
+  })
+
+  describe('D1 vs Drizzle wrapping', () => {
+    it('should wrap D1 database with drizzle lazily when db.prepare is a function', async () => {
+      const mockD1 = { prepare: vi.fn() }
+      const repo = createPolicyCoveragesRepository({ db: mockD1 as any })
+      await repo.findById('cov-1')
+      expect(mockDrizzle).toHaveBeenCalledWith(mockD1)
+    })
+
+    it('should wrap D1 database with drizzle lazily when passed positionally', async () => {
+      const mockD1 = { prepare: vi.fn() }
+      const repo = createPolicyCoveragesRepository(mockD1 as any)
+      await repo.findById('cov-1')
+      expect(mockDrizzle).toHaveBeenCalledWith(mockD1)
+    })
+
+    it('should wrap tx with drizzle if tx has prepare function', async () => {
+      const mockTx = { prepare: vi.fn() }
+      await repository.findById('cov-1', mockTx as any)
+      expect(mockDrizzle).toHaveBeenCalledWith(mockTx)
+    })
   })
 
   describe('findByPolicyId', () => {
@@ -30,6 +78,7 @@ describe('policy-coverages.repository', () => {
 
       const result = await repository.findByPolicyId('pol-1')
       expect(result).toEqual(coverages)
+      expect(mockDb.where).toHaveBeenCalled()
     })
 
     it('should use transaction tx if provided', async () => {
@@ -42,6 +91,7 @@ describe('policy-coverages.repository', () => {
       const result = await repository.findByPolicyId('pol-1', mockTx as any)
       expect(result).toEqual([{ id: 'cov-1', policyId: 'pol-1' }])
       expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
     })
   })
 
@@ -52,6 +102,13 @@ describe('policy-coverages.repository', () => {
 
       const result = await repository.findById('cov-1')
       expect(result).toEqual(coverage)
+    })
+
+    it('should return null if coverage not found', async () => {
+      mockDb.limit.mockResolvedValueOnce([])
+
+      const result = await repository.findById('cov-missing')
+      expect(result).toBeNull()
     })
 
     it('should use transaction tx in findById when provided', async () => {
@@ -66,6 +123,7 @@ describe('policy-coverages.repository', () => {
       const result = await repository.findById('cov-1', mockTx as any)
       expect(result).toEqual(coverage)
       expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
     })
   })
 
@@ -92,6 +150,44 @@ describe('policy-coverages.repository', () => {
       const result = await repository.create(input, mockTx as any)
       expect(result).toEqual(created)
       expect(mockTx.insert).toHaveBeenCalled()
+      expect(mockDb.insert).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('createCoverage', () => {
+    it('should insert single coverage via createCoverage and return it', async () => {
+      const created = { id: 'cov-gr', policyId: 'pol-1', data: { name: 'GRANIZO' } }
+      mockDb.returning.mockResolvedValueOnce([created])
+
+      const result = await repository.createCoverage('pol-1', { name: 'GRANIZO' })
+      expect(result).toEqual(created)
+      expect(mockDb.insert).toHaveBeenCalled()
+    })
+
+    it('should default data to empty object if not provided in createCoverage', async () => {
+      const created = { id: 'cov-empty', policyId: 'pol-1', data: {} }
+      mockDb.returning.mockResolvedValueOnce([created])
+
+      const result = await repository.createCoverage('pol-1', undefined as any)
+      expect(result).toEqual(created)
+      expect(mockDb.values).toHaveBeenCalledWith({
+        policyId: 'pol-1',
+        data: {},
+      })
+    })
+
+    it('should propagate transaction tx in createCoverage', async () => {
+      const created = { id: 'cov-gr', policyId: 'pol-1', data: { name: 'GRANIZO' } }
+      const mockTx = {
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([created]),
+      }
+
+      const result = await repository.createCoverage('pol-1', { name: 'GRANIZO' }, mockTx as any)
+      expect(result).toEqual(created)
+      expect(mockTx.insert).toHaveBeenCalled()
+      expect(mockDb.insert).not.toHaveBeenCalled()
     })
   })
 
@@ -124,6 +220,53 @@ describe('policy-coverages.repository', () => {
       const result = await repository.createMany(inputs, mockTx as any)
       expect(result).toEqual(created)
       expect(mockTx.insert).toHaveBeenCalled()
+      expect(mockDb.insert).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('update', () => {
+    it('should update coverage by id', async () => {
+      const updated = { id: 'cov-1', data: { name: 'RC MODIFICADA' } }
+      mockDb.returning.mockResolvedValueOnce([updated])
+
+      const result = await repository.update('cov-1', { data: { name: 'RC MODIFICADA' } } as any)
+      expect(result).toEqual(updated)
+      expect(mockDb.update).toHaveBeenCalled()
+    })
+
+    it('should propagate transaction tx in update', async () => {
+      const updated = { id: 'cov-1', data: { name: 'RC MODIFICADA' } }
+      const mockTx = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([updated]),
+      }
+
+      const result = await repository.update('cov-1', { data: { name: 'RC MODIFICADA' } } as any, mockTx as any)
+      expect(result).toEqual(updated)
+      expect(mockTx.update).toHaveBeenCalled()
+      expect(mockDb.update).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('delete', () => {
+    it('should delete coverage by id', async () => {
+      mockDb.where.mockResolvedValueOnce({ rowCount: 1 })
+
+      await repository.delete('cov-1')
+      expect(mockDb.delete).toHaveBeenCalled()
+    })
+
+    it('should propagate transaction tx in delete', async () => {
+      const mockTx = {
+        delete: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce({ rowCount: 1 }),
+      }
+
+      await repository.delete('cov-1', mockTx as any)
+      expect(mockTx.delete).toHaveBeenCalled()
+      expect(mockDb.delete).not.toHaveBeenCalled()
     })
   })
 
@@ -143,7 +286,9 @@ describe('policy-coverages.repository', () => {
 
       await repository.deleteByPolicyId('pol-1', mockTx as any)
       expect(mockTx.delete).toHaveBeenCalled()
+      expect(mockDb.delete).not.toHaveBeenCalled()
     })
   })
 })
+
 

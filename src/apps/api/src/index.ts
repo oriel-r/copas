@@ -135,5 +135,7 @@ const handler = Object.assign(app, {
 });
 
 export type { AppType } from './core/setup/app.router';
+export { RemindersRpcEntrypoint } from './modules/reminders/reminders-rpc.entrypoint';
 export default handler;
+
 

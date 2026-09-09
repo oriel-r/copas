@@ -16,6 +16,27 @@ describe('branches.service', () => {
     service = createBranchesService({ branchesRepository: mockRepo })
   })
 
+  describe('initialization / DI', () => {
+    it('should support options object dependency injection', async () => {
+      const svc = createBranchesService({ branchesRepository: mockRepo })
+      mockRepo.findById.mockResolvedValueOnce({ id: 'branch-1' })
+      const res = await svc.getById('branch-1')
+      expect(res).toEqual({ id: 'branch-1' })
+    })
+
+    it('should support positional repository dependency injection', async () => {
+      const svc = createBranchesService(mockRepo as any)
+      mockRepo.findById.mockResolvedValueOnce({ id: 'branch-1' })
+      const res = await svc.getById('branch-1')
+      expect(res).toEqual({ id: 'branch-1' })
+    })
+
+    it('should handle undefined repository in factory without throwing', () => {
+      const svc = createBranchesService(undefined as any)
+      expect(svc).toBeDefined()
+    })
+  })
+
   describe('getById', () => {
     it('should return branch when found', async () => {
       const branch: Branch = { id: 'branch-1', code: 'AUTO', name: 'Automotores', createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
@@ -30,6 +51,17 @@ describe('branches.service', () => {
       mockRepo.findById.mockResolvedValueOnce(null)
       const result = await service.getById('branch-999')
       expect(result).toBeNull()
+      expect(mockRepo.findById).toHaveBeenCalledWith('branch-999', undefined)
+    })
+
+    it('should propagate tx in getById', async () => {
+      const mockTx = {} as any
+      const branch = { id: 'branch-1', code: 'AUTO' }
+      mockRepo.findById.mockResolvedValueOnce(branch)
+
+      const result = await service.getById('branch-1', mockTx)
+      expect(result).toEqual(branch)
+      expect(mockRepo.findById).toHaveBeenCalledWith('branch-1', mockTx)
     })
   })
 
@@ -41,6 +73,24 @@ describe('branches.service', () => {
       const result = await service.findByCode('MOTO')
       expect(result).toEqual(branch)
       expect(mockRepo.findByCode).toHaveBeenCalledWith('MOTO', undefined)
+    })
+
+    it('should return null when branch code is not found', async () => {
+      mockRepo.findByCode.mockResolvedValueOnce(null)
+
+      const result = await service.findByCode('NONEXISTENT')
+      expect(result).toBeNull()
+      expect(mockRepo.findByCode).toHaveBeenCalledWith('NONEXISTENT', undefined)
+    })
+
+    it('should propagate tx in findByCode', async () => {
+      const mockTx = {} as any
+      const branch = { id: 'branch-1', code: 'MOTO' }
+      mockRepo.findByCode.mockResolvedValueOnce(branch)
+
+      const result = await service.findByCode('MOTO', mockTx)
+      expect(result).toEqual(branch)
+      expect(mockRepo.findByCode).toHaveBeenCalledWith('MOTO', mockTx)
     })
   })
 
@@ -87,16 +137,53 @@ describe('branches.service', () => {
       expect(result).toEqual(created)
       expect(mockRepo.create).toHaveBeenCalledWith(input, undefined)
     })
+
+    it('should propagate tx in create', async () => {
+      const mockTx = {} as any
+      const input: BranchInsert = { code: 'LIFE', name: 'Vida' }
+      const created = { id: 'branch-5', ...input }
+      mockRepo.create.mockResolvedValueOnce(created)
+
+      const result = await service.create(input, mockTx)
+      expect(result).toEqual(created)
+      expect(mockRepo.create).toHaveBeenCalledWith(input, mockTx)
+    })
   })
 
   describe('list', () => {
-    it('should return list from repository', async () => {
+    it('should return list from repository with filters', async () => {
       const branches = [{ id: 'branch-1', code: 'AUTO', name: 'Automotores' }]
       mockRepo.list.mockResolvedValueOnce(branches)
 
       const result = await service.list({ limit: 5 } as any)
       expect(result).toEqual(branches)
       expect(mockRepo.list).toHaveBeenCalledWith({ limit: 5 }, undefined)
+    })
+
+    it('should support calling list with no parameters', async () => {
+      const branches = [{ id: 'branch-1', code: 'AUTO', name: 'Automotores' }]
+      mockRepo.list.mockResolvedValueOnce(branches)
+
+      const result = await service.list()
+      expect(result).toEqual(branches)
+      expect(mockRepo.list).toHaveBeenCalledWith(undefined, undefined)
+    })
+
+    it('should support calling list with empty filters object', async () => {
+      mockRepo.list.mockResolvedValueOnce([])
+
+      const result = await service.list({})
+      expect(result).toEqual([])
+      expect(mockRepo.list).toHaveBeenCalledWith({}, undefined)
+    })
+
+    it('should propagate tx in list', async () => {
+      const mockTx = {} as any
+      mockRepo.list.mockResolvedValueOnce([])
+
+      const result = await service.list({ limit: 5 } as any, mockTx)
+      expect(result).toEqual([])
+      expect(mockRepo.list).toHaveBeenCalledWith({ limit: 5 }, mockTx)
     })
   })
 })

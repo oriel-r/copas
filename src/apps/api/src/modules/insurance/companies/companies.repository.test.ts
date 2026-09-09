@@ -2,11 +2,34 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createCompaniesRepository } from './companies.repository'
 import type { CompanyInsert } from '@copas/contracts'
 
+const { mockDrizzle } = vi.hoisted(() => ({
+  mockDrizzle: vi.fn((d1: any) => ({
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    offset: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    _drizzleWrapped: true,
+    _rawD1: d1,
+  })),
+}))
+
+vi.mock('drizzle-orm/d1', () => ({
+  drizzle: mockDrizzle,
+}))
+
 describe('companies.repository', () => {
   let mockDb: any
   let repository: ReturnType<typeof createCompaniesRepository>
 
   beforeEach(() => {
+    mockDrizzle.mockClear()
     mockDb = {
       select: vi.fn().mockReturnThis(),
       from: vi.fn().mockReturnThis(),
@@ -21,6 +44,28 @@ describe('companies.repository', () => {
       delete: vi.fn().mockReturnThis(),
     }
     repository = createCompaniesRepository({ db: mockDb })
+  })
+
+  describe('D1 vs Drizzle wrapping', () => {
+    it('should wrap D1 database with drizzle lazily when db.prepare is a function', async () => {
+      const mockD1 = { prepare: vi.fn() }
+      const repo = createCompaniesRepository({ db: mockD1 as any })
+      await repo.findById('comp-1')
+      expect(mockDrizzle).toHaveBeenCalledWith(mockD1)
+    })
+
+    it('should wrap D1 database with drizzle lazily when passed positionally', async () => {
+      const mockD1 = { prepare: vi.fn() }
+      const repo = createCompaniesRepository(mockD1 as any)
+      await repo.findById('comp-1')
+      expect(mockDrizzle).toHaveBeenCalledWith(mockD1)
+    })
+
+    it('should wrap tx with drizzle if tx has prepare function', async () => {
+      const mockTx = { prepare: vi.fn() }
+      await repository.findById('comp-1', mockTx as any)
+      expect(mockDrizzle).toHaveBeenCalledWith(mockTx)
+    })
   })
 
   describe('findById', () => {
@@ -82,6 +127,7 @@ describe('companies.repository', () => {
       const result = await repository.findByCode('ALLIANZ', mockTx as any)
       expect(result).toEqual({ id: 'comp-1', code: 'ALLIANZ' })
       expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
     })
   })
 
@@ -112,6 +158,7 @@ describe('companies.repository', () => {
       const result = await repository.findByName('SANCOR', mockTx as any)
       expect(result).toEqual({ id: 'comp-1', name: 'SANCOR' })
       expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
     })
   })
 
@@ -164,19 +211,30 @@ describe('companies.repository', () => {
       const result = await repository.update('comp-1', { name: 'SANCOR TX' }, mockTx as any)
       expect(result).toEqual(updated)
       expect(mockTx.update).toHaveBeenCalled()
+      expect(mockDb.update).not.toHaveBeenCalled()
     })
   })
 
   describe('list', () => {
-    it('should return list of companies', async () => {
+    it('should return list of companies with default limit and offset', async () => {
       const list = [
         { id: 'comp-1', code: 'SANCOR', name: 'SANCOR' },
         { id: 'comp-2', code: 'ZURICH', name: 'ZURICH' },
       ]
       mockDb.offset.mockResolvedValueOnce(list)
 
-      const result = await repository.list({ limit: 10, offset: 0 })
+      const result = await repository.list({})
       expect(result).toEqual(list)
+      expect(mockDb.limit).toHaveBeenCalledWith(50)
+      expect(mockDb.offset).toHaveBeenCalledWith(0)
+    })
+
+    it('should use custom limit and offset if provided', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await repository.list({ limit: 10, offset: 20 })
+      expect(mockDb.limit).toHaveBeenCalledWith(10)
+      expect(mockDb.offset).toHaveBeenCalledWith(20)
     })
 
     it('should return empty list when no companies exist', async () => {
@@ -185,8 +243,23 @@ describe('companies.repository', () => {
       const result = await repository.list()
       expect(result).toEqual([])
     })
+
+    it('should use transaction tx in list if provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        offset: vi.fn().mockResolvedValueOnce([]),
+      }
+
+      await repository.list({}, mockTx as any)
+      expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
+    })
   })
 })
+
 
 
 

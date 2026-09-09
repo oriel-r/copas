@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AwsClient } from 'aws4fetch'
 import { createFilesService } from './files.service'
 import { uploadUrlResultSchema, type FilesServiceContract, type StoredFile } from '@copas/contracts'
 
@@ -93,11 +94,12 @@ describe('FilesService', () => {
       expect(mockBucket.put).toHaveBeenCalledWith(key, stream, expect.anything())
     })
 
-    it('should reject when key is empty or invalid', async () => {
+    it('should reject when key is empty or whitespace with exact error message', async () => {
       const service = instantiateService()
       const data = new ArrayBuffer(8)
 
-      await expect(service.upload('', data)).rejects.toThrow()
+      await expect(service.upload('', data)).rejects.toThrow('Key is required')
+      await expect(service.upload('   ', data)).rejects.toThrow('Key is required')
     })
 
     it('should propagate rejection when bucket.put throws an error', async () => {
@@ -144,9 +146,10 @@ describe('FilesService', () => {
       expect(result).toBeNull()
     })
 
-    it('should reject when key is empty', async () => {
+    it('should reject when key is empty or whitespace with exact error message', async () => {
       const service = instantiateService()
-      await expect(service.get('')).rejects.toThrow()
+      await expect(service.get('')).rejects.toThrow('Key is required')
+      await expect(service.get('   ')).rejects.toThrow('Key is required')
     })
 
     it('should propagate rejection when bucket.get fails', async () => {
@@ -167,9 +170,10 @@ describe('FilesService', () => {
       expect(mockBucket.delete).toHaveBeenCalledWith(key)
     })
 
-    it('should reject when key is empty', async () => {
+    it('should reject when key is empty or whitespace with exact error message', async () => {
       const service = instantiateService()
-      await expect(service.delete('')).rejects.toThrow()
+      await expect(service.delete('')).rejects.toThrow('Key is required')
+      await expect(service.delete('   ')).rejects.toThrow('Key is required')
     })
 
     it('should propagate rejection when bucket.delete fails', async () => {
@@ -195,6 +199,11 @@ describe('FilesService', () => {
       expect(typeof parsed.uploadUrl).toBe('string')
       expect(parsed.uploadUrl.length).toBeGreaterThan(0)
 
+      const url = new URL(parsed.uploadUrl)
+      expect(url.searchParams.get('X-Amz-Expires')).toBe('600')
+      expect(url.searchParams.get('X-Amz-Algorithm')).toBe('AWS4-HMAC-SHA256')
+      expect(url.searchParams.has('X-Amz-Signature')).toBe(true)
+
       // Key must format as {organizationId}/{uuid}-{filename}
       expect(parsed.policyAssetKey).toMatch(
         new RegExp(`^${organizationId}/[0-9a-fA-F-]+_${filename}$|^${organizationId}/[0-9a-fA-F-]+-${filename}$`),
@@ -208,20 +217,99 @@ describe('FilesService', () => {
       expect(uploadUrlResultSchema.safeParse(result).success).toBe(true)
       expect(result.policyAssetKey).toContain('org-123/')
       expect(result.policyAssetKey).toContain('doc.pdf')
+      const url = new URL(result.uploadUrl)
+      expect(url.searchParams.get('X-Amz-Expires')).toBe('300')
     })
 
-    it('should reject when filename or organizationId is missing or empty', async () => {
-      const service = instantiateService()
+    it('should generate fallback upload URL when S3 credentials are not set', async () => {
+      const service = instantiateService({
+        accountId: undefined,
+        accessKeyId: undefined,
+        secretAccessKey: undefined,
+      })
+      const result = await service.generateUploadUrl('fallback-doc.pdf', 'org-fallback')
+      expect(result.uploadUrl).toBeDefined()
+      expect(result.policyAssetKey).toContain('org-fallback/')
+      expect(result.policyAssetKey).toContain('fallback-doc.pdf')
 
-      await expect(service.generateUploadUrl('', 'org-123')).rejects.toThrow()
-      await expect(service.generateUploadUrl('file.pdf', '')).rejects.toThrow()
+      const url = new URL(result.uploadUrl)
+      const expires = Number(url.searchParams.get('expires'))
+      expect(expires).toBeGreaterThan(Date.now() + 290 * 1000)
+      expect(expires).toBeLessThanOrEqual(Date.now() + 310 * 1000)
     })
 
-    it('should reject when expiresInSeconds is <= 0', async () => {
+    it('should use backendUrl when provided and default to http://localhost:8788 in fallback mode', async () => {
+      const customService = instantiateService({
+        backendUrl: 'https://custom-api.example.com',
+        accountId: undefined,
+        accessKeyId: undefined,
+        secretAccessKey: undefined,
+      })
+      const customRes = await customService.generateUploadUrl('file.pdf', 'org-1')
+      expect(customRes.uploadUrl.startsWith('https://custom-api.example.com')).toBe(true)
+
+      const defaultService = instantiateService({
+        backendUrl: undefined,
+        accountId: undefined,
+        accessKeyId: undefined,
+        secretAccessKey: undefined,
+      })
+      const defaultRes = await defaultService.generateUploadUrl('file.pdf', 'org-1')
+      expect(defaultRes.uploadUrl.startsWith('http://localhost:8788')).toBe(true)
+    })
+
+    it('should sign upload URL request using HTTP method PUT', async () => {
+      const signSpy = vi.spyOn(AwsClient.prototype, 'sign')
+      const service = instantiateService()
+      await service.generateUploadUrl('put-test.pdf', 'org-put')
+
+      expect(signSpy).toHaveBeenCalled()
+      const lastCall = signSpy.mock.calls[signSpy.mock.calls.length - 1]
+      const method = lastCall[1]?.method ?? (lastCall[0] as any)?.method
+      expect(method).toBe('PUT')
+      signSpy.mockRestore()
+    })
+
+    it('should fallback when only accessKeyId is provided without secretAccessKey', async () => {
+      const service = instantiateService({
+        secretAccessKey: undefined,
+      })
+      const result = await service.generateUploadUrl('partial-cred.pdf', 'org-part')
+      expect(result.uploadUrl).toBeDefined()
+      expect(result.policyAssetKey).toContain('org-part/')
+    })
+
+    it('should fallback when only secretAccessKey is provided without accessKeyId', async () => {
+      const service = instantiateService({
+        accessKeyId: undefined,
+      })
+      const result = await service.generateUploadUrl('partial-cred.pdf', 'org-part')
+      expect(result.uploadUrl).toBeDefined()
+      expect(result.policyAssetKey).toContain('org-part/')
+    })
+
+    it('should reject when filename is missing, empty, or whitespace with exact error message', async () => {
       const service = instantiateService()
 
-      await expect(service.generateUploadUrl('file.pdf', 'org-123', 0)).rejects.toThrow()
-      await expect(service.generateUploadUrl('file.pdf', 'org-123', -60)).rejects.toThrow()
+      await expect(service.generateUploadUrl(undefined as any, 'org-123')).rejects.toThrow('Filename is required')
+      await expect(service.generateUploadUrl('', 'org-123')).rejects.toThrow('Filename is required')
+      await expect(service.generateUploadUrl('   ', 'org-123')).rejects.toThrow('Filename is required')
+    })
+
+    it('should reject when organizationId is missing, empty, or whitespace with exact error message', async () => {
+      const service = instantiateService()
+
+      await expect(service.generateUploadUrl('file.pdf', undefined as any)).rejects.toThrow('Organization ID is required')
+      await expect(service.generateUploadUrl('file.pdf', '')).rejects.toThrow('Organization ID is required')
+      await expect(service.generateUploadUrl('file.pdf', '   ')).rejects.toThrow('Organization ID is required')
+    })
+
+    it('should reject when expiresInSeconds is not a number, 0, or negative with exact error message', async () => {
+      const service = instantiateService()
+
+      await expect(service.generateUploadUrl('file.pdf', 'org-123', 'foo' as any)).rejects.toThrow('Invalid expiration time')
+      await expect(service.generateUploadUrl('file.pdf', 'org-123', 0)).rejects.toThrow('Invalid expiration time')
+      await expect(service.generateUploadUrl('file.pdf', 'org-123', -60)).rejects.toThrow('Invalid expiration time')
     })
   })
 
@@ -249,6 +337,16 @@ describe('FilesService', () => {
         expect(url.searchParams.get('X-Amz-Algorithm')).toBe('AWS4-HMAC-SHA256')
         expect(url.searchParams.has('X-Amz-Credential')).toBe(true)
         expect(url.searchParams.has('X-Amz-Date')).toBe(true)
+        expect(url.searchParams.get('X-Amz-Expires')).toBe('300')
+      })
+
+      it('should default to 300 seconds when expiresInSeconds is omitted in SigV4 URL', async () => {
+        const service = instantiateService()
+        const key = 'org-1/default-ttl.pdf'
+
+        const urlString = await service.generateTemporaryPublicUrl(key)
+        const url = new URL(urlString)
+
         expect(url.searchParams.get('X-Amz-Expires')).toBe('300')
       })
 
@@ -291,18 +389,38 @@ describe('FilesService', () => {
           url.searchParams.has('sig')
         expect(hasAuthParam).toBe(true)
       })
+
+      it('should fallback when only accessKeyId is set', async () => {
+        const service = instantiateService({
+          secretAccessKey: undefined,
+        })
+        const key = 'org-partial/doc.pdf'
+        const urlString = await service.generateTemporaryPublicUrl(key, 300)
+        expect(typeof urlString).toBe('string')
+      })
+
+      it('should fallback when only secretAccessKey is set', async () => {
+        const service = instantiateService({
+          accessKeyId: undefined,
+        })
+        const key = 'org-partial/doc.pdf'
+        const urlString = await service.generateTemporaryPublicUrl(key, 300)
+        expect(typeof urlString).toBe('string')
+      })
     })
 
     describe('Edge Cases and Error Handling', () => {
-      it('should reject when key is empty string', async () => {
+      it('should reject when key is empty string or whitespace with exact error message', async () => {
         const service = instantiateService()
-        await expect(service.generateTemporaryPublicUrl('', 300)).rejects.toThrow()
+        await expect(service.generateTemporaryPublicUrl('', 300)).rejects.toThrow('Key is required')
+        await expect(service.generateTemporaryPublicUrl('   ', 300)).rejects.toThrow('Key is required')
       })
 
-      it('should reject when expiresInSeconds is <= 0', async () => {
+      it('should reject when expiresInSeconds is not a number, 0, or negative with exact error message', async () => {
         const service = instantiateService()
-        await expect(service.generateTemporaryPublicUrl('org-1/doc.pdf', 0)).rejects.toThrow()
-        await expect(service.generateTemporaryPublicUrl('org-1/doc.pdf', -100)).rejects.toThrow()
+        await expect(service.generateTemporaryPublicUrl('org-1/doc.pdf', 'not-a-number' as any)).rejects.toThrow('Invalid expiration time')
+        await expect(service.generateTemporaryPublicUrl('org-1/doc.pdf', 0)).rejects.toThrow('Invalid expiration time')
+        await expect(service.generateTemporaryPublicUrl('org-1/doc.pdf', -100)).rejects.toThrow('Invalid expiration time')
       })
     })
   })

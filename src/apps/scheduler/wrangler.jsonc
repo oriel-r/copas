@@ -3,9 +3,30 @@
   "name": "scheduler",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["0 11 * * 1-5"]
+  },
+  "services": [
+    {
+      "binding": "API",
+      "service": "api",
+      "entrypoint": "RemindersRpcEntrypoint"
+    }
+  ],
   "env": {
     "staging": {
-      "name": "scheduler-staging"
+      "name": "scheduler-staging",
+      "triggers": {
+        "crons": ["0 11 * * 1-5"]
+      },
+      "services": [
+        {
+          "binding": "API",
+          "service": "api-staging",
+          "entrypoint": "RemindersRpcEntrypoint"
+        }
+      ]
     }
   }
 }

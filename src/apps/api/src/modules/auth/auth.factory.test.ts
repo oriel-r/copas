@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createAuth } from './auth.factory'
 
 function createEnvironment(overrides: Partial<CloudflareBindings> = {}) {
@@ -55,6 +55,71 @@ describe('createAuth', () => {
     expect(auth.options.advanced?.useSecureCookies).toBe(false)
   })
 
+  describe('secondaryStorage', () => {
+    it('delegates get to AUTH_KV and returns serialized value or null', async () => {
+      const mockAuthKv = {
+        get: vi.fn().mockResolvedValueOnce('{"user":"123"}').mockResolvedValueOnce(null),
+        put: vi.fn(),
+        delete: vi.fn(),
+      }
+      const auth = createAuth(createEnvironment({ AUTH_KV: mockAuthKv as any }))
+      const storage = auth.options.secondaryStorage!
+
+      expect(storage).toBeDefined()
+      const found = await storage.get('session-key')
+      expect(found).toBe('{"user":"123"}')
+      expect(mockAuthKv.get).toHaveBeenCalledWith('session-key')
+
+      const missing = await storage.get('missing-key')
+      expect(missing).toBeNull()
+      expect(mockAuthKv.get).toHaveBeenCalledWith('missing-key')
+    })
+
+    it('delegates set to AUTH_KV with and without TTL', async () => {
+      const mockAuthKv = {
+        get: vi.fn(),
+        put: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn(),
+      }
+      const auth = createAuth(createEnvironment({ AUTH_KV: mockAuthKv as any }))
+      const storage = auth.options.secondaryStorage!
+
+      await storage.set('session-key', 'session-data')
+      expect(mockAuthKv.put).toHaveBeenCalledWith('session-key', 'session-data')
+
+      await storage.set('session-key-ttl', 'session-data', 3600)
+      expect(mockAuthKv.put).toHaveBeenCalledWith('session-key-ttl', 'session-data', { expirationTtl: 3600 })
+
+      await storage.set('session-key-low-ttl', 'session-data', 15)
+      expect(mockAuthKv.put).toHaveBeenCalledWith('session-key-low-ttl', 'session-data', { expirationTtl: 60 })
+    })
+
+    it('delegates delete to AUTH_KV', async () => {
+      const mockAuthKv = {
+        get: vi.fn(),
+        put: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+      }
+      const auth = createAuth(createEnvironment({ AUTH_KV: mockAuthKv as any }))
+      const storage = auth.options.secondaryStorage!
+
+      await storage.delete('session-key')
+      expect(mockAuthKv.delete).toHaveBeenCalledWith('session-key')
+    })
+  })
+
+  it('configures production environment with secure cookies and restricted origins', () => {
+    const auth = createAuth(
+      createEnvironment({
+        NODE_ENV: 'production',
+        CLIENT_URL: 'https://copas.app',
+      }),
+    )
+
+    expect(auth.options.advanced?.useSecureCookies).toBe(true)
+    expect(auth.options.trustedOrigins).toEqual(['https://copas.app'])
+  })
+
   it('restricts trusted origins to CLIENT_URL outside development', () => {
     const auth = createAuth(
       createEnvironment({
@@ -68,15 +133,22 @@ describe('createAuth', () => {
     ])
   })
 
-  it('normalizes trailing slash in CLIENT_URL for trusted origins', () => {
-    const auth = createAuth(
+  it('normalizes trailing slash in CLIENT_URL for trusted origins in production and staging', () => {
+    const authWithSlash = createAuth(
+      createEnvironment({
+        NODE_ENV: 'production',
+        CLIENT_URL: 'https://copas.app/' as any,
+      }),
+    )
+    expect(authWithSlash.options.trustedOrigins).toEqual(['https://copas.app'])
+
+    const authStagingSlash = createAuth(
       createEnvironment({
         NODE_ENV: 'staging',
         CLIENT_URL: 'https://client-staging.orielromero-work.workers.dev/' as any,
       }),
     )
-
-    expect(auth.options.trustedOrigins).toEqual([
+    expect(authStagingSlash.options.trustedOrigins).toEqual([
       'https://client-staging.orielromero-work.workers.dev',
     ])
   })

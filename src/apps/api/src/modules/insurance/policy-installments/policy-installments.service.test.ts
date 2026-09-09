@@ -17,6 +17,22 @@ describe('policy-installments.service', () => {
     service = createPolicyInstallmentsService({ policyInstallmentsRepository: mockRepo })
   })
 
+  describe('initialization / DI', () => {
+    it('should support options object dependency injection', async () => {
+      const svc = createPolicyInstallmentsService({ policyInstallmentsRepository: mockRepo })
+      mockRepo.findById.mockResolvedValueOnce({ id: 'inst-1' })
+      const res = await svc.getById('inst-1')
+      expect(res).toEqual({ id: 'inst-1' })
+    })
+
+    it('should support positional repository dependency injection', async () => {
+      const svc = createPolicyInstallmentsService(mockRepo as any)
+      mockRepo.findById.mockResolvedValueOnce({ id: 'inst-1' })
+      const res = await svc.getById('inst-1')
+      expect(res).toEqual({ id: 'inst-1' })
+    })
+  })
+
   describe('getByPolicyId', () => {
     it('should return installments for policy', async () => {
       const installments: PolicyInstallment[] = [
@@ -41,6 +57,21 @@ describe('policy-installments.service', () => {
       const result = await service.getByPolicyId('pol-1')
       expect(result).toEqual(installments)
       expect(mockRepo.findByPolicyId).toHaveBeenCalledWith('pol-1', undefined)
+    })
+
+    it('should return empty array when no installments found', async () => {
+      mockRepo.findByPolicyId.mockResolvedValueOnce([])
+      const result = await service.getByPolicyId('pol-empty')
+      expect(result).toEqual([])
+      expect(mockRepo.findByPolicyId).toHaveBeenCalledWith('pol-empty', undefined)
+    })
+
+    it('should propagate tx in getByPolicyId', async () => {
+      const mockTx = {} as any
+      mockRepo.findByPolicyId.mockResolvedValueOnce([])
+      const result = await service.getByPolicyId('pol-1', mockTx)
+      expect(result).toEqual([])
+      expect(mockRepo.findByPolicyId).toHaveBeenCalledWith('pol-1', mockTx)
     })
   })
 
@@ -82,6 +113,23 @@ describe('policy-installments.service', () => {
       expect(result).toEqual(inst)
       expect(mockRepo.findById).toHaveBeenCalledWith('inst-1', undefined)
     })
+
+    it('should return null when installment not found', async () => {
+      mockRepo.findById.mockResolvedValueOnce(null)
+      const result = await service.getById('non-existent')
+      expect(result).toBeNull()
+      expect(mockRepo.findById).toHaveBeenCalledWith('non-existent', undefined)
+    })
+
+    it('should propagate tx in getById', async () => {
+      const mockTx = {} as any
+      const inst = { id: 'inst-1', installmentNumber: 1 }
+      mockRepo.findById.mockResolvedValueOnce(inst)
+
+      const result = await service.getById('inst-1', mockTx)
+      expect(result).toEqual(inst)
+      expect(mockRepo.findById).toHaveBeenCalledWith('inst-1', mockTx)
+    })
   })
 
   describe('create', () => {
@@ -93,6 +141,17 @@ describe('policy-installments.service', () => {
       const result = await service.create(input)
       expect(result).toEqual(created)
       expect(mockRepo.create).toHaveBeenCalledWith(input, undefined)
+    })
+
+    it('should propagate tx in create', async () => {
+      const mockTx = {} as any
+      const input: PolicyInstallmentInsert = { organizationId: 'org-1', policyId: 'pol-1', uploadedBy: 'usr-1', installmentNumber: 1, dueDate: '2026-01-10', totalAmount: 15000, currency: 'ARS' }
+      const created = { id: 'inst-1', ...input }
+      mockRepo.create.mockResolvedValueOnce(created)
+
+      const result = await service.create(input, mockTx)
+      expect(result).toEqual(created)
+      expect(mockRepo.create).toHaveBeenCalledWith(input, mockTx)
     })
   })
 

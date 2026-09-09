@@ -136,6 +136,13 @@ describe('policies.service', () => {
       expect(result).toEqual(policy)
       expect(mockPoliciesRepo.findById).toHaveBeenCalledWith('pol-1', undefined)
     })
+
+    it('should return null when policy is not found', async () => {
+      mockPoliciesRepo.findById.mockResolvedValueOnce(null)
+      const result = await service.getById('pol-999')
+      expect(result).toBeNull()
+      expect(mockPoliciesRepo.findById).toHaveBeenCalledWith('pol-999', undefined)
+    })
   })
 
   describe('create', () => {
@@ -166,6 +173,12 @@ describe('policies.service', () => {
       expect(result).toEqual(updated)
       expect(mockPoliciesRepo.update).toHaveBeenCalledWith('pol-1', updateData, undefined)
     })
+
+    it('should return null when updating non-existent policy', async () => {
+      mockPoliciesRepo.update.mockResolvedValueOnce(null)
+      const result = await (service as any).update('pol-999', { premiumTotal: 100 })
+      expect(result).toBeNull()
+    })
   })
 
   describe('delete', () => {
@@ -175,6 +188,12 @@ describe('policies.service', () => {
       const result = await (service as any).delete('pol-1')
       expect(result).toBe(true)
       expect(mockPoliciesRepo.delete).toHaveBeenCalledWith('pol-1', undefined)
+    })
+
+    it('should return false or null when deleting non-existent policy', async () => {
+      mockPoliciesRepo.delete.mockResolvedValueOnce(false)
+      const result = await (service as any).delete('pol-nonexistent')
+      expect([false, null]).toContain(result)
     })
   })
 
@@ -198,6 +217,18 @@ describe('policies.service', () => {
       const result = await (service as any).findByNumber('org-1', 'POL-123')
       expect(result).toEqual(policy)
       expect(mockPoliciesRepo.findByNumber).toHaveBeenCalledWith('org-1', 'POL-123', undefined)
+    })
+
+    it('should return null when policy number is not found', async () => {
+      mockPoliciesRepo.findByNumber.mockResolvedValueOnce(null)
+      const result = await (service as any).findByNumber('org-1', 'POL-NOTFOUND')
+      expect(result).toBeNull()
+    })
+
+    it('should handle undefined or empty maybeNumber', async () => {
+      mockPoliciesRepo.findByNumber.mockResolvedValueOnce(null)
+      const result = await (service as any).findByNumber('org-1', '')
+      expect([null, undefined]).toContain(result)
     })
   })
 
@@ -412,6 +443,103 @@ describe('policies.service', () => {
       expect(mockPolicyCoveragesRepo.createMany).not.toHaveBeenCalled()
     })
 
+    it('should handle company without code, branch fallback to AUTO, and insured nullable fields', async () => {
+      const payload: any = {
+        ...validExtractedPolicy,
+        company: {
+          name: 'LA SEGUNDA',
+          code: '',
+        },
+        branch: {
+          code: '',
+        },
+        insured: {
+          fullName: 'MARIA LOPEZ',
+          cuit: '',
+          email: '',
+          phone: '',
+          birthDate: '',
+        },
+        installments: [
+          {
+            installmentNumber: 1,
+            dueDate: '2026-03-01',
+            totalAmount: 25000,
+          },
+          {
+            installmentNumber: 2,
+            dueDate: '2026-04-01',
+            totalAmount: 30000,
+          },
+        ],
+      }
+
+      mockCompaniesService.findOrCreate.mockResolvedValueOnce({ id: 'comp-la-segunda' })
+      mockBranchesService.findOrCreate.mockResolvedValueOnce({ id: 'branch-auto' })
+      mockAssetTypesService.findOrCreate.mockResolvedValueOnce({ id: 'at-auto' })
+      mockInsuredsService.findOrCreate.mockResolvedValueOnce({ id: 'ins-maria' })
+      mockAssetsService.findOrCreate.mockResolvedValueOnce({ id: 'ast-maria' })
+      mockPaymentMethodsService.findOrCreate.mockResolvedValueOnce({ id: 'pm-debito' })
+      mockPoliciesRepo.create.mockResolvedValueOnce({ id: 'pol-300' })
+      mockPolicyAssetsRepo.create.mockResolvedValueOnce({ policyId: 'pol-300', assetId: 'ast-maria' })
+      mockPolicyCoveragesRepo.createMany.mockResolvedValueOnce([])
+      mockPolicyInstallmentsService.createMany.mockResolvedValueOnce([])
+
+      await (service as any).processAiResult({
+        organizationId: 'org-variant',
+        aiExtractionResultId: 'ai-res-variant',
+        structuredPayload: payload,
+      })
+
+      // Company lookup without code should pass name and undefined/empty code
+      expect(mockCompaniesService.findOrCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'LA SEGUNDA' }),
+        expect.anything(),
+      )
+
+      // Branch code fallback to 'OTROS' when empty/falsy
+      expect(mockBranchesService.findOrCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'OTROS' }),
+        expect.anything(),
+      )
+
+      // Insured should handle empty CUIT by defaulting to 00000000000
+      expect(mockInsuredsService.findOrCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: 'org-variant',
+          fullName: 'MARIA LOPEZ',
+          cuit: '00000000000',
+        }),
+        expect.anything(),
+      )
+
+      // Policy installments should preserve totalAmount
+      expect(mockPolicyInstallmentsService.createMany).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ installmentNumber: 1, totalAmount: 25000 }),
+          expect.objectContaining({ installmentNumber: 2, totalAmount: 30000 }),
+        ]),
+        expect.anything(),
+      )
+
+      // Policy creation with organizationId
+      expect(mockPoliciesRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: 'org-variant',
+        }),
+        expect.anything(),
+      )
+    })
+
+    it('should throw error when organizationId is missing in processAiResult payload', async () => {
+      await expect(
+        (service as any).processAiResult({
+          aiExtractionResultId: 'ai-res-no-org',
+          structuredPayload: validExtractedPolicy,
+        }),
+      ).rejects.toThrow('organizationId required in payload')
+    })
+
     it('should reject and rollback if any dependency throws an error', async () => {
       mockCompaniesService.findOrCreate.mockRejectedValueOnce(new Error('DB Connection Failed'))
 
@@ -441,8 +569,58 @@ describe('policies.service', () => {
       expect(mockFilesService.generateTemporaryPublicUrl).toHaveBeenCalledWith(key, 300)
       expect(mockAiQueue.send).toHaveBeenCalledWith(
         expect.objectContaining({
+          type: 'ai-extraction',
           payload: expect.objectContaining({
             documentUrl: mockPresignedUrl,
+            aiExtractionResultId: 'extraction-res-1',
+          }),
+          metadata: expect.objectContaining({
+            organizationId: 'org-1',
+            idempotencyKey: eTag,
+          }),
+        }),
+      )
+    })
+
+    it('should fallback organizationId to default and idempotencyKey to key/id when key has no slash and eTag is absent', async () => {
+      const bucket = 'copas-documents'
+      const key = 'unprefixed-policy.pdf'
+      mockFilesService.generateTemporaryPublicUrl.mockResolvedValueOnce('https://temp.url/unprefixed-policy.pdf')
+
+      await (service as any).processObjectCreateEvent(bucket, key)
+
+      expect(mockAiQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            organizationId: 'default',
+            idempotencyKey: key,
+          }),
+        }),
+      )
+    })
+
+    it('should use raw key as documentUrl when filesService is undefined', async () => {
+      const serviceWithoutFiles = createPoliciesService({
+        policiesRepository: mockPoliciesRepo,
+        companiesService: mockCompaniesService,
+        branchesService: mockBranchesService,
+        insuredsService: mockInsuredsService,
+        assetTypesService: mockAssetTypesService,
+        assetsService: mockAssetsService,
+        paymentMethodsService: mockPaymentMethodsService,
+        policyAssetsRepository: mockPolicyAssetsRepo,
+        policyCoveragesRepository: mockPolicyCoveragesRepo,
+        policyInstallmentsService: mockPolicyInstallmentsService,
+        transactionRunner: mockTransactionRunner,
+        aiQueue: mockAiQueue,
+      })
+
+      await (serviceWithoutFiles as any).processObjectCreateEvent('bucket', 'org-2/file.pdf', 'etag-123')
+
+      expect(mockAiQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            documentUrl: 'org-2/file.pdf',
           }),
         }),
       )
@@ -476,7 +654,7 @@ describe('policies.service', () => {
       const mockPresignedUrl = 'https://account.r2.cloudflarestorage.com/copas-documents/manual-extract.pdf?X-Amz-Expires=300'
       mockFilesService.generateTemporaryPublicUrl.mockResolvedValueOnce(mockPresignedUrl)
 
-      await (service as any).triggerExtraction(documentUrlOrKey, organizationId, userId)
+      const result = await (service as any).triggerExtraction(documentUrlOrKey, organizationId, userId)
 
       expect(mockFilesService.generateTemporaryPublicUrl).toHaveBeenCalledWith(documentUrlOrKey, 300)
       expect(mockAiQueue.send).toHaveBeenCalledWith(
@@ -484,6 +662,33 @@ describe('policies.service', () => {
           payload: expect.objectContaining({
             documentUrl: mockPresignedUrl,
           }),
+        }),
+      )
+      expect(result).toEqual({
+        aiExtractionResultId: 'extraction-res-1',
+        status: 'pending',
+        documentUrl: mockPresignedUrl,
+      })
+    })
+
+    it('should dispatch directly to aiQueue without presigning when documentUrl starts with http, https, or data:', async () => {
+      const httpUrl = 'https://custom-domain.com/docs/policy.pdf'
+      const dataUrl = 'data:application/pdf;base64,JVBERi0xLjQK...'
+
+      await (service as any).triggerExtraction(httpUrl, 'org-http')
+      expect(mockFilesService.generateTemporaryPublicUrl).not.toHaveBeenCalled()
+      expect(mockAiQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({ documentUrl: httpUrl }),
+          metadata: expect.objectContaining({ organizationId: 'org-http' }),
+        }),
+      )
+
+      await (service as any).triggerExtraction(dataUrl)
+      expect(mockAiQueue.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({ documentUrl: dataUrl }),
+          metadata: expect.objectContaining({ organizationId: 'default' }),
         }),
       )
     })
@@ -496,6 +701,85 @@ describe('policies.service', () => {
       ).rejects.toThrow('Cannot sign URL')
 
       expect(mockAiQueue.send).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('generateUploadUrl', () => {
+    it('should call filesService.generateUploadUrl with default filename document.pdf when filename is omitted', async () => {
+      mockFilesService.generateUploadUrl.mockResolvedValueOnce({
+        uploadUrl: 'https://r2.example.com/upload-signed',
+        policyAssetKey: 'org-10/doc.pdf',
+      })
+
+      const res = await (service as any).generateUploadUrl({}, 'org-10')
+
+      expect(mockFilesService.generateUploadUrl).toHaveBeenCalledWith('document.pdf', 'org-10', 300)
+      expect(res).toEqual({
+        uploadUrl: 'https://r2.example.com/upload-signed',
+        policyAssetKey: 'org-10/doc.pdf',
+      })
+    })
+
+    it('should call filesService.generateUploadUrl with custom filename and default org default', async () => {
+      mockFilesService.generateUploadUrl.mockResolvedValueOnce({
+        uploadUrl: 'https://r2.example.com/upload-custom',
+        policyAssetKey: 'default/custom.pdf',
+      })
+
+      const res = await (service as any).generateUploadUrl({ filename: 'custom.pdf' })
+
+      expect(mockFilesService.generateUploadUrl).toHaveBeenCalledWith('custom.pdf', 'default', 300)
+      expect(res).toEqual({
+        uploadUrl: 'https://r2.example.com/upload-custom',
+        policyAssetKey: 'default/custom.pdf',
+      })
+    })
+
+    it('should fallback to local storage URL format when filesService is not configured', async () => {
+      const serviceWithoutFiles = createPoliciesService({
+        policiesRepository: mockPoliciesRepo,
+        companiesService: mockCompaniesService,
+        branchesService: mockBranchesService,
+        insuredsService: mockInsuredsService,
+        assetTypesService: mockAssetTypesService,
+        assetsService: mockAssetsService,
+        paymentMethodsService: mockPaymentMethodsService,
+        policyAssetsRepository: mockPolicyAssetsRepo,
+        policyCoveragesRepository: mockPolicyCoveragesRepo,
+        policyInstallmentsService: mockPolicyInstallmentsService,
+        transactionRunner: mockTransactionRunner,
+      })
+
+      const res = await (serviceWithoutFiles as any).generateUploadUrl({ filename: 'mypolicy.pdf' }, 'org-99')
+
+      expect(res.policyAssetKey).toMatch(/^org-99\/[a-f0-9-]+-mypolicy\.pdf$/)
+      expect(res.uploadUrl).toBe(`https://storage.copas.local/${res.policyAssetKey}`)
+    })
+  })
+
+  describe('getExtractionResult', () => {
+    it('should return extraction result when repo.getExtractionResult exists', async () => {
+      mockPoliciesRepo.getExtractionResult = vi.fn().mockResolvedValueOnce({
+        id: 'ext-999',
+        status: 'completed',
+        policyId: 'pol-123',
+      })
+
+      const res = await (service as any).getExtractionResult('ext-999')
+
+      expect(res).toEqual({
+        id: 'ext-999',
+        status: 'completed',
+        policyId: 'pol-123',
+      })
+      expect(mockPoliciesRepo.getExtractionResult).toHaveBeenCalledWith('ext-999', undefined)
+    })
+
+    it('should return null when repo does not implement getExtractionResult', async () => {
+      delete mockPoliciesRepo.getExtractionResult
+
+      const res = await (service as any).getExtractionResult('ext-unimplemented')
+      expect(res).toBeNull()
     })
   })
 })

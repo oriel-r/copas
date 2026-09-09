@@ -51,6 +51,7 @@ import {
   policyInstallments,
 } from '../contexts/insurance'
 import { reminderRules } from '../contexts/reminders'
+import { vDueInstallments, vExpiringPolicies, vActiveConsents } from '../views'
 
 /**
  * Mapa de tablas de Drizzle (sin relations) para el runtime y `drizzle-kit`.
@@ -111,6 +112,13 @@ export const dbSchema = {
   messageStatuses,
 }
 
+export const dbViews = {
+  vDueInstallments,
+  vExpiringPolicies,
+  vActiveConsents,
+}
+
+
 export { dbDomainRelations, dbRelations, tables } from './relations'
 
 export * from '@copas/auth'
@@ -119,3 +127,4 @@ export * from '../contexts/insurance'
 export * from '../contexts/ai'
 export * from '../contexts/reminders'
 export * from '../contexts/communications'
+export * from '../views'

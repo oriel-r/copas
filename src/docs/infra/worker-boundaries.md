@@ -29,7 +29,8 @@ Rules for splitting code across Workers. Mirrors the
 ## Communication
 
 - **Queue** for all async work (sending, extraction, webhooks).
-- **Service binding** only when a worker needs a synchronous call to another.
+- **Service binding** only when a worker needs a typed call to another (e.g., `scheduler` invoking `api`'s `RemindersRpcEntrypoint`).
+
 
 ## Deploy
 

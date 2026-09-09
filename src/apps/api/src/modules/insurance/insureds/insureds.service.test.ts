@@ -17,6 +17,25 @@ describe('insureds.service', () => {
     service = createInsuredsService({ insuredsRepository: mockRepo })
   })
 
+  describe('constructor and dependency injection', () => {
+    it('should initialize with object argument containing insuredsRepository', () => {
+      const s = createInsuredsService({ insuredsRepository: mockRepo })
+      expect(s).toBeDefined()
+      expect(typeof s.getById).toBe('function')
+      expect(typeof s.findByCuit).toBe('function')
+      expect(typeof s.findOrCreate).toBe('function')
+      expect(typeof s.create).toBe('function')
+      expect(typeof s.update).toBe('function')
+      expect(typeof s.list).toBe('function')
+    })
+
+    it('should initialize with positional argument insuredsRepository', () => {
+      const s = createInsuredsService(mockRepo as any)
+      expect(s).toBeDefined()
+      expect(typeof s.getById).toBe('function')
+    })
+  })
+
   describe('getById', () => {
     it('should return insured when found', async () => {
       const insured: Insured = {
@@ -36,6 +55,23 @@ describe('insureds.service', () => {
 
       const result = await service.getById('ins-1')
       expect(result).toEqual(insured)
+      expect(mockRepo.findById).toHaveBeenCalledWith('ins-1', undefined)
+    })
+
+    it('should return null when insured not found', async () => {
+      mockRepo.findById.mockResolvedValueOnce(null)
+
+      const result = await service.getById('ins-non-existent')
+      expect(result).toBeNull()
+      expect(mockRepo.findById).toHaveBeenCalledWith('ins-non-existent', undefined)
+    })
+
+    it('should propagate tx to findById', async () => {
+      const mockTx = { isTx: true } as any
+      mockRepo.findById.mockResolvedValueOnce(null)
+
+      await service.getById('ins-1', mockTx)
+      expect(mockRepo.findById).toHaveBeenCalledWith('ins-1', mockTx)
     })
   })
 
@@ -46,6 +82,23 @@ describe('insureds.service', () => {
 
       const result = await service.findByCuit('org-1', '20123456789')
       expect(result).toEqual(insured)
+      expect(mockRepo.findByCuit).toHaveBeenCalledWith('org-1', '20123456789', undefined)
+    })
+
+    it('should return null when cuit not found in organization', async () => {
+      mockRepo.findByCuit.mockResolvedValueOnce(null)
+
+      const result = await service.findByCuit('org-1', '20999999999')
+      expect(result).toBeNull()
+      expect(mockRepo.findByCuit).toHaveBeenCalledWith('org-1', '20999999999', undefined)
+    })
+
+    it('should propagate tx to findByCuit', async () => {
+      const mockTx = { isTx: true } as any
+      mockRepo.findByCuit.mockResolvedValueOnce(null)
+
+      await service.findByCuit('org-1', '20123456789', mockTx)
+      expect(mockRepo.findByCuit).toHaveBeenCalledWith('org-1', '20123456789', mockTx)
     })
   })
 
@@ -115,6 +168,20 @@ describe('insureds.service', () => {
       expect(result).toEqual(created)
       expect(mockRepo.create).toHaveBeenCalledWith(input, undefined)
     })
+
+    it('should propagate tx to create', async () => {
+      const mockTx = { isTx: true } as any
+      const input: InsuredInsert = {
+        organizationId: 'org-1',
+        uploadedBy: 'usr-1',
+        cuit: '20444444444',
+        fullName: 'ANA LOPEZ',
+      }
+      mockRepo.create.mockResolvedValueOnce({ id: 'ins-tx', ...input })
+
+      await service.create(input, mockTx)
+      expect(mockRepo.create).toHaveBeenCalledWith(input, mockTx)
+    })
   })
 
   describe('update', () => {
@@ -126,6 +193,15 @@ describe('insureds.service', () => {
       expect(result).toEqual(updated)
       expect(mockRepo.update).toHaveBeenCalledWith('ins-1', { phone: '541199998888' }, undefined)
     })
+
+    it('should propagate tx to update', async () => {
+      const mockTx = { isTx: true } as any
+      const updateData = { phone: '541100001111' }
+      mockRepo.update.mockResolvedValueOnce({ id: 'ins-1', ...updateData })
+
+      await service.update('ins-1', updateData, mockTx)
+      expect(mockRepo.update).toHaveBeenCalledWith('ins-1', updateData, mockTx)
+    })
   })
 
   describe('list', () => {
@@ -136,6 +212,15 @@ describe('insureds.service', () => {
       const result = await service.list({ organizationId: 'org-1' } as any)
       expect(result).toEqual(list)
       expect(mockRepo.list).toHaveBeenCalledWith({ organizationId: 'org-1' }, undefined)
+    })
+
+    it('should handle list with undefined filters and propagate tx', async () => {
+      const mockTx = { isTx: true } as any
+      mockRepo.list.mockResolvedValueOnce([])
+
+      const result = await service.list(undefined, mockTx)
+      expect(result).toEqual([])
+      expect(mockRepo.list).toHaveBeenCalledWith(undefined, mockTx)
     })
   })
 })

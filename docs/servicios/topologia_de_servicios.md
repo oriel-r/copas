@@ -22,12 +22,12 @@ hacen I/O externa y no escriben el dominio.
 
 | Worker | Rol | Escribe dominio | Medio |
 |---|---|---|---|
-| `api` | Core: auth + insurance + subir PDF + pagos | sí | — |
+| `api` | Core: auth + insurance + subir PDF + pagos + despacho | sí | — |
 | `client` | Frontend | no | HTTP |
 | `email-service` | Envía email (Resend) | no | cola `email` |
 | `whatsapp-service` | Envía + recibe webhooks WhatsApp | no | colas `whatsapp`, `whatsapp-inbound` |
 | `extractor` | Extrae datos del PDF (servicio externo) | no | colas `ai`, `ai-result` |
-| `scheduler` | Consulta vencimientos y encola recordatorios | no (solo lectura) | cola `whatsapp` |
+| `scheduler` | Orquesta vencimientos y renovaciones diarios | no | Service Binding RPC (`api`) |
 
 ## Decisiones
 
@@ -39,8 +39,9 @@ hacen I/O externa y no escriben el dominio.
 - **Email renderiza en `api`.** `email-service` solo envía; recibe el mensaje listo.
 - **Pagos quedan en `api`.** Es HTTP como email; se extrae solo si aparece un motivo
   (varios proveedores, aislar endpoint).
-- **`scheduler` es worker separado** (cron), de solo lectura sobre el dominio.
-- **Colas, no RPC.** Los flujos entre workers son async (envío, extracción, webhooks).
+- **`scheduler` es worker separado (cron), sin acceso a DB.** Invoca a `api` vía
+  Service Binding nativo (`RemindersRpcEntrypoint`), preservando a `api` como único escritor del dominio y productor a la cola `whatsapp`.
+- **Colas para I/O externa; RPC nativo para cron interno.** Los flujos desacoplados de entrada/salida usan colas (`whatsapp`, `whatsapp-inbound`, `email`, `ai`); la orquestación programada cron interna usa Worker-to-Worker RPC tipado.
 
 ## Ver también
 

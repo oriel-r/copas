@@ -40,8 +40,13 @@
       {
         "binding": "AI_QUEUE",
         "queue": "copas-ai-extraction"
+      },
+      {
+        "binding": "WHATSAPP_QUEUE",
+        "queue": "copas-whatsapp"
       }
     ],
+
     "consumers": [
       {
         "queue": "copas-ai-result",
@@ -125,8 +130,13 @@
           {
             "binding": "AI_QUEUE",
             "queue": "copas-ai-extraction-staging"
+          },
+          {
+            "binding": "WHATSAPP_QUEUE",
+            "queue": "copas-whatsapp-staging"
           }
         ],
+
         "consumers": [
           {
             "queue": "copas-ai-result-staging",
