@@ -22,18 +22,23 @@ cross-reference across domains using absolute paths from the project root.
 
 ## docs/
 
-Business documentation. Not directly tied to code. A decision may reference
-implementations under `/src/` and vice versa.
+Business documentation. Not directly tied to code. Grouped semantically by bounded contexts / business domains:
+- `producto/`: Vision, roadmap, document change logs.
+- `agencias/`: Agency onboarding, organizations, admin panel.
+- `comunicaciones/`: WhatsApp, Email, triage, outbound dispatch.
+- `polizas/`: Policy portfolio, AI assisted extraction.
+- `recordatorios/`: Expirations and renewals, scheduling logic.
+- `facturacion/`: Billing and subscription plans.
+- `arquitectura/`: Domain model (DER), service topology, high-level architecture decisions.
 
-`/docs/index.md` is the entry point. Subdirectories by topic.
+Subdirectories MUST be semantic contexts, NEVER grouped by document type (e.g., no `docs/decisiones/` or `docs/servicios/`). Root only contains `index.md`.
 
 ## src/
 
-Source code + its documentation (how to use, integrate, etc). Changes with
-code.
+Source code + technical documentation tied to implementation.
 
-Structure: `/src/apps/` (services, micro-frontends), `/src/packages/`
-(shared libraries).
+- Code structure: `/src/apps/` (services, micro-frontends, workers), `/src/packages/` (shared libraries, contracts).
+- Technical docs: `/src/docs/` organized semantically following the same bounded contexts (`agencias/`, `comunicaciones/`, `polizas/`, `arquitectura/`). Root only contains `index.md`.
 
 ## scripts/
 
@@ -44,6 +49,6 @@ Target: non-technical audience.
 
 Use absolute paths from root. Only when the link adds real value.
 
-```
-See [decision](/docs/decisions/use-tailwind.md) behind this API.
+```markdown
+See [onboarding decision](/docs/agencias/onboarding.md) behind this flow.
 ```

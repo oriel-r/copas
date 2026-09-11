@@ -104,7 +104,7 @@ Consulta [lifecycle-workflows.md](./references/lifecycle-workflows.md). Reglas c
 
 1. **Enlaces**: Utilizar siempre rutas absolutas desde la raíz del proyecto:
    ```markdown
-   Ver [Análisis del DER](/docs/sistemas/der_analisis.md) para más detalles.
+   Ver [Análisis del DER](/docs/arquitectura/datos/der_analisis.md) para más detalles.
    ```
 2. **Índices**: Al crear un nuevo documento dentro de `/docs/` o `/src/docs/`, incorporarlo al índice correspondiente ([`/docs/index.md`](/docs/index.md) o [`/src/docs/index.md`](/src/docs/index.md)).
 

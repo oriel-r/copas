@@ -38,7 +38,7 @@ El campo `type` en el frontmatter debe corresponder exactamente a uno de los tip
 ## 3. Reglas de Enlaces Cruzados (Cross-referencing)
 
 1. **Rutas Absolutas desde la Raíz**: Todo enlace interno entre documentos debe usar rutas absolutas que comiencen con `/`:
-   - ✅ Correcto: `[Decisión sobre Tailwind](/docs/decisions/use-tailwind.md)`
-   - ❌ Incorrecto: `[Decisión sobre Tailwind](../decisions/use-tailwind.md)`
+   - ✅ Correcto: `[Onboarding de Agencias](/docs/agencias/onboarding.md)`
+   - ❌ Incorrecto: `[Onboarding de Agencias](../agencias/onboarding.md)`
 2. **Valor Real**: No agregar enlaces redundantes o triviales. Cada enlace debe aportar contexto relevante al lector.
 3. **Mantenimiento del Índice**: Al crear un nuevo documento en `/docs/` o `/src/docs/`, se debe incorporar de inmediato al índice principal respectivo (`/docs/index.md` o `/src/docs/index.md`).

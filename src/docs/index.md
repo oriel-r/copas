@@ -1,38 +1,48 @@
-# Implementation docs
+# Implementation Docs
 
-Documentation about code structure and conventions. Business knowledge lives in
-the root [docs](/docs/index.md).
+Documentación técnica de arquitectura, convenciones de código e infraestructura.
+El conocimiento de negocio vive en [docs/index.md](/docs/index.md).
 
-## Conventions
+## Agencias
+- [Flujo de Autenticación Admin](/src/docs/agencias/admin-auth.md)
+- [Flujo de Onboarding de Agencias](/src/docs/agencias/agency_onboarding.md)
 
-- [Module Scaffolding](/module-conventions/module-scaffolding.md)
-  - [Router](/module-conventions/module-router.md)
-  - [Service](/module-conventions/module-service.md)
-  - [Repository](/module-conventions/module-repository.md)
+## Comunicaciones
+### WhatsApp
+- [Servicio WhatsApp](/src/docs/comunicaciones/whatsapp/service.md)
+- [Pipeline Inbound WhatsApp](/src/docs/comunicaciones/whatsapp/inbound-pipeline.md)
+- [Pipeline Outbound WhatsApp](/src/docs/comunicaciones/whatsapp/outbound-pipeline.md)
 
-## Core
+### Email
+- [Servicio Email](/src/docs/comunicaciones/email/service.md)
 
-- [Scaffolding](/core/scaffolding.md)
-- [Entry Point](/core/entry-point.md)
-- [Routing](/core/routing.md)
-- [Error Handling](/core/error-handling.md)
-- [DI](/core/di.md)
-- [Env Types](/core/env-types.md)
-- [Global Middlewares](/core/global_middlewares.md)
-- [File Location Rules](/core/files_location_rules.md)
+## Pólizas
+### Extracción con IA
+- [Workflow de Extracción IA](/src/docs/polizas/extraccion_ia/workflow.md)
+- [Pipeline de Extracción IA (Histórico / Superseded)](/src/docs/polizas/extraccion_ia/pipeline.md)
 
-## API
+## Arquitectura
+### Convenciones de Módulos
+- [Scaffolding de Módulo](/src/docs/arquitectura/convenciones-modulos/module-scaffolding.md)
+- [Router de Módulo](/src/docs/arquitectura/convenciones-modulos/module-router.md)
+- [Service de Módulo](/src/docs/arquitectura/convenciones-modulos/module-service.md)
+- [Repository de Módulo](/src/docs/arquitectura/convenciones-modulos/module-repository.md)
 
-- [Endpoints](/api/endpoints.md)
-- [How To Serve](/api/how_to_serve.md)
+### Core de Aplicación
+- [Scaffolding de Aplicaciones](/src/docs/arquitectura/core/scaffolding.md)
+- [Entry Point](/src/docs/arquitectura/core/entry-point.md)
+- [Routing Global](/src/docs/arquitectura/core/routing.md)
+- [Manejo de Errores](/src/docs/arquitectura/core/error-handling.md)
+- [Inyección de Dependencias (DI)](/src/docs/arquitectura/core/di.md)
+- [Tipos de Variables de Entorno](/src/docs/arquitectura/core/env-types.md)
+- [Middlewares Globales](/src/docs/arquitectura/core/global_middlewares.md)
+- [Reglas de Ubicación de Archivos](/src/docs/arquitectura/core/files_location_rules.md)
 
-## Infra
+### API
+- [Catálogo de Endpoints](/src/docs/arquitectura/api/endpoints.md)
+- [Cómo Servir la API](/src/docs/arquitectura/api/how_to_serve.md)
 
-- [Infra Types](/src/docs/infra/infra-types.md)
-- [Worker Boundaries](/src/docs/infra/worker-boundaries.md)
-- [Queues](/src/docs/infra/queues.md)
-- [Email Service](/src/docs/infra/email-service.md)
-- [WhatsApp Service](/src/docs/infra/whatsapp-service.md)
-- [WhatsApp Outbound Pipeline](/src/docs/infra/whatsapp-outbound-pipeline.md)
-- [WhatsApp Inbound Pipeline](/src/docs/infra/whatsapp-inbound-pipeline.md)
-- [AI Extraction Workflow](/src/docs/infra/ai-extraction-workflow.md)
+### Infraestructura
+- [Catálogo de Colas (Queues)](/src/docs/arquitectura/infra/queues.md)
+- [Límites de Workers (Worker Boundaries)](/src/docs/arquitectura/infra/worker-boundaries.md)
+- [Tipos de Infraestructura](/src/docs/arquitectura/infra/infra-types.md)

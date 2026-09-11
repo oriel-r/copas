@@ -1,39 +1,47 @@
-# Bussines knowledge map
+# Business Knowledge Map
 
-## Onboarding
+Mapa general de conocimiento de negocio y producto de Copas, estructurado por contextos delimitados.
+Para la documentación técnica y de implementación, consulta el índice técnico en [src/docs](/src/docs/index.md).
 
-- [El problema que resolvemos](/docs/nuestro_objetivo.md)
+## Producto
+- [El problema que resolvemos (Visión)](/docs/producto/nuestro_objetivo.md)
+- [Roadmap Estratégico](/docs/producto/roadmap.md)
+- [Historial de Cambios Documentales](/docs/producto/log.md)
 
-## Projects
+## Agencias
+- [Onboarding de Agencias (Decisión)](/docs/agencias/onboarding.md)
+- [Autenticación y Organizaciones](/docs/agencias/auth_y_organizaciones.md)
+- [Panel de Administración](/docs/agencias/admin_panel.md)
 
-### Automatic reminders for due dates and renewals
-- [Problema a resolver](/docs/vencimientos_y_renovaciones/planteo_del_problema.md)
-- [Como lo resolveremos](/docs/vencimientos_y_renovaciones/solucion_al_problema.md)
-- [Arquitectura de la solucion](/docs/vencimientos_y_renovaciones/arquitectura_de_la_solucion.md)
+## Comunicaciones
+### WhatsApp
+- [Triage de Inbound WhatsApp (Decisión)](/docs/comunicaciones/whatsapp/inbound_triage.md)
+- [Servicio WhatsApp](/docs/comunicaciones/whatsapp/servicio.md)
 
-## Sistemas
+### Email
+- [Servicio Email](/docs/comunicaciones/email/servicio.md)
 
-- [DER](/docs/sistemas/der.md)
-- [Análisis del DER](/docs/sistemas/der_analisis.md)
+## Pólizas
+- [Gestión de Cartera y Pólizas](/docs/polizas/cartera.md)
 
-## Servicios
+### Extracción con IA
+- [Servicio de Extracción Documental con IA](/docs/polizas/extraccion_ia/servicio.md)
+- [Inteligencia Artificial (Histórico / Superseded)](/docs/polizas/extraccion_ia/inteligencia_artificial.md)
 
-- [Topología de servicios](/docs/servicios/topologia_de_servicios.md)
-- [Scheduler](/docs/servicios/scheduler.md)
-- [Whatsapp Service](/docs/servicios/whatsapp_service.md)
-- [Email Service](/docs/servicios/email_service.md)
-- [Inteligencia Artificial](/docs/servicios/ai-service.md)
-- [Auth Y Organizaciones](/docs/servicios/auth_y_organizaciones.md)
-- [Billing](/docs/servicios/billing.md)
-- [Cartera](/docs/servicios/cartera.md)
+## Recordatorios
+- [Planteo del Problema: Vencimientos y Renovaciones](/docs/recordatorios/planteo_del_problema.md)
+- [Solución Funcional al Problema](/docs/recordatorios/solucion_al_problema.md)
+- [Arquitectura Funcional de la Solución](/docs/recordatorios/arquitectura_de_la_solucion.md)
+- [Servicio Scheduler](/docs/recordatorios/scheduler.md)
 
-## Decisiones
+## Facturación
+- [Facturación y Planes (Billing)](/docs/facturacion/billing.md)
 
-- [Onboarding Agencias](/docs/decisiones/onboarding_agencias.md)
-- [Triage de Inbound WhatsApp](/docs/decisiones/whatsapp_inbound_triage.md)
-- [Testing de Mutaciones en Lógica de Negocio](/docs/decisiones/testing_mutaciones_logica_negocio.md)
+## Arquitectura
+### Datos
+- [Diagrama Entidad-Relación (DER)](/docs/arquitectura/datos/der.md)
+- [Análisis del DER](/docs/arquitectura/datos/der_analisis.md)
 
-## Implementation
-
-Code structure and technical conventions live in [src/docs](/src/docs/index.md).
-
+### General
+- [Topología de Servicios](/docs/arquitectura/topologia_de_servicios.md)
+- [Testing de Mutaciones en Lógica de Negocio (Decisión)](/docs/arquitectura/testing_mutaciones.md)
