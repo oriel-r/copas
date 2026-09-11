@@ -3,8 +3,8 @@ type: decision
 producer: agent/gemini-3.8-flash
 status: active
 created: 2026-09-07
-updated: 2026-09-08
-expires: 2027-09-08
+updated: 2026-09-11
+expires: 2027-09-11
 deprecatedReason: ""
 supersededBy: ""
 ---
@@ -34,8 +34,8 @@ flowchart TD
 
 Mensajes de números no vinculados a pólizas activas se procesan con **WhatsApp Flows**:
 
-1. **Flow de Informe de Pago**: Solicita CUIT o Patente; si concilia póliza, asocia el pago y pasa la cuota a `paid`.
-2. **Flow de Consulta / Spam**: Formulario simple de datos básicos; envía mensaje de despedida y cierra la conversación (`status = 'closed'`).
+1. **Flow de Informe de Pago**: Solicita CUIT o Patente; si concilia póliza, asocia el pago a la agencia detectada y pasa la cuota a `paid`.
+2. **Flow de Consulta / Prospecto**: Formulario simple de datos básicos; si no concilia póliza con ninguna agencia, la conversación se persiste en D1 bajo la organización de sistema (`PLATFORM_SYSTEM_ORG_ID`) para ser preservada y referida como prospecto a agencias, cerrando la interacción interactiva (`status = 'closed'`).
 3. **Descarte Posterior**: Mensajes posteriores de ese número tras el cierre se descartan a nivel backend para evitar costos de Meta.
 
 ## 3. Opt-out y Vista en Base de Datos
@@ -53,5 +53,6 @@ Mensajes de números no vinculados a pólizas activas se procesan con **WhatsApp
 ## Ver también
 
 - [Whatsapp Service](/docs/servicios/whatsapp_service.md)
+- [WhatsApp Service Worker](/src/docs/infra/whatsapp-service.md)
 - [WhatsApp Inbound Pipeline](/src/docs/infra/whatsapp-inbound-pipeline.md)
 - [Topología de Servicios](/docs/servicios/topologia_de_servicios.md)

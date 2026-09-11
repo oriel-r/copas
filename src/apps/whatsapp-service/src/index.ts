@@ -1,9 +1,10 @@
-import { Hono } from 'hono'
+import { app } from './webhook/routes'
+import { queue } from './consumer/handler'
+import { getLogger } from '@copas/logger'
 
-const app = new Hono()
-// Comentario temporal para probar workflow
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
+export { app, queue }
 
-export default app
+export default {
+  fetch: app.fetch,
+  queue
+}

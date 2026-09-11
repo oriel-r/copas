@@ -32,6 +32,7 @@ the root [docs](/docs/index.md).
 - [Worker Boundaries](/src/docs/infra/worker-boundaries.md)
 - [Queues](/src/docs/infra/queues.md)
 - [Email Service](/src/docs/infra/email-service.md)
+- [WhatsApp Service](/src/docs/infra/whatsapp-service.md)
 - [WhatsApp Outbound Pipeline](/src/docs/infra/whatsapp-outbound-pipeline.md)
 - [WhatsApp Inbound Pipeline](/src/docs/infra/whatsapp-inbound-pipeline.md)
 - [AI Extraction Workflow](/src/docs/infra/ai-extraction-workflow.md)

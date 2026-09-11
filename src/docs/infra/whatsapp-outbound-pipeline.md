@@ -3,8 +3,8 @@ type: convention
 producer: agent/gemini-3.8-flash
 status: active
 created: 2026-09-07
-updated: 2026-09-08
-expires: 2027-09-08
+updated: 2026-09-11
+expires: 2027-09-11
 deprecatedReason: ""
 supersededBy: ""
 ---
@@ -19,15 +19,17 @@ sequenceDiagram
 
     participant prod as Producer (api / scheduler)
     participant db as D1 (DB)
-    participant q as Queue: whatsapp
+    participant q as Queue: copas-whatsapp
     participant worker as whatsapp-service (Consumer)
     participant meta as Meta Graph API (v20.0)
-    participant dlq as Queue: whatsapp-dlq
+    participant q_in as Queue: copas-whatsapp-inbound
+    participant dlq as Queue: copas-whatsapp-dlq
 
     prod->>db: SELECT v_active_consents
     alt Opt-out activo (isOptedOut = 1)
         prod->>db: INSERT messages (status: skipped)
     else Consentimiento válido
+        prod->>db: Validar ventana de 24h (si mode != 'template')
         prod->>db: INSERT messages (status: sent, deduplicationHash)
         prod-)q: Envelope { type: 'whatsapp-outbound', payload: WhatsAppOutboundQueuePayload, metadata }
         q->>worker: queue(batch, env, ctx)
@@ -38,6 +40,9 @@ sequenceDiagram
             worker->>q: msg.ack()
         else Error recuperable (HTTP 429 / 5xx)
             worker->>q: msg.retry()
+        else Error 4xx no recuperable (131047 / 400 / 401)
+            worker-)q_in: Envelope { type: 'whatsapp-status-update', payload: { status: 'failed', ... } }
+            worker->>q: msg.ack()
         else Reintentos agotados
             q->>dlq: Forward to DLQ
         end
@@ -46,12 +51,20 @@ sequenceDiagram
 
 ## Modalidades de Mensaje Saliente
 
-El contrato [`WhatsAppOutboundQueuePayload`](/src/packages/contracts/src/contexts/communications/whatsapp-outbound-queue-message.ts) soporta cuatro modos:
+El contrato [`WhatsAppOutboundQueuePayload`](/src/packages/contracts/src/contexts/communications/whatsapp-outbound-queue-message.ts) soporta cinco modos:
 
-- **`template`**: Plantillas HSM para recordatorios de vencimiento y primer contacto.
-- **`free_form`**: Mensaje de texto libre.
-- **`reaction`**: Reacción emoji referenciando el `wamid` del comprobante entrante.
+- **`template`**: Plantillas HSM para recordatorios de vencimiento y primer contacto (soporta parámetros de texto, moneda, fecha/hora, imagen, documento y acciones de Flow en botones).
+- **`free_form`**: Mensaje de texto libre (restringido a la ventana de 24h).
+- **`reaction`**: Reacción emoji referenciando el `wamid` del mensaje entrante.
 - **`contact`**: Envío de vCard con los datos de contacto del PAS.
+- **`interactive`**: Mensajes interactivos directos (WhatsApp Flows estáticos y botones de respuesta rápida dentro de la ventana de 24h).
+
+## Regla de la Ventana de 24 Horas de Meta (Customer Service Window)
+
+Conforme a las políticas de Meta WhatsApp Business Platform:
+- Los mensajes de tipo `free_form`, `contact`, `reaction` e `interactive` **únicamente** pueden enviarse dentro de las 24 horas posteriores al último mensaje entrante del destinatario.
+- `api` y `scheduler` validan la vigencia de la ventana contra `conversations.lastMessageAt` / `messages.createdAt` antes de encolar; si la ventana expiró, solo se admite `mode: 'template'`.
+- Si Meta rechaza un envío con código `131047` ("Re-engagement message"), `whatsapp-service` confirma con `msg.ack()` y notifica `status: 'failed'` a `copas-whatsapp-inbound` para que `api` asiente el fallo de forma definitiva.
 
 ## Resolución Unificada de Credenciales
 
@@ -63,6 +76,7 @@ Para evitar bifurcaciones en el worker, **las credenciales siempre las resuelve 
 ## Ver también
 
 - [Whatsapp Service](/docs/servicios/whatsapp_service.md)
+- [WhatsApp Service Worker](/src/docs/infra/whatsapp-service.md)
 - [Triage de Inbound WhatsApp](/docs/decisiones/whatsapp_inbound_triage.md)
 - [WhatsApp Inbound Pipeline](/src/docs/infra/whatsapp-inbound-pipeline.md)
 - [Queues](/src/docs/infra/queues.md)
