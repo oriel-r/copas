@@ -320,7 +320,40 @@ describe('policies.routes', () => {
       expect(res.status).toBe(400)
     })
 
-    it('returns 200 with generated URL on success', async () => {
+    it('rejects with 400 Bad Request when filename is not a .pdf', async () => {
+      const res = await app.request('/policies/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: 'invoice.png', contentType: 'application/pdf' }),
+      })
+
+      expect(res.status).toBe(400)
+    })
+
+    it('rejects with 400 Bad Request when contentType is not application/pdf', async () => {
+      const res = await app.request('/policies/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: 'document.pdf', contentType: 'image/jpeg' }),
+      })
+
+      expect(res.status).toBe(400)
+    })
+
+    it('rejects with 400 Bad Request when non-pdf documents or media are submitted', async () => {
+      const res = await app.request('/policies/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: 'policy.docx',
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }),
+      })
+
+      expect(res.status).toBe(400)
+    })
+
+    it('returns 200 with generated URL on success when valid .pdf is provided', async () => {
       const uploadUrlResult = {
         uploadUrl: 'https://r2.example.com/upload-signed-url',
         policyAssetKey: 'org-123/uuid-test.pdf',
@@ -337,6 +370,55 @@ describe('policies.routes', () => {
       expect(res.status).toBe(200)
       const data = await res.json()
       expect(data).toEqual(uploadUrlResult)
+    })
+  })
+
+  describe('PUT /policies/documents/upload', () => {
+    it('rejects with 400 when key query parameter is missing', async () => {
+      const validPdfBuffer = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34])
+      const res = await app.request('/policies/documents/upload', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: validPdfBuffer,
+      })
+
+      expect(res.status).toBe(400)
+    })
+
+    it('rejects with 413 Payload Too Large when content exceeds 15MB', async () => {
+      // 15MB + 1 byte
+      const largeBuffer = new Uint8Array(15 * 1024 * 1024 + 1)
+      const res = await app.request('/policies/documents/upload?key=org-123/large.pdf', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: largeBuffer,
+      })
+
+      expect(res.status).toBe(413)
+    })
+
+    it('rejects with 400 when magic bytes are not %PDF-', async () => {
+      const invalidMagicBuffer = new TextEncoder().encode('GIF89a corrupted not a pdf file')
+      const res = await app.request('/policies/documents/upload?key=org-123/fake.pdf', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: invalidMagicBuffer,
+      })
+
+      expect(res.status).toBe(400)
+    })
+
+    it('returns 200 when uploading legitimate PDF buffer under 15MB', async () => {
+      const validPdfBuffer = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A])
+      mockFilesService.upload.mockResolvedValueOnce(undefined)
+
+      const res = await app.request('/policies/documents/upload?key=org-123/valid-doc.pdf', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: validPdfBuffer,
+      })
+
+      expect(res.status).toBe(200)
     })
   })
 

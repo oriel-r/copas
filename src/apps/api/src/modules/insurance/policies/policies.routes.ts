@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { uploadUrlRequestSchema } from './policies.schema';
-import { createPolicyRequestSchema } from '@copas/contracts';
+import { createPolicyRequestSchema, validatePdfMagicBytes } from '@copas/contracts';
 import type { PoliciesService } from './policies.service';
 import type { AppEnv } from '../../../core/types/env';
 
@@ -56,6 +56,36 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
 
       return new Response(object.body, { headers });
     })
+    .put('/documents/upload', async (c) => {
+      const key = c.req.query('key');
+      if (!key) {
+        return c.json({ error: 'key required' }, 400);
+      }
+      const contentLengthStr = c.req.header('content-length');
+      if (contentLengthStr && parseInt(contentLengthStr, 10) > 15 * 1024 * 1024) {
+        return c.json({ error: 'El archivo excede el tamaño máximo permitido de 15MB' }, 413);
+      }
+      const buffer = await c.req.arrayBuffer();
+      if (buffer.byteLength > 15 * 1024 * 1024) {
+        return c.json({ error: 'El archivo excede el tamaño máximo permitido de 15MB' }, 413);
+      }
+      const validation = validatePdfMagicBytes(buffer);
+      if (!validation.valid) {
+        return c.json({ error: validation.error || 'Magic bytes inválidos' }, 400);
+      }
+
+      const filesService = c.get('services')?.insurance?.files;
+      if (filesService) {
+        await filesService.upload(key, buffer, { contentType: 'application/pdf' });
+      } else {
+        const bucket = (c.env as any)?.DOCUMENT_BUCKET;
+        if (bucket && typeof bucket.put === 'function') {
+          await bucket.put(key, buffer, { httpMetadata: { contentType: 'application/pdf' } });
+        }
+      }
+
+      return c.text('OK', 200);
+    })
     .get('/extractions/:id', async (c) => {
       const s = getService(c);
       const id = c.req.param('id');
@@ -102,6 +132,12 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       if (!parsed.success) {
         return c.json({ error: parsed.error }, 400);
       }
+      
+      const { filename, contentType } = parsed.data;
+      if (!filename.toLowerCase().endsWith('.pdf') || contentType !== 'application/pdf') {
+        return c.json({ error: 'Solo se permiten archivos de tipo PDF' }, 400);
+      }
+
       const s = getService(c);
       const organizationId = c.get('organizationId' as any) as string | null;
       if (!organizationId) return c.json({ error: 'organization required' }, 401);

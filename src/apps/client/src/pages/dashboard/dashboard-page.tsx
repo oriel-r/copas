@@ -7,7 +7,10 @@ import { signOut } from '@/lib/session'
 import { getErrorMessage } from '@/lib/errors'
 import { AppShell } from '@/components/layout/app-shell'
 import { FormError } from '@copas/ui'
-import { PolicyDropzone } from '@/components/policies/policy-dropzone'
+import { DocumentUploadCard } from '@/components/policies/document-upload-card'
+import { GlobalDropOverlay } from '@/components/policies/global-drop-overlay'
+import { useDocumentsUploadQueue } from '@/lib/api/use-documents-upload-queue'
+import { useGlobalDragDrop } from '@/lib/hooks/use-global-drag-drop'
 
 export function DashboardPage() {
   const signOutMutation = useMutation({
@@ -17,10 +20,17 @@ export function DashboardPage() {
     },
   })
 
+  const uploadQueue = useDocumentsUploadQueue()
+  
+  const { isDragging } = useGlobalDragDrop({
+    onFilesDropped: uploadQueue.enqueueFiles,
+  })
+
   return (
     <AppShell>
+      <GlobalDropOverlay isDragging={isDragging} />
       <div className="flex flex-col md:flex-row gap-6 items-start justify-center w-full max-w-5xl">
-        <PolicyDropzone />
+        <DocumentUploadCard queue={uploadQueue} />
 
         <Card className="w-full max-w-md">
           <CardHeader>

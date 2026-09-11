@@ -16,28 +16,38 @@ export function usePolicyUpload() {
 
   return useMutation({
     mutationFn: async (file: File): Promise<UploadPolicyResponse> => {
-      // 1. Upload file to R2 via Hono RPC endpoint
-      const formData = new FormData()
-      formData.append('file', file)
+      // 1. Request signed upload URL
+      const urlRes = await apiClient.policies['upload-url'].$post({
+        json: {
+          filename: file.name,
+          contentType: 'application/pdf',
+        },
+      })
 
-      const uploadRes = await fetch(apiClient.policies.upload.$url(), {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
+      if (!urlRes.ok) {
+        throw new Error(`Failed to get upload URL: ${urlRes.status}`)
+      }
+
+      const { uploadUrl, policyAssetKey } = await urlRes.json()
+
+      // 2. Direct PUT to storage via signed URL
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': 'application/pdf',
+        },
       })
 
       if (!uploadRes.ok) {
         throw new Error(`Upload failed with status ${uploadRes.status}`)
       }
 
-      const uploadResult = (await uploadRes.json()) as { policyAssetKey: string; documentUrl: string; filename: string }
-
-      // 2. Trigger AI extraction pipeline via Hono RPC client
-      // Tenant is resolved server-side via header/session, no need to send organizationId from client
+      // 3. Trigger AI extraction pipeline via Hono RPC client
       const extractRes = await apiClient.policies.extract.$post({
         json: {
-          policyAssetKey: uploadResult.policyAssetKey,
-          documentUrl: uploadResult.documentUrl,
+          policyAssetKey,
+          documentUrl: policyAssetKey,
         },
       })
 
@@ -48,7 +58,9 @@ export function usePolicyUpload() {
       const extractionResult = (await extractRes.json()) as { aiExtractionResultId: string; status: string }
 
       return {
-        ...uploadResult,
+        policyAssetKey,
+        documentUrl: policyAssetKey,
+        filename: file.name,
         extraction: extractionResult,
       }
     },
