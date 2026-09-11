@@ -52,6 +52,8 @@ function isAllowedQAReadPath(filePath) {
     /CONVENTIONS\.md$/i,
     /AGENTS\.md$/i,
     /README\.md$/i,
+    /\.gemini\//i,
+    /\.agents\//i,
   ];
 
   return allowedPatterns.some(pattern => pattern.test(norm));
