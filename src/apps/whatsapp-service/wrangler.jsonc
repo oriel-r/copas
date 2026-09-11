@@ -3,41 +3,72 @@
   "name": "whatsapp-service",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "WHATSAPP_INBOUND_QUEUE",
+        "queue": "copas-whatsapp-inbound"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "copas-whatsapp",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "copas-whatsapp-dlq",
+        "retry_delay": 30
+      }
+    ]
+  },
+  "vars": {
+    "META_GRAPH_API_VERSION": "v20.0",
+    "META_GRAPH_API_BASE_URL": "https://graph.facebook.com"
+  },
+  "secrets": {
+    "required": [
+      "META_APP_SECRET",
+      "META_VERIFY_TOKEN"
+    ]
+  },
   "env": {
     "staging": {
-      "name": "whatsapp-service-staging"
+      "name": "whatsapp-service-staging",
+      "observability": {
+        "enabled": true
+      },
+      "secrets": {
+        "required": [
+          "META_APP_SECRET",
+          "META_VERIFY_TOKEN"
+        ]
+      },
+      "queues": {
+        "producers": [
+          {
+            "binding": "WHATSAPP_INBOUND_QUEUE",
+            "queue": "copas-whatsapp-inbound-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "copas-whatsapp-staging",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 5,
+            "dead_letter_queue": "copas-whatsapp-dlq-staging",
+            "retry_delay": 30
+          }
+        ]
+      },
+      "vars": {
+        "META_GRAPH_API_VERSION": "v20.0",
+        "META_GRAPH_API_BASE_URL": "https://graph.facebook.com"
+      }
     }
   }
 }
