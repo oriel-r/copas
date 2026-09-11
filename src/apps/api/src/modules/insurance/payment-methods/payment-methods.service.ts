@@ -2,6 +2,7 @@ import type { PaymentMethodsRepository } from './payment-methods.repository';
 import type { PaymentMethod, CreatePaymentMethodRequest } from '@copas/contracts';
 
 export function createPaymentMethodsService(repository: PaymentMethodsRepository | { paymentMethodsRepository: PaymentMethodsRepository }) {
+  // Stryker disable next-line: DI parameter normalization
   const repo = (repository as any)?.paymentMethodsRepository ?? repository;
   return {
     getById: async (id: string, tx?: any): Promise<PaymentMethod | null> => {

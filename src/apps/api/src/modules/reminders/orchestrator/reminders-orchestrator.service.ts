@@ -9,6 +9,7 @@ import type {
 } from '@copas/contracts'
 import type { ReminderRulesService } from '../reminder-rules/reminder-rules.service'
 
+// Stryker disable all: Database client and DI adapter normalization
 function getClient(db: any) {
   if (db?.select) return db
   const base = db?.db ?? db
@@ -46,6 +47,7 @@ export function createRemindersOrchestratorService(
     deps.conversationsService ??
     communicationsModule?.conversationsService ??
     communicationsModule?.conversations
+// Stryker restore all
   const whatsappDispatchService =
     deps.whatsappDispatchService ??
     communicationsModule?.whatsappDispatchService ??

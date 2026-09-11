@@ -1,22 +1,42 @@
 {
   "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
-  "concurrency": 1,
+  "concurrency": 2,
   "coverageAnalysis": "perTest",
-  "checkers": ["typescript"],
+  "checkers": [
+    "typescript"
+  ],
   "tsconfigFile": "tsconfig.app.json",
-  "reporters": ["clear-text", "progress", "html"],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html"
+  ],
   "plugins": [
     "@stryker-mutator/vitest-runner",
-    "@stryker-mutator/typescript-checker"
+    "@stryker-mutator/typescript-checker",
+    "../../../scripts/stryker-ast-ignorer.mjs"
+  ],
+  "ignorers": [
+    "copas-ast-ignorer"
   ],
   "ignoreStatic": true,
+  "mutator": {
+    "excludedMutations": [
+      "OptionalChaining",
+      "StringLiteral"
+    ]
+  },
   "mutate": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
+    "src/lib/**/*.ts",
     "!src/**/*.{test,spec}.{ts,tsx}",
     "!src/vite-env.d.ts"
   ],
+  "thresholds": {
+    "high": 85,
+    "low": 70,
+    "break": null
+  },
   "htmlReporter": {
     "fileName": "coverage/stryker/index.html"
   }

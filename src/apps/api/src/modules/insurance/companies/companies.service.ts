@@ -2,6 +2,7 @@ import type { CompaniesRepository } from './companies.repository';
 import type { Company, CreateCompanyRequest, UpdateCompanyRequest } from '@copas/contracts';
 
 export function createCompaniesService(repository: CompaniesRepository | { companiesRepository: CompaniesRepository }) {
+  // Stryker disable next-line: DI parameter normalization
   const repo = (repository as any)?.companiesRepository ?? repository;
   return {
     getById: async (id: string, tx?: any): Promise<Company | null> => {

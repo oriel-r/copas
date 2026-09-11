@@ -1,18 +1,38 @@
 {
   "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
-  "concurrency": 1,
+  "concurrency": 2,
   "coverageAnalysis": "perTest",
-  "reporters": ["clear-text", "progress", "html"],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html"
+  ],
   "plugins": [
-    "@stryker-mutator/vitest-runner"
+    "@stryker-mutator/vitest-runner",
+    "../../../scripts/stryker-ast-ignorer.mjs"
+  ],
+  "ignorers": [
+    "copas-ast-ignorer"
   ],
   "ignoreStatic": true,
+  "mutator": {
+    "excludedMutations": [
+      "OptionalChaining",
+      "StringLiteral"
+    ]
+  },
   "mutate": [
-    "src/**/*.ts",
-    "platform/**/*.ts",
-    "!**/*.{test,spec}.ts"
+    "src/modules/**/*.service.ts",
+    "src/modules/auth/slug.ts",
+    "src/modules/reminders/reminders-rpc.entrypoint.ts",
+    "!src/**/*.{test,spec}.ts"
   ],
+  "thresholds": {
+    "high": 85,
+    "low": 70,
+    "break": null
+  },
   "htmlReporter": {
     "fileName": "coverage/stryker/index.html"
   }

@@ -2,7 +2,8 @@ import type { UploadUrlRequest, UploadUrlResponse } from './policies.schema';
 import type { AiResultQueuePayload, CreatePolicyRequest, Policy } from '@copas/contracts';
 import { getLogger } from '@copas/logger';
 
-export function createPoliciesService(
+// Stryker disable all: DI parameter normalization adapter
+function resolveDependencies(
   repository: any,
   branchesService?: any,
   assetTypesService?: any,
@@ -22,19 +23,68 @@ export function createPoliciesService(
   );
   const depsObj = isDepsObj ? repository : {};
 
-  const repo = (depsObj.policiesRepository ?? depsObj.repository ?? repository)?.policiesRepository ?? (depsObj.policiesRepository ?? depsObj.repository ?? repository);
-  const branchSvc = (depsObj.branchesService ?? branchesService)?.branchesService ?? (depsObj.branchesService ?? branchesService);
-  const assetTypeSvc = (depsObj.assetTypesService ?? assetTypesService)?.assetTypesService ?? (depsObj.assetTypesService ?? assetTypesService);
-  const compSvc = (depsObj.companiesService ?? companiesService)?.companiesService ?? (depsObj.companiesService ?? companiesService);
-  const insuredSvc = (depsObj.insuredsService ?? insuredsService)?.insuredsService ?? (depsObj.insuredsService ?? insuredsService);
-  const assetSvc = (depsObj.assetsService ?? assetsService)?.assetsService ?? (depsObj.assetsService ?? assetsService);
-  const payMethodSvc = (depsObj.paymentMethodsService ?? paymentMethodsService)?.paymentMethodsService ?? (depsObj.paymentMethodsService ?? paymentMethodsService);
-  const polInstSvc = (depsObj.policyInstallmentsService ?? policyInstallmentsService)?.policyInstallmentsService ?? (depsObj.policyInstallmentsService ?? policyInstallmentsService);
-  const polAssetRepo = (depsObj.policyAssetsRepo ?? depsObj.policyAssetsRepository ?? policyAssetsRepo)?.policyAssetsRepository ?? (depsObj.policyAssetsRepo ?? depsObj.policyAssetsRepository ?? policyAssetsRepo);
-  const polCovRepo = (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo)?.policyCoveragesRepository ?? (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo);
-  const queue = depsObj.aiQueue ?? aiQueue;
-  const runner = depsObj.transactionRunner ?? transactionRunner ?? (async (cb: any) => await cb(undefined));
-  const filesService = depsObj.filesService ?? (typeof _bucket?.generateTemporaryPublicUrl === 'function' ? _bucket : undefined);
+  return {
+    repo: (depsObj.policiesRepository ?? depsObj.repository ?? repository)?.policiesRepository ?? (depsObj.policiesRepository ?? depsObj.repository ?? repository),
+    branchSvc: (depsObj.branchesService ?? branchesService)?.branchesService ?? (depsObj.branchesService ?? branchesService),
+    assetTypeSvc: (depsObj.assetTypesService ?? assetTypesService)?.assetTypesService ?? (depsObj.assetTypesService ?? assetTypesService),
+    compSvc: (depsObj.companiesService ?? companiesService)?.companiesService ?? (depsObj.companiesService ?? companiesService),
+    insuredSvc: (depsObj.insuredsService ?? insuredsService)?.insuredsService ?? (depsObj.insuredsService ?? insuredsService),
+    assetSvc: (depsObj.assetsService ?? assetsService)?.assetsService ?? (depsObj.assetsService ?? assetsService),
+    payMethodSvc: (depsObj.paymentMethodsService ?? paymentMethodsService)?.paymentMethodsService ?? (depsObj.paymentMethodsService ?? paymentMethodsService),
+    polInstSvc: (depsObj.policyInstallmentsService ?? policyInstallmentsService)?.policyInstallmentsService ?? (depsObj.policyInstallmentsService ?? policyInstallmentsService),
+    polAssetRepo: (depsObj.policyAssetsRepo ?? depsObj.policyAssetsRepository ?? policyAssetsRepo)?.policyAssetsRepository ?? (depsObj.policyAssetsRepo ?? depsObj.policyAssetsRepository ?? policyAssetsRepo),
+    polCovRepo: (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo)?.policyCoveragesRepository ?? (depsObj.policyCoveragesRepo ?? depsObj.policyCoveragesRepository ?? policyCoveragesRepo),
+    queue: depsObj.aiQueue ?? aiQueue,
+    runner: depsObj.transactionRunner ?? transactionRunner ?? (async (cb: any) => await cb(undefined)),
+    filesService: depsObj.filesService ?? (typeof _bucket?.generateTemporaryPublicUrl === 'function' ? _bucket : undefined),
+  };
+}
+// Stryker restore all
+
+export function createPoliciesService(
+  repository: any,
+  branchesService?: any,
+  assetTypesService?: any,
+  companiesService?: any,
+  insuredsService?: any,
+  assetsService?: any,
+  paymentMethodsService?: any,
+  policyInstallmentsService?: any,
+  policyAssetsRepo?: any,
+  policyCoveragesRepo?: any,
+  _bucket?: any,
+  aiQueue?: any,
+  transactionRunner?: any
+) {
+  const {
+    repo,
+    branchSvc,
+    assetTypeSvc,
+    compSvc,
+    insuredSvc,
+    assetSvc,
+    payMethodSvc,
+    polInstSvc,
+    polAssetRepo,
+    polCovRepo,
+    queue,
+    runner,
+    filesService,
+  } = resolveDependencies(
+    repository,
+    branchesService,
+    assetTypesService,
+    companiesService,
+    insuredsService,
+    assetsService,
+    paymentMethodsService,
+    policyInstallmentsService,
+    policyAssetsRepo,
+    policyCoveragesRepo,
+    _bucket,
+    aiQueue,
+    transactionRunner
+  );
 
   const logger = getLogger(['api', 'insurance']);
 

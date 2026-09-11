@@ -53,9 +53,7 @@ export class RemindersRpcEntrypoint extends WorkerEntrypoint<any> {
       }
     }
     
-    if (summary.errors && summary.errors.length === 0) {
-      summary.errors = []
-    }
+
     
     return summary
   }

@@ -104,3 +104,18 @@ Upon completing a task, provide a structured report containing:
 3. **Test Files Created/Modified**: Markdown links to `*.test.ts` files.
 4. **Execution Results (Vitest Output)**: Test execution status (Passed / Failed).
 5. **Findings / Defects Identified**: If tests fail due to implementation bugs, describe the discrepancy against the contract.
+
+---
+
+## 5. Mutation Testing (Stryker) Guidance for QA
+
+Mutation testing in Copas evaluates the **fault-detection ability of tests against business logic**, not line coverage or white-box code hunting:
+
+1. **Focus on Domain Invariants**:
+   - Mutation testing is configured exclusively on business services (`*.service.ts`) and domain workflows.
+   - Low-value mutations (such as `OptionalChaining`, `StringLiteral` in logging, and defensive type guards) are excluded or ignored.
+
+2. **The "Why Did This Mutant Survive?" Rule**:
+   - If a mutant in a service survives, analyze whether it represents an unverified **business requirement, financial calculation, date boundary, or state transition**.
+   - **If YES**: Add a test scenario derived from the business specification (e.g., verifying boundary conditions or error codes).
+   - **If NO** (e.g., internal defensive check or equivalent mutant): **DO NOT** write artificial tests or pass weirdly typed mocks solely to kill it. Tests must validate real system behavior.

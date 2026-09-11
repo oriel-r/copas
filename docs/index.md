@@ -31,6 +31,7 @@
 
 - [Onboarding Agencias](/docs/decisiones/onboarding_agencias.md)
 - [Triage de Inbound WhatsApp](/docs/decisiones/whatsapp_inbound_triage.md)
+- [Testing de Mutaciones en Lógica de Negocio](/docs/decisiones/testing_mutaciones_logica_negocio.md)
 
 ## Implementation
 

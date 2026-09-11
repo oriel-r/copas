@@ -3,12 +3,19 @@
   "testRunner": "vitest",
   "concurrency": 1,
   "coverageAnalysis": "perTest",
-  "checkers": ["typescript"],
+  "checkers": [
+    "typescript"
+  ],
   "tsconfigFile": "tsconfig.json",
-  "reporters": ["clear-text", "progress", "html"],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html"
+  ],
   "plugins": [
     "@stryker-mutator/vitest-runner",
-    "@stryker-mutator/typescript-checker"
+    "@stryker-mutator/typescript-checker",
+    "../../../scripts/stryker-ast-ignorer.mjs"
   ],
   "ignoreStatic": true,
   "mutate": [
@@ -17,5 +24,14 @@
   ],
   "htmlReporter": {
     "fileName": "coverage/stryker/index.html"
+  },
+  "ignorers": [
+    "copas-ast-ignorer"
+  ],
+  "mutator": {
+    "excludedMutations": [
+      "OptionalChaining",
+      "StringLiteral"
+    ]
   }
 }
