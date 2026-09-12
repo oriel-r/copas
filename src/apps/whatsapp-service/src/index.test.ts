@@ -13,6 +13,39 @@ const TEST_APP_SECRET = 'test_meta_app_secret_1234567890abcdef'
 const TEST_VERIFY_TOKEN = 'copas_verify_token_secure_123'
 const TEST_PHONE_NUMBER_ID = '109876543210123'
 const TEST_ACCESS_TOKEN = 'EAAB_test_access_token_secret_meta_cloud'
+const TEST_INTEGRATION_ENCRYPTION_KEY =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
+const createTestEncryptedVault = async (
+  data: unknown,
+  keyHex: string = TEST_INTEGRATION_ENCRYPTION_KEY,
+) => {
+  try {
+    // Use @copas/contracts encryptJson once available
+    // @ts-ignore
+    const contracts = await import('@copas/contracts')
+    if (typeof contracts.encryptJson === 'function') {
+      return await contracts.encryptJson(data, keyHex)
+    }
+  } catch {
+    // Fallback to standard Node.js AES-256-GCM
+  }
+
+  const keyBuffer = Buffer.from(keyHex, 'hex')
+  const ivBuffer = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', keyBuffer, ivBuffer)
+  const jsonStr = JSON.stringify(data)
+  const encrypted = Buffer.concat([cipher.update(jsonStr, 'utf8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  const combinedCiphertext = Buffer.concat([encrypted, tag])
+
+  return {
+    v: 1 as const,
+    alg: 'AES-GCM-256' as const,
+    iv: ivBuffer.toString('base64'),
+    ciphertext: combinedCiphertext.toString('base64'),
+  }
+}
 
 const createMockEnv = (overrides?: Record<string, unknown>) => ({
   WHATSAPP_INBOUND_QUEUE: {
@@ -23,6 +56,7 @@ const createMockEnv = (overrides?: Record<string, unknown>) => ({
   META_VERIFY_TOKEN: TEST_VERIFY_TOKEN,
   META_GRAPH_API_VERSION: 'v20.0',
   META_GRAPH_API_BASE_URL: 'https://graph.facebook.com',
+  INTEGRATION_ENCRYPTION_KEY: TEST_INTEGRATION_ENCRYPTION_KEY,
   ...overrides,
 })
 
@@ -1458,6 +1492,90 @@ describe('whatsapp-service Worker Test Suite', () => {
         expect(inboundEnqueued).toHaveLength(1)
         expect(inboundEnqueued[0].payload.status).toBe('failed')
         expect(inboundEnqueued[0].payload.errors?.[0]?.code).toBe(190)
+      })
+    })
+
+    describe('Encrypted Credentials Resolution (Vault Decryption)', () => {
+      it('dispatches message with encryptedCredentials by decrypting token in memory', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+          new Response(JSON.stringify({ messages: [{ id: 'wamid.ENCRYPTED_AUTH_OK' }] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+
+        const DECRYPTED_TOKEN = 'EAAB_decrypted_token_secret_meta_cloud_999'
+        const encryptedCredentials = await createTestEncryptedVault(
+          {
+            accessToken: DECRYPTED_TOKEN,
+            wabaId: 'waba_id_test_999',
+          },
+          TEST_INTEGRATION_ENCRYPTION_KEY,
+        )
+
+        const outboundMsg = createOutboundEnvelope({
+          mode: 'free_form',
+          text: 'Mensaje despachado con credenciales desencriptadas en memoria',
+          credentials: undefined as any,
+          encryptedCredentials,
+        } as any)
+
+        const mockQueueMsg = createMockQueueMessage(outboundMsg)
+        const batch = createMockMessageBatch([mockQueueMsg])
+
+        await dispatchQueue(batch, mockEnv, mockCtx)
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1)
+        const [targetUrl, requestOptions] = fetchSpy.mock.calls[0]
+        expect(targetUrl).toBe(
+          `https://graph.facebook.com/v20.0/${TEST_PHONE_NUMBER_ID}/messages`,
+        )
+        const headers = requestOptions?.headers as Record<string, string>
+        expect(headers['Authorization']).toBe(`Bearer ${DECRYPTED_TOKEN}`)
+        expect(mockQueueMsg.ack).toHaveBeenCalledTimes(1)
+        expect(mockQueueMsg.retry).not.toHaveBeenCalled()
+      })
+
+      it('acknowledges message and reports failed status to inbound queue when encryptedCredentials cannot be decrypted (corrupted or wrong key)', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+        const outboundMsg = createOutboundEnvelope({
+          messageId: '018f9e2b-corrupted-cred-0001',
+          mode: 'free_form',
+          text: 'Mensaje con payload cifrado corrupto',
+          credentials: undefined as any,
+          encryptedCredentials: {
+            v: 1,
+            alg: 'AES-GCM-256',
+            iv: 'invalid_iv_base64==',
+            ciphertext: 'corrupted_ciphertext_cannot_be_decrypted==',
+          },
+        } as any)
+
+        const mockQueueMsg = createMockQueueMessage(outboundMsg)
+        const batch = createMockMessageBatch([mockQueueMsg])
+
+        await dispatchQueue(batch, mockEnv, mockCtx)
+
+        // Must acknowledge from outbound queue to prevent infinite poison pill loop
+        expect(mockQueueMsg.ack).toHaveBeenCalledTimes(1)
+        expect(mockQueueMsg.retry).not.toHaveBeenCalled()
+        expect(fetchSpy).not.toHaveBeenCalled()
+
+        // Must notify inbound queue of failure with failed status
+        const inboundEnqueued = extractEnqueuedInboundMessages(mockEnv.WHATSAPP_INBOUND_QUEUE)
+        expect(inboundEnqueued).toHaveLength(1)
+
+        const statusUpdate: WhatsAppStatusUpdateQueueMessage = inboundEnqueued[0]
+        expect(statusUpdate.type).toBe('whatsapp-status-update')
+        expect(statusUpdate.metadata?.idempotencyKey).toBe(
+          'failed-dispatch:018f9e2b-corrupted-cred-0001',
+        )
+        expect(statusUpdate.payload).toMatchObject({
+          phoneNumberId: TEST_PHONE_NUMBER_ID,
+          recipientPhone: '+5491112345678',
+          status: 'failed',
+        })
       })
     })
 

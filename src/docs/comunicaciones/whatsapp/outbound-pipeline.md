@@ -66,11 +66,12 @@ Conforme a las políticas de Meta WhatsApp Business Platform:
 - `api` y `scheduler` validan la vigencia de la ventana contra `conversations.lastMessageAt` / `messages.createdAt` antes de encolar; si la ventana expiró, solo se admite `mode: 'template'`.
 - Si Meta rechaza un envío con código `131047` ("Re-engagement message"), `whatsapp-service` confirma con `msg.ack()` y notifica `status: 'failed'` a `copas-whatsapp-inbound` para que `api` asiente el fallo de forma definitiva.
 
-## Resolución Unificada de Credenciales
+## Resolución Segura de Credenciales (Zero-Trust)
 
-Para evitar bifurcaciones en el worker, **las credenciales siempre las resuelve la plataforma (`api` / `scheduler`)**:
-- `api` consulta `organization_integrations` (o las credenciales del pool de plataforma) e inyecta `credentials.accessToken` directamente en `payload.credentials`.
-- `whatsapp-service` consume el payload y despacha de forma agnóstica sin lógica condicional de tokens.
+Para evitar la fuga de tokens en logs y colas de descarte (DLQ), **ningún token en texto plano viaja por la cola**:
+- `api` / `scheduler` resuelven la integración y adjuntan las credenciales cifradas (`payload.encryptedCredentials` con esquema `AES-GCM-256`) o delegan al fallback de plataforma (`PLATFORM_WHATSAPP_ACCESS_TOKEN`).
+- `whatsapp-service` consume el payload, desencripta el `accessToken` en memoria RAM volátil mediante `env.INTEGRATION_ENCRYPTION_KEY` inmediatamente antes de la petición HTTP a Meta, y lo descarta.
+- Si la desencriptación falla, el worker emite un `whatsapp-status-update` con `status: 'failed'` (`DECRYPTION_FAILED`) a `copas-whatsapp-inbound` y confirma con `msg.ack()`.
 - `to` acepta tanto número de teléfono en formato E.164 como BSUID de Meta.
 
 ## Ver también

@@ -1,3 +1,4 @@
+import type { EncryptedVaultPayload } from '../../shared/crypto'
 import type { Envelope } from '../../shared/queue'
 
 export type WhatsAppTemplateComponentParameter = {
@@ -107,10 +108,11 @@ export type WhatsAppOutboundQueuePayload = {
   reaction?: WhatsAppReactionPayload
   contact?: WhatsAppContactCard
   interactive?: WhatsAppInteractivePayload
-  credentials: {
+  credentials?: {
     accessToken: string
     wabaId?: string
   }
+  encryptedCredentials?: EncryptedVaultPayload
 }
 
 export type WhatsAppOutboundQueueMessage = Envelope<WhatsAppOutboundQueuePayload> & {

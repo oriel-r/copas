@@ -1,13 +1,14 @@
 import { AppEnv } from '../types/env'
 import { WhatsAppOutboundQueuePayload } from '@copas/contracts'
 
-export async function sendMetaMessage(payload: WhatsAppOutboundQueuePayload, env: AppEnv['Bindings']) {
+export async function sendMetaMessage(payload: WhatsAppOutboundQueuePayload, env: AppEnv['Bindings'], accessTokenOverride?: string) {
   const baseUrl = env.META_GRAPH_API_BASE_URL || 'https://graph.facebook.com'
   const version = env.META_GRAPH_API_VERSION || 'v20.0'
   const url = `${baseUrl}/${version}/${payload.phoneNumberId}/messages`
   
+  const token = accessTokenOverride || payload.credentials?.accessToken || env.PLATFORM_WHATSAPP_ACCESS_TOKEN
   const headers = {
-    'Authorization': `Bearer ${payload.credentials.accessToken}`,
+    'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
   }
 

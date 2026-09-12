@@ -32,7 +32,8 @@
   "secrets": {
     "required": [
       "META_APP_SECRET",
-      "META_VERIFY_TOKEN"
+      "META_VERIFY_TOKEN",
+      "INTEGRATION_ENCRYPTION_KEY"
     ]
   },
   "env": {
@@ -44,7 +45,8 @@
       "secrets": {
         "required": [
           "META_APP_SECRET",
-          "META_VERIFY_TOKEN"
+          "META_VERIFY_TOKEN",
+          "INTEGRATION_ENCRYPTION_KEY"
         ]
       },
       "queues": {
