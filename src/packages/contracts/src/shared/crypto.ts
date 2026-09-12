@@ -22,12 +22,13 @@ function uint8ArrayToHex(arr: Uint8Array): string {
     .join('')
 }
 
-async function getCryptoKey(secretKeyHex: string): Promise<CryptoKey> {
+async function getCryptoKey(secretKeyHex: string) {
   if (typeof secretKeyHex !== 'string' || secretKeyHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(secretKeyHex)) {
     throw new Error('Invalid secret key: must be a 64-character hex string.')
   }
+  const webCrypto: any = (globalThis as any).crypto
   const keyBuffer = hexToUint8Array(secretKeyHex)
-  return globalThis.crypto.subtle.importKey(
+  return webCrypto.subtle.importKey(
     'raw',
     keyBuffer,
     { name: 'AES-GCM', length: 256 },
@@ -37,11 +38,12 @@ async function getCryptoKey(secretKeyHex: string): Promise<CryptoKey> {
 }
 
 export async function encryptJson(data: unknown, secretKeyHex: string): Promise<EncryptedVaultPayload> {
+  const webCrypto: any = (globalThis as any).crypto
   const key = await getCryptoKey(secretKeyHex)
-  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12))
+  const iv = webCrypto.getRandomValues(new Uint8Array(12))
   const encodedData = new TextEncoder().encode(JSON.stringify(data))
 
-  const encryptedBuffer = await globalThis.crypto.subtle.encrypt(
+  const encryptedBuffer = await webCrypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
     encodedData
@@ -60,11 +62,12 @@ export async function decryptJson<T>(payload: EncryptedVaultPayload, secretKeyHe
     throw new Error('Invalid payload version or algorithm.')
   }
 
+  const webCrypto: any = (globalThis as any).crypto
   const key = await getCryptoKey(secretKeyHex)
   const iv = hexToUint8Array(payload.iv)
   const encryptedData = hexToUint8Array(payload.ciphertext)
 
-  const decryptedBuffer = await globalThis.crypto.subtle.decrypt(
+  const decryptedBuffer = await webCrypto.subtle.decrypt(
     { name: 'AES-GCM', iv },
     key,
     encryptedData

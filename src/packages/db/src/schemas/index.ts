@@ -51,7 +51,13 @@ import {
   policyInstallments,
 } from '../contexts/insurance'
 import { reminderRules } from '../contexts/reminders'
-import { vDueInstallments, vExpiringPolicies, vActiveConsents, vActiveWhatsAppEndpoints } from '../views'
+import {
+  vDueInstallments,
+  vExpiringPolicies,
+  vActiveConsents,
+  vActiveWhatsAppEndpoints,
+  vDueReminders,
+} from '../views'
 
 /**
  * Mapa de tablas de Drizzle (sin relations) para el runtime y `drizzle-kit`.
@@ -117,6 +123,7 @@ export const dbViews = {
   vExpiringPolicies,
   vActiveConsents,
   vActiveWhatsAppEndpoints,
+  vDueReminders,
 }
 
 
