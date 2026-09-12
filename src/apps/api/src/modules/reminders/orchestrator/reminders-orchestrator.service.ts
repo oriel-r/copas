@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { drizzle } from 'drizzle-orm/d1'
 import { and, eq } from 'drizzle-orm'
-import { vDueInstallments, vExpiringPolicies } from '@copas/db'
+import { vDueInstallments, vExpiringPolicies, vDueReminders } from '@copas/db'
 import type {
   ReminderDispatchSummary,
   RemindersDueQuery,
@@ -53,8 +53,84 @@ export function createRemindersOrchestratorService(
     communicationsModule?.whatsappDispatchService ??
     communicationsModule?.whatsappDispatch
 
-  return {
-    getDueRemindersPreview: async (query: RemindersDueQuery): Promise<RemindersDueResponse> => {
+  const getDueRemindersPreviewFromView = async (
+    query: RemindersDueQuery,
+  ): Promise<RemindersDueResponse> => {
+    const previewDate = query.date || new Date().toISOString().split('T')[0]
+    const client = getClient(db)
+    let rows: any[] = []
+
+    if (typeof client?.select === 'function') {
+      const queryRes = client
+        .select()
+        .from(vDueReminders)
+        .where(
+          and(
+            eq(vDueReminders.organizationId, organizationId),
+            eq(vDueReminders.scheduledDate, previewDate),
+          ),
+        )
+      rows = (await queryRes) || []
+    } else if (typeof client?.prepare === 'function') {
+      const res = await client
+        .prepare(
+          `SELECT * FROM v_due_reminders WHERE organizationId = ? AND scheduledDate = ?`,
+        )
+        .bind(organizationId, previewDate)
+        .all()
+      rows = res.results || []
+    }
+
+    const items = rows.map((row: any) => {
+      const isInstallment =
+        row.entityType === 'installment' || row.eventSource === 'installment_due'
+      const phone = row.insuredPhone || row.phone
+      const isOptedOut = Boolean(row.isOptedOut)
+      const canDeliver = !isOptedOut && Boolean(phone)
+      const skipReason = isOptedOut
+        ? 'opt_out'
+        : !phone
+          ? 'missing_phone'
+          : (row.skipReason ?? null)
+
+      return {
+        ruleId: row.ruleId,
+        eventSource: row.eventSource,
+        offsetDays: row.offsetDays,
+        targetDate: row.targetDate,
+        entityId:
+          row.entityId || (isInstallment ? row.installmentId : row.policyId),
+        policyId: row.policyId,
+        policyNumber: row.policyNumber ?? null,
+        insuredId: row.insuredId,
+        insuredFullName: row.insuredFullName ?? '',
+        insuredPhone: phone ?? null,
+        companyName: row.companyName ?? '',
+        totalAmount: row.totalAmount ?? null,
+        currency: row.currency ?? null,
+        installmentNumber: row.installmentNumber ?? null,
+        dueDate: row.dueDate ?? null,
+        expirationDate: row.expirationDate ?? null,
+        isOptedOut,
+        canDeliver,
+        skipReason,
+      }
+    })
+
+    return {
+      date: previewDate,
+      totalDue: items.length,
+      items,
+    }
+  }
+
+  const getDueRemindersPreview = async (
+    query: RemindersDueQuery,
+  ): Promise<RemindersDueResponse> => {
+    if ((query as any)?.fromView || (query as any)?.useUnifiedView) {
+      return getDueRemindersPreviewFromView(query)
+    }
+
       const activeRules = await reminderRulesService.getActiveRules()
       const previewDate = query.date || new Date().toISOString().split('T')[0]
       if (activeRules.length === 0) {
@@ -148,14 +224,206 @@ export function createRemindersOrchestratorService(
       }
 
       return {
-        date: previewDate,
-        totalDue: items.length,
-        items,
-      }
-    },
+      date: previewDate,
+      totalDue: items.length,
+      items,
+    }
+  }
 
-    dispatchDueRemindersForOrg: async (first: any, second?: any): Promise<ReminderDispatchSummary> => {
+  const dispatchDueRemindersFromView = async (
+    first: any,
+    second?: any,
+  ): Promise<ReminderDispatchSummary> => {
       let totalEvaluated = 0
+      let totalEnqueued = 0
+      let totalSkipped = 0
+      let totalAlreadySent = 0
+      const errors: string[] = []
+
+      const orgId =
+        typeof first === 'object' && first !== null
+          ? (first.organizationId || organizationId)
+          : (first || organizationId)
+      const scheduledDate =
+        typeof first === 'object' && first !== null
+          ? (first.scheduledDate || new Date().toISOString().split('T')[0])
+          : (second || new Date().toISOString().split('T')[0])
+
+      let endpoint: any = null
+      try {
+        endpoint = await channelEndpointsService.resolveWhatsAppEndpointAndCredentials(orgId)
+      } catch {
+        endpoint = null
+      }
+
+      const client = getClient(db)
+      let viewRows: any[] = []
+
+      if (typeof client?.select === 'function') {
+        const queryRes = client
+          .select()
+          .from(vDueReminders)
+          .where(
+            and(
+              eq(vDueReminders.organizationId, orgId),
+              eq(vDueReminders.scheduledDate, scheduledDate),
+            ),
+          )
+        viewRows = (await queryRes) || []
+      } else if (typeof client?.prepare === 'function') {
+        const res = await client
+          .prepare(`SELECT * FROM v_due_reminders WHERE organizationId = ? AND scheduledDate = ?`)
+          .bind(orgId, scheduledDate)
+          .all()
+        viewRows = res?.results || []
+      }
+
+      for (const row of viewRows) {
+        totalEvaluated++
+        const isInstallment =
+          row.entityType === 'installment' || row.eventSource === 'installment_due'
+        const entityId =
+          row.entityId ||
+          (isInstallment ? row.installmentId : row.policyId) ||
+          row.id
+
+        const hashString = `${orgId}:${row.ruleId}:${entityId}:${scheduledDate}`
+        const encoder = new TextEncoder()
+        const data = encoder.encode(hashString)
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const deduplicationHash = hashArray
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+
+        if (await messagesService.isAlreadySent(deduplicationHash)) {
+          totalAlreadySent++
+          continue
+        }
+
+        const category = isInstallment ? 'billing' : 'renewals'
+        const isOptedOut =
+          Boolean(row.isOptedOut) ||
+          (consentsService ? await consentsService.isInsuredOptedOut(row.insuredId, category) : false)
+        const phone = row.insuredPhone || row.phone
+
+        let skipReason: string | null = null
+        if (!endpoint) skipReason = 'no_endpoint'
+        else if (isOptedOut) skipReason = 'opt_out'
+        else if (!phone) skipReason = 'missing_phone'
+        else if (row.skipReason) skipReason = row.skipReason
+
+        if (skipReason) {
+          totalSkipped++
+          try {
+            if (typeof conversationsService?.getOrCreateActiveConversation === 'function') {
+              const conversation = await conversationsService.getOrCreateActiveConversation({
+                organizationId: orgId,
+                organizationChannelEndpointId: endpoint
+                  ? endpoint.organizationChannelEndpointId
+                  : 'unknown',
+                insuredId: row.insuredId,
+                type: 'reminder',
+              })
+
+              if (conversation?.id) {
+                if (typeof conversationsService?.linkEntityToConversation === 'function') {
+                  await conversationsService.linkEntityToConversation(conversation.id, {
+                    policyId: row.policyId,
+                    installmentId: isInstallment ? (row.installmentId || entityId) : undefined,
+                    insuredId: row.insuredId,
+                  })
+                }
+
+                if (typeof messagesService?.recordOutboundMessage === 'function') {
+                  await messagesService.recordOutboundMessage({
+                    organizationId: orgId,
+                    conversationId: conversation.id,
+                    content: 'skipped reminder',
+                    status: 'skipped',
+                    skipReason,
+                    deduplicationHash,
+                    metadata: {
+                      ruleId: row.ruleId,
+                      eventSource: row.eventSource,
+                      entityId,
+                    },
+                  })
+                }
+              }
+            }
+          } catch {
+            // Ignore conversation creation errors for skipped reminders
+          }
+          continue
+        }
+
+        const conversation = await conversationsService.getOrCreateActiveConversation({
+          organizationId: orgId,
+          organizationChannelEndpointId: endpoint.organizationChannelEndpointId,
+          insuredId: row.insuredId,
+          type: 'reminder',
+        })
+
+        await conversationsService.linkEntityToConversation(conversation.id, {
+          policyId: row.policyId,
+          installmentId: isInstallment ? (row.installmentId || entityId) : undefined,
+          insuredId: row.insuredId,
+        })
+
+        const templateName = row.templateName || row.templateId || 'reminder_default'
+
+        try {
+          const message = await messagesService.recordOutboundMessage({
+            organizationId: orgId,
+            conversationId: conversation.id,
+            templateId: row.templateId || null,
+            content: `Sent reminder template: ${templateName}`,
+            status: 'sent',
+            deduplicationHash,
+            metadata: {
+              ruleId: row.ruleId,
+              eventSource: row.eventSource,
+              entityId,
+            },
+          })
+
+          await whatsappDispatchService.enqueueTemplateReminder({
+            organizationId: orgId,
+            messageId: message.id,
+            conversationId: conversation.id,
+            endpoint,
+            to: phone,
+            templateName,
+            components: [],
+            idempotencyKey: deduplicationHash,
+          })
+
+          totalEnqueued++
+        } catch (e: any) {
+          errors.push(`Failed to dispatch for entity ${entityId}: ${e.message}`)
+          totalSkipped++
+        }
+      }
+
+    return {
+      scheduledDate,
+      totalEvaluated,
+      totalEnqueued,
+      totalSkipped,
+      totalAlreadySent,
+      errors,
+    }
+  }
+
+  const dispatchDueRemindersForOrg = async (
+    first: any,
+    second?: any,
+  ): Promise<ReminderDispatchSummary> => {
+    if (typeof first === 'object' && first !== null && first.fromView) {
+      return dispatchDueRemindersFromView(first, second)
+    }
+    let totalEvaluated = 0
       let totalEnqueued = 0
       let totalSkipped = 0
       let totalAlreadySent = 0
@@ -360,15 +628,21 @@ export function createRemindersOrchestratorService(
         }
       }
 
-      return {
-        scheduledDate,
-        totalEvaluated,
-        totalEnqueued,
-        totalSkipped,
-        totalAlreadySent,
-        errors,
-      }
-    },
+    return {
+      scheduledDate,
+      totalEvaluated,
+      totalEnqueued,
+      totalSkipped,
+      totalAlreadySent,
+      errors,
+    }
+  }
+
+  return {
+    getDueRemindersPreviewFromView,
+    getDueRemindersPreview,
+    dispatchDueRemindersFromView,
+    dispatchDueRemindersForOrg,
   }
 }
 
