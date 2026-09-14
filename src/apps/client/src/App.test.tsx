@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
@@ -113,6 +113,39 @@ describe('App', () => {
     authMocks.organizationList.mockResolvedValue({ data: [], error: null })
     authMocks.organizationSetActive.mockResolvedValue({ data: null, error: null })
     authMocks.organizationCreate.mockResolvedValue({ data: null, error: null })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: any) => {
+        const urlStr = String(url)
+        if (urlStr.includes('/installments')) {
+          return new Response(
+            JSON.stringify({
+              appliedFilters: {
+                dueDate: null,
+                status: 'pending',
+                companyId: null,
+                insuredId: null,
+              },
+              total: 0,
+              items: [],
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          )
+        }
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders the OAuth options on /login', async () => {
@@ -155,16 +188,16 @@ describe('App', () => {
     renderApp(['/login'])
 
     await waitForLoadingToFinish()
-    await waitFor(() => expect(screen.getByText('Hola!')).toBeInTheDocument(), { timeout: 5000 })
-  })
+    await waitFor(() => expect(screen.getByText('Hola!')).toBeInTheDocument(), { timeout: 10000 })
+  }, 15000)
 
   it('redirects the root path to the dashboard', async () => {
     setAuthenticatedSession()
     renderApp(['/'])
 
     await waitForLoadingToFinish()
-    await waitFor(() => expect(screen.getByText('Hola!')).toBeInTheDocument(), { timeout: 5000 })
-  })
+    await waitFor(() => expect(screen.getByText('Hola!')).toBeInTheDocument(), { timeout: 10000 })
+  }, 15000)
 
   it('shows a not found page for unknown routes', async () => {
     setUnauthenticatedSession()

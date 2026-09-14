@@ -1,4 +1,5 @@
 import type { PolicyInstallmentsRepository } from './policy-installments.repository';
+import { formatAssetDescription } from '@copas/contracts';
 import type { PolicyInstallment, CreatePolicyInstallmentRequest } from '@copas/contracts';
 
 export function createPolicyInstallmentsService(repository: PolicyInstallmentsRepository | { policyInstallmentsRepository: PolicyInstallmentsRepository }) {
@@ -42,6 +43,44 @@ export function createPolicyInstallmentsService(repository: PolicyInstallmentsRe
 
     list: async (params?: { policyId?: string; limit?: number; offset?: number }, tx?: any): Promise<PolicyInstallment[]> => {
       return await repo.list(params, tx);
+    },
+
+    listInstallments: async (filters: any, tx?: any): Promise<any> => {
+      const dueDate = filters.dueDate ?? new Date().toISOString().split('T')[0];
+      const status = filters.status ?? 'pending';
+      const itemsRaw = await repo.findWithDetails({ ...filters, dueDate, status }, tx);
+      const items = itemsRaw.map((row: any) => {
+        const properties = row.assetProperties || row.properties;
+        const insuredName = row.insuredFullName || row.insuredName;
+        const assetTypeName = row.assetTypeName;
+        const assetTypeCode = row.assetTypeCode;
+        
+        const { assetProperties, assetTypeName: _n, assetTypeCode: _c, insuredFullName, properties: _p, ...rest } = row;
+        
+        return {
+          ...rest,
+          insuredName,
+          assetDescription: formatAssetDescription({
+            properties,
+            assetTypeName,
+            assetTypeCode,
+          }),
+        };
+      });
+      return {
+        appliedFilters: {
+          dueDate,
+          status,
+          companyId: filters.companyId ?? null,
+          insuredId: filters.insuredId ?? null,
+        },
+        total: items.length,
+        items,
+      };
+    },
+
+    markAsPaid: async (id: string, tx?: any): Promise<any> => {
+      return await repo.update(id, { status: 'paid' }, tx);
     },
   };
 }

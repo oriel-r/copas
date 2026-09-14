@@ -70,6 +70,49 @@ export const updatePolicyInstallmentRequestSchema =
   policyInstallmentsUpdateSchema.omit(serverControlled)
 export const policyInstallmentResponseSchema = policyInstallmentsSelectSchema
 
+export const installmentsFilterSchema = z.object({
+  dueDate: dateCivilSchema.optional(),
+  status: z.enum(['pending', 'paid', 'overdue', 'all']).default('pending'),
+  companyId: uuidV7Schema.optional(),
+  insuredId: uuidV7Schema.optional(),
+  policyId: uuidV7Schema.optional(),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
+export const installmentDetailedItemSchema = z.object({
+  installmentId: uuidV7Schema,
+  policyId: uuidV7Schema,
+  policyNumber: z.string().nullable(),
+  installmentNumber: z.number().int(),
+  insuredName: z.string(),
+  companyName: z.string(),
+  assetDescription: z.string(),
+  totalAmount: moneySchema.nullable(),
+  currency: currencySchema.nullable(),
+  dueDate: dateCivilSchema.nullable(),
+  status: z.enum(installmentStatus),
+})
+
+export const installmentsDetailedResponseSchema = z.object({
+  appliedFilters: z.object({
+    dueDate: z.string().nullable(),
+    status: z.string(),
+    companyId: z.string().nullable(),
+    insuredId: z.string().nullable(),
+  }),
+  total: z.number().int().min(0),
+  items: z.array(installmentDetailedItemSchema),
+})
+
+export const updateInstallmentStatusRequestSchema = z.object({
+  status: z.enum(installmentStatus),
+})
+
+export type InstallmentsFilter = z.infer<typeof installmentsFilterSchema>
+export type InstallmentDetailedItem = z.infer<typeof installmentDetailedItemSchema>
+export type InstallmentsDetailedResponse = z.infer<typeof installmentsDetailedResponseSchema>
+export type UpdateInstallmentStatusRequest = z.infer<typeof updateInstallmentStatusRequestSchema>
 export type PolicyInstallment = z.infer<typeof policyInstallmentsSelectSchema>
 export type PolicyInstallmentInsert = z.infer<typeof policyInstallmentsInsertSchema>
 export type PolicyInstallmentUpdate = z.infer<typeof policyInstallmentsUpdateSchema>

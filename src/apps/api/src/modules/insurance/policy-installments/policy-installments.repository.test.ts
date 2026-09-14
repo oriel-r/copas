@@ -16,6 +16,8 @@ const { mockDrizzle } = vi.hoisted(() => ({
     update: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
     _drizzleWrapped: true,
     _rawD1: d1,
   })),
@@ -44,6 +46,8 @@ describe('policy-installments.repository', () => {
       update: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
       delete: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
     }
     repository = createPolicyInstallmentsRepository({ db: mockDb })
   })
@@ -300,5 +304,126 @@ describe('policy-installments.repository', () => {
       expect(mockDb.select).not.toHaveBeenCalled()
     })
   })
+
+  describe('findWithDetails', () => {
+    it('should query installments with joins to policies, insureds, companies, assets, and assetTypes', async () => {
+      const mockRows = [
+        {
+          installmentId: '018f9e2b-1111-7000-8000-000000000001',
+          policyId: '018f9e2b-2222-7000-8000-000000000002',
+          policyNumber: 'POL-100',
+          installmentNumber: 1,
+          insuredName: 'JUAN PEREZ',
+          companyName: 'FEDERACION PATRONAL',
+          properties: { marca: 'TOYOTA', modelo: 'COROLLA', patente: 'AB123CD' },
+          assetTypeName: 'Automotor',
+          assetTypeCode: 'AUTO',
+          totalAmount: 50000,
+          currency: 'ARS',
+          dueDate: '2026-09-15',
+          status: 'pending',
+        },
+      ]
+      mockDb.offset.mockResolvedValueOnce(mockRows)
+
+      const result = await (repository as any).findWithDetails({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+      })
+
+      expect(result).toEqual(mockRows)
+      expect(mockDb.select).toHaveBeenCalled()
+      expect(mockDb.leftJoin).toHaveBeenCalled()
+      expect(mockDb.where).toHaveBeenCalled()
+      expect(mockDb.orderBy).toHaveBeenCalled()
+    })
+
+    it('should default status to pending when status is not specified', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await (repository as any).findWithDetails({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+      })
+
+      expect(mockDb.where).toHaveBeenCalled()
+    })
+
+    it('should filter by dueDate when provided', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await (repository as any).findWithDetails({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+        dueDate: '2026-09-15',
+      })
+
+      expect(mockDb.where).toHaveBeenCalled()
+    })
+
+    it('should filter by companyId and insuredId when provided', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await (repository as any).findWithDetails({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+        companyId: '018f9e2b-3333-7000-8000-000000000003',
+        insuredId: '018f9e2b-4444-7000-8000-000000000004',
+      })
+
+      expect(mockDb.where).toHaveBeenCalled()
+    })
+
+    it('should allow filtering with explicit status values', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await (repository as any).findWithDetails({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+        status: 'paid',
+      })
+
+      expect(mockDb.where).toHaveBeenCalled()
+    })
+
+    it('should sort results by insureds fullName ASC', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await (repository as any).findWithDetails({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+      })
+
+      expect(mockDb.orderBy).toHaveBeenCalled()
+    })
+
+    it('should apply limit and offset pagination parameters', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await (repository as any).findWithDetails({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+        limit: 25,
+        offset: 50,
+      })
+
+      expect(mockDb.limit).toHaveBeenCalledWith(25)
+      expect(mockDb.offset).toHaveBeenCalledWith(50)
+    })
+
+    it('should use transaction tx if provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        offset: vi.fn().mockResolvedValueOnce([]),
+      }
+
+      await (repository as any).findWithDetails(
+        { organizationId: '018f9e2b-0000-7000-8000-000000000001' },
+        mockTx as any,
+      )
+
+      expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
+    })
+  })
 })
+
 

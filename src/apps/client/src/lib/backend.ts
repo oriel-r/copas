@@ -7,7 +7,12 @@ export function backendUrl(path: string) {
   return backendBaseUrl ? `${backendBaseUrl}${normalizedPath}` : normalizedPath
 }
 
-export const authBaseUrl = backendUrl(authPath)
+export const authBaseUrl = backendBaseUrl
+  ? `${backendBaseUrl}${authPath.startsWith('/') ? authPath : `/${authPath}`}`
+  : typeof window !== 'undefined' && window.location?.origin && !window.location.origin.startsWith('null') && window.location.origin !== 'about:blank'
+    ? `${window.location.origin}${authPath.startsWith('/') ? authPath : `/${authPath}`}`
+    : `http://localhost:3000${authPath.startsWith('/') ? authPath : `/${authPath}`}`
+
 
 export async function probeBackend(timeoutMs = 2000): Promise<boolean> {
   try {

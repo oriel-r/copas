@@ -13,6 +13,7 @@ export const injectAppServices = createMiddleware<AppEnv>(async (c, next) => {
   const isDocDownload = c.req.path.startsWith('/policies/documents/');
   const needsOrg =
     (c.req.path.startsWith('/policies') && !isDocDownload) ||
+    c.req.path.startsWith('/installments') ||
     c.req.path.startsWith('/reminder-rules') ||
     c.req.path.startsWith('/reminders');
   if (needsOrg && !organizationId) {

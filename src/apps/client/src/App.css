@@ -1,9 +1,5 @@
 .app-shell {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
   min-height: 100svh;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
 }

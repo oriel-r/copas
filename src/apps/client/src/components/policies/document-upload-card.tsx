@@ -21,14 +21,14 @@ export function DocumentUploadCard({ queue }: DocumentUploadCardProps) {
   const hasSuccess = items.some((item) => item.status === 'success');
 
   return (
-    <Card className="w-full max-w-lg" data-testid="document-upload-card">
-      <CardHeader>
-        <CardTitle>Cargar Pólizas</CardTitle>
-        <CardDescription>
+    <Card className="w-full" data-testid="document-upload-card">
+      <CardHeader className="p-4 sm:p-5">
+        <CardTitle className="text-lg sm:text-xl">Cargar Pólizas</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">
           Arrastrá tus pólizas en formato PDF a cualquier lugar de la pantalla o seleccioná archivos múltiples.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
         <div className="flex gap-2">
           <Button data-testid="upload-documents-btn" onClick={() => fileInputRef.current?.click()}>
             Subir documentos

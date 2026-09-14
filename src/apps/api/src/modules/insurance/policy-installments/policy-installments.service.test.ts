@@ -13,6 +13,7 @@ describe('policy-installments.service', () => {
       create: vi.fn(),
       createMany: vi.fn(),
       update: vi.fn(),
+      findWithDetails: vi.fn(),
     }
     service = createPolicyInstallmentsService({ policyInstallmentsRepository: mockRepo })
   })
@@ -174,5 +175,171 @@ describe('policy-installments.service', () => {
       expect(mockRepo.update).toHaveBeenCalledWith('inst-1', { status: 'cancelled' }, mockTx)
     })
   })
+
+  describe('listInstallments', () => {
+    it('should default dueDate to today and status to pending when not provided', async () => {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      mockRepo.findWithDetails.mockResolvedValueOnce([])
+
+      const result = await (service as any).listInstallments({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+      })
+
+      expect(mockRepo.findWithDetails).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: '018f9e2b-0000-7000-8000-000000000001',
+          dueDate: todayStr,
+          status: 'pending',
+        }),
+        undefined,
+      )
+      expect(result).toMatchObject({
+        appliedFilters: {
+          dueDate: todayStr,
+          status: 'pending',
+        },
+        total: 0,
+        items: [],
+      })
+    })
+
+    it('should preserve explicit filters (dueDate, status, companyId, insuredId)', async () => {
+      const filters = {
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+        dueDate: '2026-10-01',
+        status: 'paid',
+        companyId: '018f9e2b-2222-7000-8000-000000000002',
+        insuredId: '018f9e2b-3333-7000-8000-000000000003',
+      }
+      mockRepo.findWithDetails.mockResolvedValueOnce([])
+
+      const result = await (service as any).listInstallments(filters)
+
+      expect(mockRepo.findWithDetails).toHaveBeenCalledWith(
+        expect.objectContaining(filters),
+        undefined,
+      )
+      expect(result.appliedFilters).toEqual({
+        dueDate: '2026-10-01',
+        status: 'paid',
+        companyId: '018f9e2b-2222-7000-8000-000000000002',
+        insuredId: '018f9e2b-3333-7000-8000-000000000003',
+      })
+    })
+
+    it('should map repository rows to InstallmentDetailedItem using formatAssetDescription', async () => {
+      const mockRawRows = [
+        {
+          installmentId: '018f9e2b-1111-7000-8000-000000000001',
+          policyId: '018f9e2b-2222-7000-8000-000000000002',
+          policyNumber: 'POL-AUTO-01',
+          installmentNumber: 2,
+          insuredName: 'MARIA LOPEZ',
+          companyName: 'LA SEGUNDA',
+          properties: { marca: 'FORD', modelo: 'KA', patente: 'AB456CD', anio: 2021 },
+          assetTypeName: 'Automotor',
+          assetTypeCode: 'AUTO',
+          totalAmount: 35000,
+          currency: 'ARS',
+          dueDate: '2026-09-15',
+          status: 'pending',
+        },
+        {
+          installmentId: '018f9e2b-5555-7000-8000-000000000005',
+          policyId: '018f9e2b-6666-7000-8000-000000000006',
+          policyNumber: 'POL-PROP-02',
+          installmentNumber: 1,
+          insuredName: 'CARLOS GOMEZ',
+          companyName: 'FEDERACION PATRONAL',
+          properties: { direccion: 'Av. Corrientes 1234' },
+          assetTypeName: 'Hogar',
+          assetTypeCode: 'HOGAR',
+          totalAmount: 60000,
+          currency: 'ARS',
+          dueDate: '2026-09-15',
+          status: 'pending',
+        },
+      ]
+
+      mockRepo.findWithDetails.mockResolvedValueOnce(mockRawRows)
+
+      const result = await (service as any).listInstallments({
+        organizationId: '018f9e2b-0000-7000-8000-000000000001',
+      })
+
+      expect(result.total).toBe(2)
+      expect(result.items).toHaveLength(2)
+      expect(result.items[0]).toEqual({
+        installmentId: '018f9e2b-1111-7000-8000-000000000001',
+        policyId: '018f9e2b-2222-7000-8000-000000000002',
+        policyNumber: 'POL-AUTO-01',
+        installmentNumber: 2,
+        insuredName: 'MARIA LOPEZ',
+        companyName: 'LA SEGUNDA',
+        assetDescription: 'FORD KA (AB456CD) 2021',
+        totalAmount: 35000,
+        currency: 'ARS',
+        dueDate: '2026-09-15',
+        status: 'pending',
+      })
+      expect(result.items[1].assetDescription).toBe('Av. Corrientes 1234')
+    })
+
+    it('should propagate tx in listInstallments', async () => {
+      const mockTx = {} as any
+      mockRepo.findWithDetails.mockResolvedValueOnce([])
+
+      await (service as any).listInstallments(
+        { organizationId: '018f9e2b-0000-7000-8000-000000000001' },
+        mockTx,
+      )
+
+      expect(mockRepo.findWithDetails).toHaveBeenCalledWith(
+        expect.anything(),
+        mockTx,
+      )
+    })
+  })
+
+  describe('markAsPaid', () => {
+    it('should update installment status to paid', async () => {
+      const updated = {
+        id: '018f9e2b-1111-7000-8000-000000000001',
+        status: 'paid',
+      }
+      mockRepo.update.mockResolvedValueOnce(updated)
+
+      const result = await (service as any).markAsPaid('018f9e2b-1111-7000-8000-000000000001')
+
+      expect(result).toEqual(updated)
+      expect(mockRepo.update).toHaveBeenCalledWith(
+        '018f9e2b-1111-7000-8000-000000000001',
+        { status: 'paid' },
+        undefined,
+      )
+    })
+
+    it('should propagate tx in markAsPaid', async () => {
+      const mockTx = {} as any
+      const updated = {
+        id: '018f9e2b-1111-7000-8000-000000000001',
+        status: 'paid',
+      }
+      mockRepo.update.mockResolvedValueOnce(updated)
+
+      const result = await (service as any).markAsPaid(
+        '018f9e2b-1111-7000-8000-000000000001',
+        mockTx,
+      )
+
+      expect(result).toEqual(updated)
+      expect(mockRepo.update).toHaveBeenCalledWith(
+        '018f9e2b-1111-7000-8000-000000000001',
+        { status: 'paid' },
+        mockTx,
+      )
+    })
+  })
 })
+
 

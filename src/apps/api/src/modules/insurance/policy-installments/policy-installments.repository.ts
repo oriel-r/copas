@@ -1,8 +1,8 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { drizzle } from 'drizzle-orm/d1';
-import { and, eq } from 'drizzle-orm';
-import { policyInstallments } from '@copas/db';
-import type { PolicyInstallment, CreatePolicyInstallmentRequest } from '@copas/contracts';
+import { and, eq, isNull, asc } from 'drizzle-orm';
+import { policyInstallments, policies, insureds, companies, policyAssets, assets, assetTypes } from '@copas/db';
+import type { PolicyInstallment, CreatePolicyInstallmentRequest, InstallmentsFilter } from '@copas/contracts';
 
 function getClient(db: any, tx?: any) {
   if (tx) {
@@ -102,6 +102,70 @@ export function createPolicyInstallmentsRepository(db: D1Database | any, organiz
       }
       const rows = await q.limit(params?.limit ?? 50).offset(params?.offset ?? 0);
       return rows ?? [];
+    },
+
+    findWithDetails: async (filters: InstallmentsFilter, tx?: any): Promise<any[]> => {
+      const client = getClient(db, tx);
+      
+      const conditions = [
+        eq(policyInstallments.organizationId, organizationId),
+        isNull(policyInstallments.deletedAt),
+        isNull(policies.deletedAt),
+        isNull(insureds.deletedAt),
+        isNull(companies.deletedAt),
+      ];
+
+      if (filters.dueDate) {
+        conditions.push(eq(policyInstallments.dueDate, filters.dueDate));
+      }
+      
+      if (filters.status && filters.status !== 'all') {
+        conditions.push(eq(policyInstallments.status, filters.status));
+      } else if (!filters.status) {
+        conditions.push(eq(policyInstallments.status, 'pending'));
+      }
+
+      if (filters.companyId) {
+        conditions.push(eq(policies.companyId, filters.companyId));
+      }
+
+      if (filters.insuredId) {
+        conditions.push(eq(policies.insuredId, filters.insuredId));
+      }
+
+      if (filters.policyId) {
+        conditions.push(eq(policyInstallments.policyId, filters.policyId));
+      }
+
+      const rows = await client
+        .select({
+          installmentId: policyInstallments.id,
+          installmentNumber: policyInstallments.installmentNumber,
+          dueDate: policyInstallments.dueDate,
+          totalAmount: policyInstallments.totalAmount,
+          currency: policyInstallments.currency,
+          status: policyInstallments.status,
+          policyId: policies.id,
+          policyNumber: policies.policyNumber,
+          companyName: companies.name,
+          insuredFullName: insureds.fullName,
+          assetProperties: assets.properties,
+          assetTypeName: assetTypes.name,
+          assetTypeCode: assetTypes.code,
+        })
+        .from(policyInstallments)
+        .leftJoin(policies, eq(policies.id, policyInstallments.policyId))
+        .leftJoin(insureds, eq(insureds.id, policies.insuredId))
+        .leftJoin(companies, eq(companies.id, policies.companyId))
+        .leftJoin(policyAssets, eq(policyAssets.policyId, policies.id))
+        .leftJoin(assets, eq(assets.id, policyAssets.assetId))
+        .leftJoin(assetTypes, eq(assetTypes.id, assets.assetTypeId))
+        .where(and(...conditions))
+        .orderBy(asc(insureds.fullName))
+        .limit(filters.limit ?? 50)
+        .offset(filters.offset ?? 0);
+        
+      return rows;
     },
   };
 }
