@@ -63,3 +63,56 @@ export type InsuredUpdate = z.infer<typeof insuredsUpdateSchema>
 export type CreateInsuredRequest = z.infer<typeof createInsuredRequestSchema>
 export type UpdateInsuredRequest = z.infer<typeof updateInsuredRequestSchema>
 export type InsuredResponse = z.infer<typeof insuredResponseSchema>
+
+export const insuredsFilterSchema = z.object({
+  companyId: z.string().optional(),
+  branchId: z.string().optional(),
+  policyStatus: z.enum(['all', 'active', 'expired', 'cancelled']).optional(),
+  limit: z.coerce.number().optional(),
+  offset: z.coerce.number().optional(),
+})
+
+export type InsuredsFilter = z.infer<typeof insuredsFilterSchema>
+
+export const insuredPolicySummarySchema = z.object({
+  id: z.string(),
+  policyNumber: z.string(),
+  companyId: z.string(),
+  companyName: z.string(),
+  branchId: z.string(),
+  branchName: z.string(),
+  assetDescription: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  status: z.enum(['active', 'expired', 'cancelled']),
+})
+
+export type InsuredPolicySummary = z.infer<typeof insuredPolicySummarySchema>
+
+export const insuredDetailedItemSchema = z.object({
+  id: z.string(),
+  fullName: z.string(),
+  companies: z.array(z.string()),
+  activePoliciesCount: z.number(),
+  cuit: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  birthDate: z.string().nullable().optional(),
+  policies: z.array(insuredPolicySummarySchema),
+})
+
+export type InsuredDetailedItem = z.infer<typeof insuredDetailedItemSchema>
+
+export const insuredsDetailedResponseSchema = z.object({
+  items: z.array(insuredDetailedItemSchema),
+  total: z.number(),
+})
+
+export type InsuredsDetailedResponse = z.infer<typeof insuredsDetailedResponseSchema>
+
+export const insuredFilterOptionsSchema = z.object({
+  companies: z.array(z.object({ id: z.string(), name: z.string() })),
+  branches: z.array(z.object({ id: z.string(), name: z.string() })),
+})
+
+export type InsuredFilterOptions = z.infer<typeof insuredFilterOptionsSchema>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { DemoBanner } from './demo-banner'
+import { Navbar } from './navbar'
 
 interface AppShellProps {
   children: ReactNode
@@ -7,9 +8,12 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <main className="app-shell">
+    <div className="min-h-screen bg-black">
       <DemoBanner />
-      {children}
-    </main>
+      <Navbar />
+      <main className="app-shell pb-8">
+        {children}
+      </main>
+    </div>
   )
 }

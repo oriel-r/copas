@@ -19,10 +19,11 @@
     "@copas/contracts": "workspace:*",
     "@copas/db": "workspace:*",
     "@copas/logger": "workspace:*",
+    "@hono/zod-validator": "^0.9.1",
+    "aws4fetch": "^1.0.20",
     "better-auth": "^1.7.1",
     "drizzle-orm": "1.0.0-rc.4",
-    "hono": "^4.12.33",
-    "aws4fetch": "^1.0.20"
+    "hono": "^4.12.33"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.21.3",

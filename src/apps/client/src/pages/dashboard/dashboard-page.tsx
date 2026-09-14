@@ -1,11 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
-import LogoutIcon from '~icons/material-symbols/logout'
-import LoadingIcon from '~icons/material-symbols/progress-activity'
-import { Button } from '@copas/ui'
-import { signOut } from '@/lib/session'
-import { getErrorMessage } from '@/lib/errors'
 import { AppShell } from '@/components/layout/app-shell'
-import { FormError } from '@copas/ui'
 import { DocumentUploadCard } from '@/components/policies/document-upload-card'
 import { GlobalDropOverlay } from '@/components/policies/global-drop-overlay'
 import { useDocumentsUploadQueue } from '@/lib/api/use-documents-upload-queue'
@@ -13,12 +6,6 @@ import { useGlobalDragDrop } from '@/lib/hooks/use-global-drag-drop'
 import { DueInstallmentsTable } from '@/components/dashboard/due-installments-table'
 
 export function DashboardPage() {
-  const signOutMutation = useMutation({
-    mutationFn: () => signOut(),
-    onError: () => {
-      // Error handled by mutation state
-    },
-  })
 
   const uploadQueue = useDocumentsUploadQueue()
   
@@ -30,23 +17,6 @@ export function DashboardPage() {
     <AppShell>
       <GlobalDropOverlay isDragging={isDragging} />
       <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-4 relative">
-        {/* Botón flotante/fijo en la esquina superior derecha */}
-        <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
-          {signOutMutation.error && (
-            <FormError message={getErrorMessage(signOutMutation.error)} />
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-background/90 backdrop-blur shadow-xs hover:shadow-sm"
-            onClick={() => signOutMutation.mutate()}
-            disabled={signOutMutation.isPending}
-            data-testid="sign-out-btn"
-          >
-            {signOutMutation.isPending ? <LoadingIcon className="animate-spin" /> : <LogoutIcon />}
-            {signOutMutation.isPending ? 'Cerrando sesión...' : 'Cerrar sesión'}
-          </Button>
-        </div>
 
         {/* Encabezado limpio con saludo */}
         <div className="mb-4">

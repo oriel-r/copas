@@ -1,5 +1,5 @@
 import type { InsuredsRepository } from './insureds.repository';
-import type { Insured, CreateInsuredRequest } from '@copas/contracts';
+import type { Insured, CreateInsuredRequest, InsuredsFilter, InsuredsDetailedResponse, InsuredFilterOptions } from '@copas/contracts';
 
 export function createInsuredsService(repository: InsuredsRepository | { insuredsRepository: InsuredsRepository }) {
   const repo = (repository as any)?.insuredsRepository ?? repository;
@@ -37,6 +37,14 @@ export function createInsuredsService(repository: InsuredsRepository | { insured
 
     list: async (params?: { limit?: number; offset?: number }, tx?: any): Promise<Insured[]> => {
       return await repo.list(params, tx);
+    },
+
+    listDetailed: async (filters: InsuredsFilter, tx?: any): Promise<InsuredsDetailedResponse> => {
+      return await repo.findWithDetails(filters, tx);
+    },
+
+    getFilterOptions: async (tx?: any): Promise<InsuredFilterOptions> => {
+      return await repo.getFilterOptions(tx);
     },
   };
 }

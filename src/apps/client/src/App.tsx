@@ -10,6 +10,8 @@ const DashboardPage = lazy(() => import('@/pages/dashboard/dashboard-page').then
 const OnboardingPage = lazy(() => import('@/pages/onboarding/onboarding-page').then((m) => ({ default: m.OnboardingPage })))
 const NotFoundPage = lazy(() => import('@/pages/not-found-page').then((m) => ({ default: m.NotFoundPage })))
 
+const CarteraPage = lazy(() => import('@/pages/cartera/cartera-page').then((m) => ({ default: m.CarteraPage })))
+
 function App() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -24,6 +26,7 @@ function App() {
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route element={<RequireAgency />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/cartera" element={<CarteraPage />} />
           </Route>
         </Route>
 
