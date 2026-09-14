@@ -56,21 +56,21 @@ export function DocumentUploadCard({ queue }: DocumentUploadCardProps) {
         {items.length > 0 && (
           <div className="space-y-2 mt-4" data-testid="upload-queue">
             {items.map((item) => (
-              <div key={item.id} className="flex flex-col text-sm p-3 border rounded-md">
+              <div key={item.id} className="flex flex-col text-sm p-3 border border-border rounded-md bg-card">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="font-medium truncate max-w-[200px]" title={item.file.name}>
                       {item.file.name}
                     </span>
-                    <span className="text-gray-500 text-xs">{formatBytes(item.file.size)}</span>
+                    <span className="text-muted-foreground text-xs">{formatBytes(item.file.size)}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {item.status === 'pending' && <span className="text-gray-500">Pendiente...</span>}
-                    {item.status === 'uploading' && <span className="text-blue-500">Subiendo...</span>}
-                    {item.status === 'success' && <span className="text-green-500">Subido ✓</span>}
+                    {item.status === 'pending' && <span className="text-muted-foreground">Pendiente...</span>}
+                    {item.status === 'uploading' && <span className="text-primary font-medium">Subiendo...</span>}
+                    {item.status === 'success' && <span className="text-emerald-600 dark:text-emerald-400 font-medium">Subido ✓</span>}
                     {item.status === 'error' && (
                       <div className="flex items-center gap-2">
-                        <span className="text-red-500 font-medium">Error</span>
+                        <span className="text-destructive font-medium">Error</span>
                         <Button size="sm" variant="outline" onClick={() => retryItem(item.id)}>
                           Reintentar
                         </Button>
@@ -79,7 +79,7 @@ export function DocumentUploadCard({ queue }: DocumentUploadCardProps) {
                   </div>
                 </div>
                 {item.status === 'error' && item.error && (
-                  <span className="text-red-500 text-xs mt-1">{item.error}</span>
+                  <span className="text-destructive text-xs mt-1">{item.error}</span>
                 )}
               </div>
             ))}

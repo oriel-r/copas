@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './query-client'
 import { ErrorBoundary } from '@copas/ui'
 import { RealSessionSync, useSessionStore } from '@/lib/session'
+import { ThemeProvider } from '@/lib/theme'
 
 type ProvidersProps = {
   children: ReactNode
@@ -17,11 +18,13 @@ export function Providers({ children }: ProvidersProps) {
   }, [probe])
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ErrorBoundary>
-        {status === 'online' ? <RealSessionSync /> : null}
-        {children}
-      </ErrorBoundary>
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="system" storageKey="copas-ui-theme">
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary>
+          {status === 'online' ? <RealSessionSync /> : null}
+          {children}
+        </ErrorBoundary>
+      </QueryClientProvider>
+    </ThemeProvider>
   )
 }

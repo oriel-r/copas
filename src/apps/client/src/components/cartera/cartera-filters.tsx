@@ -29,15 +29,15 @@ export const CarteraFilters: React.FC<CarteraFiltersProps> = ({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-end bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+    <div className="flex flex-col sm:flex-row gap-4 items-end bg-card p-4 rounded-lg border border-border shadow-xs">
       <div className="flex-1 w-full flex flex-col gap-1.5">
-        <label htmlFor="companyId" className="text-xs font-medium text-zinc-400">Compañía Aseguradora</label>
+        <label htmlFor="companyId" className="text-xs font-medium text-muted-foreground">Compañía Aseguradora</label>
         <select
           id="companyId"
           disabled={isLoading}
           value={filters.companyId || 'all'}
           onChange={(e) => handleValueChange('companyId', e.target.value)}
-          className="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-800 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
           aria-label="Compañía Aseguradora"
         >
           <option value="all">Todas</option>
@@ -48,13 +48,13 @@ export const CarteraFilters: React.FC<CarteraFiltersProps> = ({
       </div>
 
       <div className="flex-1 w-full flex flex-col gap-1.5">
-        <label htmlFor="branchId" className="text-xs font-medium text-zinc-400">Rama</label>
+        <label htmlFor="branchId" className="text-xs font-medium text-muted-foreground">Rama</label>
         <select
           id="branchId"
           disabled={isLoading}
           value={filters.branchId || 'all'}
           onChange={(e) => handleValueChange('branchId', e.target.value)}
-          className="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-800 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
           aria-label="Rama"
         >
           <option value="all">Todas</option>
@@ -65,13 +65,13 @@ export const CarteraFilters: React.FC<CarteraFiltersProps> = ({
       </div>
 
       <div className="flex-1 w-full flex flex-col gap-1.5">
-        <label htmlFor="policyStatus" className="text-xs font-medium text-zinc-400">Estado de póliza</label>
+        <label htmlFor="policyStatus" className="text-xs font-medium text-muted-foreground">Estado de póliza</label>
         <select
           id="policyStatus"
           disabled={isLoading}
           value={filters.policyStatus || 'all'}
           onChange={(e) => handleValueChange('policyStatus', e.target.value)}
-          className="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-800 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
           aria-label="Estado de póliza"
         >
           <option value="all">Todas</option>
