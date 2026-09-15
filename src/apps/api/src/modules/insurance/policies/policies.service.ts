@@ -1,6 +1,35 @@
 import type { UploadUrlRequest, UploadUrlResponse } from './policies.schema';
 import type { AiResultQueuePayload, CreatePolicyRequest, Policy } from '@copas/contracts';
 import { getLogger } from '@copas/logger';
+import { member } from '@copas/db';
+import { eq, desc } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/d1';
+
+function getDrizzleClient(dbOrTx: any) {
+  if (!dbOrTx) return null;
+  if (typeof dbOrTx.select === 'function') return dbOrTx;
+  if (typeof dbOrTx.prepare === 'function') {
+    try {
+      return drizzle(dbOrTx);
+    } catch {
+      return null;
+    }
+  }
+  if (dbOrTx.db && typeof dbOrTx.db.prepare === 'function') {
+    try {
+      return drizzle(dbOrTx.db);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+const sanitizeOptionalString = (val?: string | null): string | null => {
+  if (typeof val !== 'string') return null;
+  const trimmed = val.trim();
+  return trimmed !== '' ? trimmed : null;
+};
 
 // Stryker disable all: DI parameter normalization adapter
 function resolveDependencies(
@@ -157,7 +186,7 @@ export function createPoliciesService(
       }
     },
 
-    triggerExtraction: async (documentUrl: string, organizationId: string = 'default', _userId: string = 'usr-1'): Promise<any> => {
+    triggerExtraction: async (documentUrl: string, organizationId: string = 'default', userId?: string): Promise<any> => {
       let resolvedDocumentUrl = documentUrl;
       const isUrl = documentUrl.startsWith('http://') || documentUrl.startsWith('https://') || documentUrl.startsWith('data:');
       if (!isUrl && filesService) {
@@ -174,6 +203,7 @@ export function createPoliciesService(
       logger.info('Triggering AI extraction for documentUrl: {documentUrl}', {
         documentUrl: resolvedDocumentUrl,
         organizationId,
+        userId,
         aiExtractionResultId: id,
         requestId: reqId,
       });
@@ -184,11 +214,13 @@ export function createPoliciesService(
           payload: {
             aiExtractionResultId: id,
             documentUrl: resolvedDocumentUrl,
+            userId,
           },
           metadata: {
             organizationId: organizationId,
             idempotencyKey: id,
             requestId: reqId,
+            userId,
           },
         });
 
@@ -196,6 +228,7 @@ export function createPoliciesService(
           documentUrl: resolvedDocumentUrl,
           aiExtractionResultId: id,
           organizationId,
+          userId,
           requestId: reqId,
         });
       }
@@ -233,7 +266,33 @@ export function createPoliciesService(
         const extracted = payload.structuredPayload;
         const organizationId = payload.organizationId || (payload as any).metadata?.organizationId;
         if (!organizationId) throw new Error('organizationId required in payload');
-        const userId = payload.userId ?? (payload as any).uploadedBy ?? 'usr-1';
+
+        let userId = payload.userId ?? (payload as any).uploadedBy;
+
+        // Fallback: If userId is missing, 'usr-1' or 'system', resolve real owner/member from organization
+        if (!userId || userId === 'usr-1' || userId === 'system') {
+          try {
+            const client = getDrizzleClient(tx);
+            if (client && typeof client.select === 'function') {
+              const memberRows = await client
+                .select({ userId: member.userId })
+                .from(member)
+                .where(eq(member.organizationId, organizationId))
+                .orderBy(desc(eq(member.role, 'owner')))
+                .limit(1);
+
+              if (memberRows?.[0]?.userId) {
+                userId = memberRows[0].userId;
+              }
+            }
+          } catch (lookupErr) {
+            logger.warn('Failed to lookup organization member for fallback userId', { organizationId, error: lookupErr });
+          }
+        }
+
+        if (!userId) {
+          userId = 'usr-1';
+        }
 
         logger.info('Processing extracted policy persistence for {aiExtractionResultId}: policy={policyNumber}, company={company}', {
           aiExtractionResultId: payload.aiExtractionResultId,
@@ -255,8 +314,8 @@ export function createPoliciesService(
         try {
           // 1. Company (search by code, fallback name = code)
           const compData = extracted.company;
-          const compCode = compData?.code && compData.code.trim() !== '' ? compData.code : compData?.name;
-          const compName = compData?.name && compData.name.trim() !== '' ? compData.name : compCode;
+          const compCode = sanitizeOptionalString(compData?.code) || sanitizeOptionalString(compData?.name);
+          const compName = sanitizeOptionalString(compData?.name) || compCode;
           const company = compSvc ? (
             typeof compSvc.findOrCreate === 'function'
               ? await compSvc.findOrCreate({ code: compCode, name: compName }, tx)
@@ -293,15 +352,15 @@ export function createPoliciesService(
         const assetTypeId = typeof assetType === 'object' ? assetType?.id : assetType;
 
         // 4. Insured (search by cuit in organization, fallback create)
-        const insuredCuit = extracted.insured?.cuit && extracted.insured.cuit.trim() !== '' ? extracted.insured.cuit : '00000000000';
+        const insuredCuit = sanitizeOptionalString(extracted.insured?.cuit) || '00000000000';
         const insuredPayload = {
           organizationId: organizationId,
           uploadedBy: userId,
           cuit: insuredCuit,
-          fullName: extracted.insured?.fullName || 'CONSUMIDOR FINAL',
-          phone: extracted.insured?.phone ?? null,
-          email: extracted.insured?.email ?? null,
-          birthDate: extracted.insured?.birthDate ?? null,
+          fullName: sanitizeOptionalString(extracted.insured?.fullName) || 'CONSUMIDOR FINAL',
+          phone: sanitizeOptionalString(extracted.insured?.phone),
+          email: sanitizeOptionalString(extracted.insured?.email),
+          birthDate: sanitizeOptionalString(extracted.insured?.birthDate),
         };
         const insured = insuredSvc ? (
           typeof insuredSvc.findOrCreate === 'function'
@@ -351,8 +410,8 @@ export function createPoliciesService(
           policyNumber: polData.policyNumber ?? '',
           premiumTotal: polData.premiumTotal ?? null,
           currency: polData.currency ?? 'ARS',
-          startDate: polData.startDate ?? null,
-          endDate: polData.endDate ?? null,
+          startDate: sanitizeOptionalString(polData.startDate),
+          endDate: sanitizeOptionalString(polData.endDate),
           billingFrequency: polData.billingFrequency ?? 'monthly',
           status: 'active',
         };
@@ -388,7 +447,7 @@ export function createPoliciesService(
             policyId,
             uploadedBy: userId,
             installmentNumber: inst.installmentNumber,
-            dueDate: inst.dueDate,
+            dueDate: sanitizeOptionalString(inst.dueDate),
             totalAmount: inst.totalAmount,
             currency: polData.currency ?? 'ARS',
             status: inst.status || 'pending',

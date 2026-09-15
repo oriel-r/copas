@@ -47,6 +47,11 @@ const handler = Object.assign(app, {
         body?.metadata?.organizationId ||
         payload?.organizationId ||
         (payload as any)?.metadata?.organizationId;
+      const userId =
+        body?.metadata?.userId ||
+        payload?.userId ||
+        (payload as any)?.metadata?.userId ||
+        (payload as any)?.uploadedBy;
 
       const requestId =
         body?.metadata?.requestId ||
@@ -57,6 +62,7 @@ const handler = Object.assign(app, {
         {
           requestId,
           organizationId,
+          userId,
           aiExtractionResultId: payload?.aiExtractionResultId,
           attempts: (message as any).attempts,
           queue: 'copas-ai-result',
@@ -78,6 +84,7 @@ const handler = Object.assign(app, {
           queueLogger.info('Processing AI result message started for {aiExtractionResultId}', {
             aiExtractionResultId: payload?.aiExtractionResultId,
             organizationId,
+            userId,
             attempts: (message as any).attempts,
             policyNumber: payload?.structuredPayload?.policy?.policyNumber,
             company: payload?.structuredPayload?.company?.name,
@@ -97,6 +104,7 @@ const handler = Object.assign(app, {
             await insuranceModule.policies.processAiResult({
               ...payload,
               organizationId,
+              userId,
             });
 
             const durationMs = Math.round((performance.now() - start) * 100) / 100;

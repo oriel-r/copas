@@ -8,6 +8,7 @@ export interface PolicyExtractionWorkflowParams {
   aiExtractionResultId: string;
   organizationId?: string;
   requestId?: string;
+  userId?: string;
 }
 
 export class PolicyExtractionWorkflow extends WorkflowEntrypoint<CloudflareBindings, PolicyExtractionWorkflowParams> {
@@ -23,7 +24,7 @@ export class PolicyExtractionWorkflow extends WorkflowEntrypoint<CloudflareBindi
   }
 
   async run(event: WorkflowEvent<PolicyExtractionWorkflowParams>, step: WorkflowStep) {
-    const { documentUrl, aiExtractionResultId, organizationId, requestId } = event.payload;
+    const { documentUrl, aiExtractionResultId, organizationId, requestId, userId } = event.payload;
 
     const ocrClient =
       this.deps?.ocrClient ??
@@ -66,11 +67,13 @@ export class PolicyExtractionWorkflow extends WorkflowEntrypoint<CloudflareBindi
             payload: {
               aiExtractionResultId,
               structuredPayload,
+              userId,
             },
             metadata: {
               organizationId,
               idempotencyKey: aiExtractionResultId,
               requestId: requestId || aiExtractionResultId,
+              userId,
             },
           });
         }

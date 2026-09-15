@@ -5,5 +5,6 @@ export type Envelope<T = unknown> = {
     organizationId: string
     idempotencyKey: string
     requestId?: string
+    userId?: string
   }
 }

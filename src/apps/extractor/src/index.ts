@@ -54,6 +54,7 @@ const handler = Object.assign(app, {
       const payload = body?.payload ?? body;
       const metadata = body?.metadata;
       const organizationId = metadata?.organizationId || payload?.organizationId;
+      const userId = metadata?.userId || payload?.userId;
       const requestId =
         metadata?.requestId ||
         payload?.requestId ||
@@ -63,6 +64,7 @@ const handler = Object.assign(app, {
         {
           requestId,
           organizationId,
+          userId,
           aiExtractionResultId: payload?.aiExtractionResultId,
           documentUrl: payload?.documentUrl,
           attempts: message.attempts,
@@ -93,6 +95,7 @@ const handler = Object.assign(app, {
                 ...payload,
                 organizationId,
                 requestId,
+                userId,
               },
             });
             const durationMs = Math.round((performance.now() - start) * 100) / 100;

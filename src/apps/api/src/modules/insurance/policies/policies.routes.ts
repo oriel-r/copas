@@ -202,7 +202,7 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       if (!organizationId) return c.json({ error: 'organization required' }, 401);
 
       const userId = c.get('userId' as any) as string | null;
-      const result = await (s as any).triggerExtraction(policyAssetKey, organizationId, userId ?? body?.userId ?? 'usr-1');
+      const result = await (s as any).triggerExtraction(policyAssetKey, organizationId, userId ?? body?.userId);
       return c.json(result, 202);
     })
     .post('/process-ai-result', async (c) => {
