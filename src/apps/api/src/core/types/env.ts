@@ -1,6 +1,7 @@
 import type { InsuranceModule } from '../../modules/insurance/insurance.module';
 import type { CommunicationsModule } from '../../modules/communications/communications.module';
 import type { RemindersModule } from '../../modules/reminders/reminders.module';
+import type { PortfolioService } from '../../modules/portfolio/portfolio.service';
 
 export type AppEnv = {
   Bindings: any;
@@ -14,6 +15,7 @@ export type AppEnv = {
       insurance: InsuranceModule;
       communications: CommunicationsModule;
       reminders: RemindersModule;
+      portfolio: PortfolioService;
     };
   };
 };

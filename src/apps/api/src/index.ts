@@ -26,7 +26,11 @@ const handler = Object.assign(app, {
   async queue(batch: MessageBatch<any>, env: any, _ctx: ExecutionContext): Promise<void> {
     if (!batch?.messages?.length) return;
 
-    ensureLogger({ appName: 'api', environment: env?.NODE_ENV });
+    ensureLogger({ 
+      appName: 'api', 
+      environment: env?.NODE_ENV,
+      lowestLevel: env?.LOG_LEVEL,
+    });
     const queueLogger = getLogger(['api', 'queue']);
 
     queueLogger.info('Received queue batch with {messagesCount} messages', {

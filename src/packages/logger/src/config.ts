@@ -19,9 +19,12 @@ export interface LoggerConfigOptions {
 
 let isConfigured = false;
 let configuredEnv: string | undefined;
+let configuredLowestLevel: LogLevel | undefined;
 
 function resolveLowestLevel(env: string, explicitLevel?: LogLevel): LogLevel {
-  if (explicitLevel) return explicitLevel;
+  if (explicitLevel && ['debug', 'info', 'warning', 'error', 'fatal'].includes(explicitLevel)) {
+    return explicitLevel;
+  }
   
   const envLogLevel = (typeof process !== 'undefined' && process.env?.LOG_LEVEL?.toLowerCase()) as LogLevel | undefined;
   if (envLogLevel && ['debug', 'info', 'warning', 'error', 'fatal'].includes(envLogLevel)) {
@@ -51,12 +54,12 @@ function createConsoleSink(env: string): Sink {
  */
 export function ensureLogger(options: LoggerConfigOptions): void {
   const env = options.environment || 'development';
+  const lowestLevel = resolveLowestLevel(env, options.lowestLevel);
 
-  if (isConfigured && configuredEnv === env && !options.reset) {
+  if (isConfigured && configuredEnv === env && configuredLowestLevel === lowestLevel && !options.reset) {
     return;
   }
 
-  const lowestLevel = resolveLowestLevel(env, options.lowestLevel);
   const sink = createConsoleSink(env);
 
   try {
@@ -81,10 +84,12 @@ export function ensureLogger(options: LoggerConfigOptions): void {
     });
     isConfigured = true;
     configuredEnv = env;
+    configuredLowestLevel = lowestLevel;
   } catch (err: any) {
     if (err?.name === 'ConfigError' || err?.message?.includes('Already configured')) {
       isConfigured = true;
       configuredEnv = env;
+      configuredLowestLevel = lowestLevel;
       return;
     }
     throw err;
@@ -96,12 +101,12 @@ export function ensureLogger(options: LoggerConfigOptions): void {
  */
 export async function setupLogger(options: LoggerConfigOptions): Promise<void> {
   const env = options.environment || 'development';
+  const lowestLevel = resolveLowestLevel(env, options.lowestLevel);
 
-  if (isConfigured && configuredEnv === env && !options.reset) {
+  if (isConfigured && configuredEnv === env && configuredLowestLevel === lowestLevel && !options.reset) {
     return;
   }
 
-  const lowestLevel = resolveLowestLevel(env, options.lowestLevel);
   const sink = createConsoleSink(env);
 
   try {
@@ -126,10 +131,12 @@ export async function setupLogger(options: LoggerConfigOptions): Promise<void> {
     });
     isConfigured = true;
     configuredEnv = env;
+    configuredLowestLevel = lowestLevel;
   } catch (err: any) {
     if (err?.name === 'ConfigError' || err?.message?.includes('Already configured')) {
       isConfigured = true;
       configuredEnv = env;
+      configuredLowestLevel = lowestLevel;
       return;
     }
     throw err;

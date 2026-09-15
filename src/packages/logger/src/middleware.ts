@@ -23,6 +23,7 @@ export function requestLoggerMiddleware(options: RequestLoggerOptions = {}): Mid
     ensureLogger({
       appName,
       environment: (c.env as any)?.NODE_ENV,
+      lowestLevel: (c.env as any)?.LOG_LEVEL,
     });
 
     // Extract request ID: x-request-id -> cf-ray -> crypto.randomUUID()

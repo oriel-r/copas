@@ -4,18 +4,20 @@ import type { AppEnv } from './types/env';
 import { createInsuranceModule } from '../modules/insurance/insurance.module';
 import { createCommunicationsModule } from '../modules/communications/communications.module';
 import { createRemindersModule } from '../modules/reminders/reminders.module';
+import { PortfolioService } from '../modules/portfolio/portfolio.service';
 
 export const injectAppServices = createMiddleware<AppEnv>(async (c, next) => {
   const organizationId = c.get('organizationId' as any) as string | null;
   const userId = c.get('userId' as any) as string | null;
 
-  // Prod strict: every /policies/*, /reminder-rules/* and /reminders/* requires organization context except document download
+  // Prod strict: every /policies/*, /reminder-rules/*, /reminders/* and /portfolio/* requires organization context except document download
   const isDocDownload = c.req.path.startsWith('/policies/documents/');
   const needsOrg =
     (c.req.path.startsWith('/policies') && !isDocDownload) ||
     c.req.path.startsWith('/installments') ||
     c.req.path.startsWith('/reminder-rules') ||
-    c.req.path.startsWith('/reminders');
+    c.req.path.startsWith('/reminders') ||
+    c.req.path.startsWith('/portfolio');
   if (needsOrg && !organizationId) {
     throw new HTTPException(401, { message: 'organization required - set active organization' });
   }
@@ -59,6 +61,9 @@ export const injectAppServices = createMiddleware<AppEnv>(async (c, next) => {
         services.insurance,
         services.communications
       );
+    },
+    get portfolio() {
+      return new PortfolioService(c.env.DB);
     }
   };
 
