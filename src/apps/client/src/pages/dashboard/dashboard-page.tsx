@@ -4,6 +4,7 @@ import { GlobalDropOverlay } from '@/components/policies/global-drop-overlay'
 import { useDocumentsUploadQueue } from '@/lib/api/use-documents-upload-queue'
 import { useGlobalDragDrop } from '@/lib/hooks/use-global-drag-drop'
 import { DueInstallmentsTable } from '@/components/dashboard/due-installments-table'
+import { DashboardStatsCard } from '@/components/dashboard/dashboard-stats-card'
 
 export function DashboardPage() {
 
@@ -33,7 +34,8 @@ export function DashboardPage() {
           <div className="lg:col-span-2 w-full">
             <DueInstallmentsTable />
           </div>
-          <div className="lg:col-span-1 w-full">
+          <div className="lg:col-span-1 w-full space-y-4">
+            <DashboardStatsCard />
             <DocumentUploadCard queue={uploadQueue} />
           </div>
         </div>

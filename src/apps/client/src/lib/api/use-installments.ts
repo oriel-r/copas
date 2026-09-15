@@ -156,7 +156,7 @@ export function useMarkInstallmentPaid() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['installments'] });
+      queryClient.invalidateQueries({ queryKey: ['installments'] }); queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
     },
   });
 }

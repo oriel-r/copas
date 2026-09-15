@@ -3,4 +3,5 @@ export * from './expiring-policies.view'
 export * from './active-consents.view'
 export * from './whatsapp-endpoints.view'
 export * from './due-reminders.view'
-
+export * from './portfolio-summary.view'
+export * from './portfolio-companies.view'

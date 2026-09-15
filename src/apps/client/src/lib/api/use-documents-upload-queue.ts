@@ -84,7 +84,7 @@ export function useDocumentsUploadQueue(): UseDocumentsUploadQueueReturn {
                   : i
               )
             );
-            if (queryClient) queryClient.invalidateQueries({ queryKey: ['policies'] });
+            if (queryClient) { queryClient.invalidateQueries({ queryKey: ['policies'] }); queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] }); }
           } catch (err: any) {
             setItems((prev) =>
               prev.map((i) =>
