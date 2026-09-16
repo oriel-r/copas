@@ -22,10 +22,10 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
   const hasSuccess = items.some((item) => item.status === 'success');
 
   return (
-    <Card className={cn('w-full flex flex-col justify-center', className)} data-testid="document-upload-card">
-      <CardContent className="p-4 sm:p-5 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Lado izquierdo: Botón Cargar pólizas */}
-        <div className="shrink-0 flex items-center">
+    <Card className={cn('w-full flex flex-col', className)} data-testid="document-upload-card">
+      <CardContent className="p-4 sm:p-5 flex-1 flex flex-col md:flex-row md:items-start justify-between gap-4">
+        {/* Lado izquierdo: Botón Cargar pólizas (arriba a la izquierda) */}
+        <div className="shrink-0 flex items-start self-start">
           <Button
             size="default"
             data-testid="upload-documents-btn"
@@ -117,7 +117,7 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
         </div>
 
         {/* Lado derecho: Botón limpiar completados */}
-        <div className="shrink-0 flex items-center justify-end">
+        <div className="shrink-0 flex items-start self-start justify-end">
           {hasSuccess && (
             <Button
               size="sm"

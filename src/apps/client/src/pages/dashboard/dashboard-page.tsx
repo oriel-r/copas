@@ -27,7 +27,7 @@ export function DashboardPage() {
   return (
     <AppShell>
       <GlobalDropOverlay isDragging={isDragging} />
-      <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-3 sm:py-4 flex flex-col lg:h-[calc(100vh-8.5rem)]">
+      <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-3 sm:py-4 flex flex-col lg:h-[calc(100vh-8.75rem)]">
 
         {/* Encabezado limpio con la fecha del día */}
         <div className="mb-3 sm:mb-4 shrink-0">
@@ -38,7 +38,7 @@ export function DashboardPage() {
         </div>
 
         {/* Layout Bento: 2/3 (vencimientos 2/3 de alto + carga 1/3 de alto) y 1/3 para estadísticas */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[2fr_1fr] gap-3.5 sm:gap-4 items-stretch w-full flex-1 min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[2fr_1fr] gap-4 sm:gap-5 lg:gap-6 items-stretch w-full flex-1 min-h-0">
           {/* Bloque 1: Vencimientos del día (2/3 de la columna izquierda en desktop, 1° en mobile) */}
           <div className="order-1 lg:col-start-1 lg:col-end-3 lg:row-start-1 lg:row-end-2 min-h-0 flex flex-col">
             <DueInstallmentsTable className="h-full" />
