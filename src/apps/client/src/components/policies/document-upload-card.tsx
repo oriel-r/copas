@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Card, CardContent, CardDescription, CardTitle, Button, cn } from '@copas/ui';
+import { Card, CardContent, Button, cn } from '@copas/ui';
 import { useDocumentsUploadQueue } from '../../lib/api/use-documents-upload-queue';
 import type { UseDocumentsUploadQueueReturn } from '../../lib/api/use-documents-upload-queue';
 
@@ -23,37 +23,17 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
 
   return (
     <Card className={cn('w-full', className)} data-testid="document-upload-card">
-      <CardContent className="p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3.5">
-        {/* Lado izquierdo: Título, descripción y botón */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-sm sm:text-base font-semibold tracking-tight">
-                Cargar Pólizas
-              </CardTitle>
-              {hasSuccess && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 text-xs px-2"
-                  onClick={clearCompleted}
-                >
-                  Limpiar completados
-                </Button>
-              )}
-            </div>
-            <CardDescription className="text-xs text-muted-foreground mt-0.5 line-clamp-1 max-w-md">
-              Arrastrá tus pólizas en formato PDF a cualquier lugar de la pantalla o seleccioná archivos múltiples.
-            </CardDescription>
-          </div>
-
+      <CardContent className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 min-h-[96px]">
+        {/* Lado izquierdo: Botón Cargar pólizas */}
+        <div className="shrink-0 flex items-center">
           <Button
-            size="sm"
+            size="default"
             data-testid="upload-documents-btn"
             onClick={() => fileInputRef.current?.click()}
-            className="shrink-0"
+            className="font-medium px-4 h-10 shadow-xs"
           >
-            Subir documentos
+            <span>Cargar pólizas</span>
+            <span className="sr-only">Subir documentos</span>
           </Button>
         </div>
 
@@ -71,27 +51,27 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
           }}
         />
 
-        {/* Lado derecho: Avance de archivos en fila horizontal o placeholder */}
-        <div className="flex-1 min-w-0 flex items-center md:justify-end">
+        {/* Zona central: Avance de archivos o indicación */}
+        <div className="flex-1 min-w-0 flex items-center justify-start md:justify-center">
           {items.length > 0 ? (
             <div
-              className="flex items-center gap-2 overflow-x-auto py-1 w-full md:w-auto md:max-w-xl scrollbar-thin"
+              className="flex items-center gap-2.5 overflow-x-auto py-1 w-full scrollbar-thin"
               data-testid="upload-queue"
             >
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex flex-col gap-1 text-xs p-2 border border-border rounded-lg bg-card shrink-0 min-w-[170px] max-w-[230px]"
+                  className="flex flex-col gap-1.5 text-xs p-2.5 border border-border rounded-lg bg-card shrink-0 min-w-[190px] max-w-[250px] shadow-xs"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium truncate max-w-[120px]" title={item.file.name}>
+                    <span className="font-medium truncate max-w-[130px]" title={item.file.name}>
                       {item.file.name}
                     </span>
                     <span className="text-[11px] text-muted-foreground shrink-0">
                       {formatBytes(item.file.size)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
                     <div>
                       {item.status === 'pending' && (
                         <span className="text-muted-foreground text-[11px]">Pendiente...</span>
@@ -130,9 +110,23 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
               ))}
             </div>
           ) : (
-            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground border border-dashed border-border/80 rounded-lg px-3 py-1.5 bg-muted/20">
-              <span>Arrastrá tus pólizas PDF aquí o hacé clic para seleccionar</span>
+            <div className="w-full flex items-center justify-center border border-dashed border-border/80 rounded-lg px-4 py-2.5 bg-muted/20 text-muted-foreground text-xs sm:text-sm">
+              <span>Presioná el botón o arrastrá y soltá para subir</span>
             </div>
+          )}
+        </div>
+
+        {/* Lado derecho: Botón limpiar completados */}
+        <div className="shrink-0 flex items-center justify-end">
+          {hasSuccess && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={clearCompleted}
+              className="h-9 px-3 text-xs"
+            >
+              Limpiar completados
+            </Button>
           )}
         </div>
       </CardContent>
