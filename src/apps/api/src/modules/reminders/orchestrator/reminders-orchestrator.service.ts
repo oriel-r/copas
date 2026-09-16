@@ -8,6 +8,7 @@ import type {
   RemindersDueResponse,
 } from '@copas/contracts'
 import type { ReminderRulesService } from '../reminder-rules/reminder-rules.service'
+import { buildReminderTemplateComponents } from './template-components.builder'
 
 // Stryker disable all: Database client and DI adapter normalization
 function getClient(db: any) {
@@ -105,6 +106,7 @@ export function createRemindersOrchestratorService(
         insuredId: row.insuredId,
         insuredFullName: row.insuredFullName ?? '',
         insuredPhone: phone ?? null,
+        plateNumber: row.plateNumber ?? null,
         companyName: row.companyName ?? '',
         totalAmount: row.totalAmount ?? null,
         currency: row.currency ?? null,
@@ -210,6 +212,7 @@ export function createRemindersOrchestratorService(
             insuredId: row.insuredId,
             insuredFullName: row.insuredFullName ?? '',
             insuredPhone: phone ?? null,
+            plateNumber: row.plateNumber ?? null,
             companyName: row.companyName ?? '',
             totalAmount: row.totalAmount ?? null,
             currency: row.currency ?? null,
@@ -388,6 +391,11 @@ export function createRemindersOrchestratorService(
             },
           })
 
+          const components = buildReminderTemplateComponents({
+            templateName,
+            row,
+          })
+
           await whatsappDispatchService.enqueueTemplateReminder({
             organizationId: orgId,
             messageId: message.id,
@@ -395,7 +403,7 @@ export function createRemindersOrchestratorService(
             endpoint,
             to: phone,
             templateName,
-            components: [],
+            components,
             idempotencyKey: deduplicationHash,
           })
 
@@ -609,6 +617,11 @@ export function createRemindersOrchestratorService(
               },
             })
 
+            const components = buildReminderTemplateComponents({
+              templateName,
+              row,
+            })
+
             await whatsappDispatchService.enqueueTemplateReminder({
               organizationId: orgId,
               messageId: message.id,
@@ -616,7 +629,7 @@ export function createRemindersOrchestratorService(
               endpoint,
               to: phone,
               templateName,
-              components: [],
+              components,
               idempotencyKey: deduplicationHash,
             })
 

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { sqliteView } from 'drizzle-orm/sqlite-core'
 
 import { companies, insureds, policies, policyInstallments } from '../contexts/insurance'
@@ -15,6 +15,7 @@ export const vDueInstallments = sqliteView('v_due_installments').as((qb) =>
       currency: policyInstallments.currency,
       installmentStatus: policyInstallments.status,
       receiptUrl: policyInstallments.receiptUrl,
+      plateNumber: sql<string | null>`(SELECT COALESCE(json_extract(a.properties, '$.PATENTE'), json_extract(a.properties, '$.patente'), json_extract(a.properties, '$.dominio'), json_extract(a.properties, '$.plate')) FROM policy_assets pa INNER JOIN assets a ON a.id = pa.assetId AND a.deleted_at IS NULL WHERE pa.policyId = ${policies.id} AND pa.deleted_at IS NULL LIMIT 1)`.as('plateNumber'),
       policyNumber: policies.policyNumber,
       policyStatus: policies.status,
       policyStartDate: policies.startDate,

@@ -14,6 +14,7 @@ export const vExpiringPolicies = sqliteView('v_expiring_policies').as((qb) =>
       endDate: policies.endDate,
       effectiveEndDate: policies.effectiveEndDate,
       expirationDate: sql<string>`COALESCE(${policies.effectiveEndDate}, ${policies.endDate})`.as('expiration_date'),
+      plateNumber: sql<string | null>`(SELECT COALESCE(json_extract(a.properties, '$.PATENTE'), json_extract(a.properties, '$.patente'), json_extract(a.properties, '$.dominio'), json_extract(a.properties, '$.plate')) FROM policy_assets pa INNER JOIN assets a ON a.id = pa.assetId AND a.deleted_at IS NULL WHERE pa.policyId = ${policies.id} AND pa.deleted_at IS NULL LIMIT 1)`.as('plateNumber'),
       companyId: policies.companyId,
       companyName: companies.name,
       companyCode: companies.code,

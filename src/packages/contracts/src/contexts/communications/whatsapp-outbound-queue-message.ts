@@ -4,6 +4,7 @@ import type { Envelope } from '../../shared/queue'
 export type WhatsAppTemplateComponentParameter = {
   type: 'text' | 'currency' | 'date_time' | 'image' | 'document' | 'action'
   text?: string
+  parameter_name?: string
   currency?: {
     fallback_value: string
     code: string

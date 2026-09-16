@@ -19,6 +19,7 @@ export const reminderDueItemSchema = z.object({
   insuredId: z.string(),
   insuredFullName: z.string(),
   insuredPhone: z.string().nullable(),
+  plateNumber: z.string().nullable().optional(),
   companyName: z.string(),
   totalAmount: z.number().nullable(),
   currency: z.string().nullable(),
