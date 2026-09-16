@@ -17,10 +17,10 @@ export function DashboardPage() {
   return (
     <AppShell>
       <GlobalDropOverlay isDragging={isDragging} />
-      <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-4 relative">
+      <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-3 sm:py-4 flex flex-col lg:h-[calc(100vh-8.5rem)]">
 
         {/* Encabezado limpio con saludo */}
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4 shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Hola!
           </h1>
@@ -29,13 +29,20 @@ export function DashboardPage() {
           </p>
         </div>
 
-        {/* Layout: 2/3 para la tabla de vencimientos y 1/3 para la carga de pólizas */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-4 items-start w-full">
-          <div className="lg:col-span-2 w-full">
-            <DueInstallmentsTable />
+        {/* Layout Bento: 2/3 (vencimientos arriba + carga horizontal compacta abajo) y 1/3 para estadísticas */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[1fr_auto] gap-3.5 sm:gap-4 items-stretch w-full flex-1 min-h-0">
+          {/* Bloque 1: Vencimientos del día (2/3 superior en desktop, 1° en mobile) */}
+          <div className="order-1 lg:col-start-1 lg:col-end-3 lg:row-start-1 lg:row-end-2 min-h-0 flex flex-col">
+            <DueInstallmentsTable className="h-full" />
           </div>
-          <div className="lg:col-span-1 w-full space-y-4">
-            <DashboardStatsCard />
+
+          {/* Bloque 2: Estadísticas de la cartera (1/3 derecho en desktop ocupando ambas filas, 2° en mobile) */}
+          <div className="order-2 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 min-h-0 flex flex-col">
+            <DashboardStatsCard className="h-full overflow-y-auto" />
+          </div>
+
+          {/* Bloque 3: Carga de pólizas compacta horizontal (2/3 inferior en desktop, 3° en mobile) */}
+          <div className="order-3 lg:col-start-1 lg:col-end-3 lg:row-start-2 lg:row-end-3 shrink-0">
             <DocumentUploadCard queue={uploadQueue} />
           </div>
         </div>
