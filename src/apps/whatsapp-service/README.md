@@ -1,16 +1,18 @@
-```txt
-npm install
-npm run dev
+```bash
+pnpm install
+pnpm run dev
 ```
 
-```txt
-npm run deploy
+```bash
+pnpm run deploy
+# Staging deploy:
+pnpm run deploy --env staging
 ```
 
 [For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
 
-```txt
-npm run cf-typegen
+```bash
+pnpm run cf-typegen
 ```
 
 Pass the `CloudflareBindings` as generics when instantiating `Hono`:
