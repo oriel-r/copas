@@ -37,12 +37,7 @@ function DueInstallmentsTableView({
   return (
     <Card className={cn("w-full flex flex-col", className)}>
       <CardHeader className="p-4 sm:p-5 flex flex-row items-center justify-between shrink-0">
-        <div>
-          <CardTitle className="text-lg sm:text-xl">Vencimientos del día</CardTitle>
-          <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            {new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}
-          </div>
-        </div>
+        <CardTitle className="text-lg sm:text-xl">Vencimientos del día</CardTitle>
         <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground ml-2 shrink-0">
           {pendingCount} pendientes
         </span>

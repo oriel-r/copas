@@ -22,8 +22,8 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
   const hasSuccess = items.some((item) => item.status === 'success');
 
   return (
-    <Card className={cn('w-full', className)} data-testid="document-upload-card">
-      <CardContent className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 min-h-[96px]">
+    <Card className={cn('w-full flex flex-col justify-center', className)} data-testid="document-upload-card">
+      <CardContent className="p-4 sm:p-5 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Lado izquierdo: Botón Cargar pólizas */}
         <div className="shrink-0 flex items-center">
           <Button
@@ -52,7 +52,7 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
         />
 
         {/* Zona central: Avance de archivos o indicación */}
-        <div className="flex-1 min-w-0 flex items-center justify-start md:justify-center">
+        <div className="flex-1 min-w-0 h-full flex items-center justify-start md:justify-center">
           {items.length > 0 ? (
             <div
               className="flex items-center gap-2.5 overflow-x-auto py-1 w-full scrollbar-thin"
@@ -110,7 +110,7 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
               ))}
             </div>
           ) : (
-            <div className="w-full flex items-center justify-center border border-dashed border-border/80 rounded-lg px-4 py-2.5 bg-muted/20 text-muted-foreground text-xs sm:text-sm">
+            <div className="w-full h-full min-h-[72px] flex items-center justify-center border border-dashed border-border/80 rounded-lg px-4 py-3 bg-muted/20 text-muted-foreground text-xs sm:text-sm">
               <span>Presioná el botón o arrastrá y soltá para subir</span>
             </div>
           )}
