@@ -39,6 +39,9 @@ export const extractedPolicySchema = z.object({
   }),
 
   asset: z.object({
+    externalReference: z.string().nullable().optional().describe(
+      'Identificador unívoco externo del bien. Siempre que exista patente, dominio o matrícula (en autos, motos, camiones, acoplados, maquinaria agrícola/vial o cualquier rodado), colocar la PATENTE en MAYÚSCULAS sin espacios ni guiones (ej. NPG712, A654MNO, A123BCD). Si no posee patente (ej. 0km), colocar el CHASIS o NÚMERO DE SERIE. Para inmuebles, dirección o partida catastral. Si no se identifica ningún identificador único, devolver null.',
+    ),
     properties: z.record(z.string(), z.any()).describe('Propiedades clave-valor extraídas del bien (ej. patente, marca, modelo, año, motor, chasis, suma_asegurada, ubicacion). Todos los valores de texto deben estar en MAYÚSCULAS y SIN ACENTOS. Extraer exhaustivamente.'),
   }).describe('Bien asegurado.'),
 
