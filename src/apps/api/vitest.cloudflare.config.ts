@@ -25,7 +25,10 @@ export default defineConfig(async () => {
   return mergeConfig(
     defineConfig({
       test: {
-        include: ['src/modules/auth/auth.integration.test.ts'],
+        include: [
+          'src/modules/auth/auth.integration.test.ts',
+          'src/modules/reminders/reminders.integration.test.ts',
+        ],
       },
     }),
     defineProject({
@@ -37,6 +40,9 @@ export default defineConfig(async () => {
           miniflare: {
             bindings: {
               TEST_MIGRATIONS: migrations,
+              PLATFORM_WHATSAPP_ACCESS_TOKEN: 'EAAB_test_platform_token_integration',
+              PLATFORM_WHATSAPP_PHONE_NUMBER_ID: '109876543210123',
+              PLATFORM_WHATSAPP_WABA_ID: 'waba_test_456',
             },
           },
         }),

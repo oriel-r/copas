@@ -322,9 +322,7 @@ export function createRemindersOrchestratorService(
             if (typeof conversationsService?.getOrCreateActiveConversation === 'function') {
               const conversation = await conversationsService.getOrCreateActiveConversation({
                 organizationId: orgId,
-                organizationChannelEndpointId: endpoint
-                  ? endpoint.organizationChannelEndpointId
-                  : 'unknown',
+                organizationChannelEndpointId: endpoint?.organizationChannelEndpointId,
                 insuredId: row.insuredId,
                 type: 'reminder',
               })
@@ -511,6 +509,16 @@ export function createRemindersOrchestratorService(
             if (row.installmentStatus === 'paid') continue
           }
 
+          const rawDb = (client as any)?.prepare ? client : (db?.db ?? db)
+          if ((!row.insuredId || row.insuredId === row.installmentId || row.insuredId === row.id) && row.policyId && typeof rawDb?.prepare === 'function') {
+            try {
+              const polRow: any = await rawDb.prepare('SELECT insuredId FROM policies WHERE id = ?').bind(row.policyId).first()
+              if (polRow?.insuredId) {
+                row.insuredId = polRow.insuredId
+              }
+            } catch {}
+          }
+
           totalEvaluated++
           const entityId = isInstallment
             ? (row.installmentId || row.id)
@@ -547,9 +555,7 @@ export function createRemindersOrchestratorService(
               if (typeof conversationsService?.getOrCreateActiveConversation === 'function') {
                 const conversation = await conversationsService.getOrCreateActiveConversation({
                   organizationId: orgId,
-                  organizationChannelEndpointId: endpoint
-                    ? endpoint.organizationChannelEndpointId
-                    : 'unknown',
+                  organizationChannelEndpointId: endpoint?.organizationChannelEndpointId,
                   insuredId: row.insuredId,
                   type: 'reminder',
                 })

@@ -18,7 +18,7 @@ export class RemindersRpcEntrypoint extends WorkerEntrypoint<any> {
     // We get the active organizations (this is normally passed or retrieved, but for now we query them or there is a specific one? 
     // Wait, the orchestrator needs an organizationId. Since it's a multi-tenant DB, we need to iterate over all organizations?)
     // Let's get distinct organizationIds from reminder_rules:
-    const stmt = db.prepare(`SELECT DISTINCT organizationId FROM reminder_rules WHERE isEnabled = 1 AND deletedAt IS NULL`)
+    const stmt = db.prepare(`SELECT DISTINCT organizationId FROM reminder_rules WHERE isEnabled = 1 AND deleted_at IS NULL`)
     const res = await stmt.all()
     const orgIds = (res.results || []).map((r: any) => r.organizationId)
     
@@ -42,7 +42,7 @@ export class RemindersRpcEntrypoint extends WorkerEntrypoint<any> {
       })
 
       const orchestrator = createRemindersOrchestratorService(db, orgId, service, insMod, commMod)
-      const orgSummary = await orchestrator.dispatchDueRemindersForOrg(params)
+      const orgSummary = await orchestrator.dispatchDueRemindersForOrg({ ...params, fromView: true })
 
       summary.totalEvaluated += orgSummary.totalEvaluated
       summary.totalEnqueued += orgSummary.totalEnqueued

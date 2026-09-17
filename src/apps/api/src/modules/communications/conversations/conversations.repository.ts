@@ -46,8 +46,6 @@ export function createConversationsRepository(arg1: any, arg2?: string) {
 
     create: async (data: ConversationInsert, tx?: any): Promise<Conversation> => {
       const client = getClient(database, tx)
-      const now = new Date().toISOString()
-      
       const rows = await client.insert(conversations).values({
         id: data.id || crypto.randomUUID(),
         organizationId: data.organizationId || organizationId,
@@ -55,8 +53,8 @@ export function createConversationsRepository(arg1: any, arg2?: string) {
         insuredId: data.insuredId,
         type: data.type || 'reminder',
         status: data.status || 'open',
-        createdAt: data.createdAt || now,
-        updatedAt: data.updatedAt || now,
+        createdAt: data.createdAt ? (typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt) : undefined,
+        updatedAt: data.updatedAt ? (typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt) : undefined,
       }).returning()
       
       const res = Array.isArray(rows) ? rows[0] : rows
@@ -70,13 +68,32 @@ export function createConversationsRepository(arg1: any, arg2?: string) {
       tx?: any
     ): Promise<void> => {
       const client = getClient(database, tx)
-      await client.insert(conversationEntities).values({
-        id: crypto.randomUUID(),
-        conversationId,
-        policyId: entity.policyId ?? null,
-        installmentId: entity.installmentId ?? null,
-        insuredId: entity.insuredId ?? null,
-      })
+      const rowsToInsert: any[] = []
+      if (entity.policyId) {
+        rowsToInsert.push({
+          id: crypto.randomUUID(),
+          conversationId,
+          policyId: entity.policyId,
+        })
+      }
+      if (entity.installmentId) {
+        rowsToInsert.push({
+          id: crypto.randomUUID(),
+          conversationId,
+          installmentId: entity.installmentId,
+        })
+      }
+      if (entity.insuredId) {
+        rowsToInsert.push({
+          id: crypto.randomUUID(),
+          conversationId,
+          insuredId: entity.insuredId,
+        })
+      }
+
+      for (const row of rowsToInsert) {
+        await client.insert(conversationEntities).values(row)
+      }
     },
   }
 }

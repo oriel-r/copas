@@ -495,10 +495,10 @@ CREATE TABLE `messages` (
 	CONSTRAINT "messages_sender_kind_check" CHECK("senderKind" IN ('user', 'insured', 'system', 'agent')),
 	CONSTRAINT "messages_metadata_json" CHECK(json_valid("metadata")),
 	CONSTRAINT "messages_sender_kind_coherence" CHECK(CASE "senderKind"
-        WHEN 'user' THEN ("senderUserId" IS NOT NULL) + ("senderInsuredId" IS NULL)
-        WHEN 'insured' THEN ("senderInsuredId" IS NOT NULL) + ("senderUserId" IS NULL)
-        WHEN 'system' THEN ("senderUserId" IS NULL) + ("senderInsuredId" IS NULL)
-        WHEN 'agent' THEN ("senderUserId" IS NULL) + ("senderInsuredId" IS NULL)
+        WHEN 'user' THEN ("senderUserId" IS NOT NULL) AND ("senderInsuredId" IS NULL)
+        WHEN 'insured' THEN ("senderInsuredId" IS NOT NULL) AND ("senderUserId" IS NULL)
+        WHEN 'system' THEN ("senderUserId" IS NULL) AND ("senderInsuredId" IS NULL)
+        WHEN 'agent' THEN ("senderUserId" IS NULL) AND ("senderInsuredId" IS NULL)
       END = 1)
 );
 --> statement-breakpoint

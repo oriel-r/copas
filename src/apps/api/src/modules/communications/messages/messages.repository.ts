@@ -36,33 +36,59 @@ export function createMessagesRepository(arg1: any, arg2?: string) {
         tx = second
       }
       const client = getClient(database, tx)
-      const query = client.select().from(messages).where(
-        orgId
-          ? and(eq(messages.organizationId, orgId), eq(messages.deduplicationHash, hash))
-          : eq(messages.deduplicationHash, hash)
-      )
-      const rows = typeof query?.limit === 'function' ? await query.limit(1) : await query
-      const res = Array.isArray(rows) ? rows[0] : rows
-      if (!res || res === client || res.select) return null
-      return res as any
+      try {
+        const query = client.select().from(messages).where(
+          orgId
+            ? and(eq(messages.organizationId, orgId), eq(messages.deduplicationHash, hash))
+            : eq(messages.deduplicationHash, hash)
+        )
+        const rows = typeof query?.limit === 'function' ? await query.limit(1) : await query
+        const res = Array.isArray(rows) ? rows[0] : rows
+        if (!res || res === client || res.select) return null
+        return res as any
+      } catch (err: any) {
+        if (err?.message?.includes?.('JSON')) {
+          const query = client
+            .select({
+              id: messages.id,
+              organizationId: messages.organizationId,
+              conversationId: messages.conversationId,
+              direction: messages.direction,
+              senderKind: messages.senderKind,
+              content: messages.content,
+              deduplicationHash: messages.deduplicationHash,
+              sentAt: messages.sentAt,
+            })
+            .from(messages)
+            .where(
+              orgId
+                ? and(eq(messages.organizationId, orgId), eq(messages.deduplicationHash, hash))
+                : eq(messages.deduplicationHash, hash)
+            )
+          const rows = typeof query?.limit === 'function' ? await query.limit(1) : await query
+          const res = Array.isArray(rows) ? rows[0] : rows
+          if (!res || res === client || res.select) return null
+          return res as any
+        }
+        throw err
+      }
     },
 
     create: async (data: MessageInsert | any, tx?: any): Promise<Message> => {
       const client = getClient(database, tx)
-      const now = new Date().toISOString()
       
       const payload = {
         id: data.id || crypto.randomUUID(),
         organizationId: data.organizationId || organizationId,
         conversationId: data.conversationId,
         direction: data.direction || 'outbound',
-        status: data.status || 'sent',
         senderKind: data.senderKind || 'system',
-        content: data.content ?? null,
+        content: typeof data.content === 'object' ? JSON.stringify(data.content) : String(data.content ?? ''),
         deduplicationHash: data.deduplicationHash ?? null,
-        sentAt: data.sentAt || data.createdAt || now,
-        createdAt: data.createdAt || now,
-        updatedAt: data.updatedAt || now,
+        sentAt: data.sentAt ? (typeof data.sentAt === 'string' ? new Date(data.sentAt) : data.sentAt) : new Date(),
+        createdAt: data.createdAt ? (typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt) : undefined,
+        updatedAt: data.updatedAt ? (typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt) : undefined,
+        status: data.status || 'sent',
       }
       
       const query = client.insert(messages).values(payload)
@@ -84,16 +110,13 @@ export function createMessagesRepository(arg1: any, arg2?: string) {
       const tx = isObj ? arg2 : arg4
 
       const client = getClient(database, tx)
-      const now = new Date().toISOString()
       
       const payload = {
         id: (isObj && (arg1 as any).id) || crypto.randomUUID(),
         messageId,
         status,
-        reason: (isObj && arg1.reason) ?? null,
-        rawPayload: (isObj && arg1.rawPayload) ?? null,
+        occurredAt: new Date(),
         details: details ?? null,
-        createdAt: (isObj && (arg1 as any).createdAt) || now,
       }
 
       const query = client.insert(messageStatuses).values(payload)

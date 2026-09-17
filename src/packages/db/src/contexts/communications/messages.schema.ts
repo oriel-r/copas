@@ -59,10 +59,10 @@ export const messages = sqliteTable(
     check(
       'messages_sender_kind_coherence',
       sql`CASE ${table.senderKind}
-        WHEN 'user' THEN (${table.senderUserId} IS NOT NULL) + (${table.senderInsuredId} IS NULL)
-        WHEN 'insured' THEN (${table.senderInsuredId} IS NOT NULL) + (${table.senderUserId} IS NULL)
-        WHEN 'system' THEN (${table.senderUserId} IS NULL) + (${table.senderInsuredId} IS NULL)
-        WHEN 'agent' THEN (${table.senderUserId} IS NULL) + (${table.senderInsuredId} IS NULL)
+        WHEN 'user' THEN (${table.senderUserId} IS NOT NULL) AND (${table.senderInsuredId} IS NULL)
+        WHEN 'insured' THEN (${table.senderInsuredId} IS NOT NULL) AND (${table.senderUserId} IS NULL)
+        WHEN 'system' THEN (${table.senderUserId} IS NULL) AND (${table.senderInsuredId} IS NULL)
+        WHEN 'agent' THEN (${table.senderUserId} IS NULL) AND (${table.senderInsuredId} IS NULL)
       END = 1`),
   ],
 )

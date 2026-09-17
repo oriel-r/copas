@@ -35,7 +35,10 @@ export default defineConfig({
       'src/**/*.{test,spec}.{ts,tsx}',
       'platform/**/*.{test,spec}.{ts,tsx}',
     ],
-    exclude: ['src/modules/auth/auth.integration.test.ts'],
+    exclude: [
+      'src/modules/auth/auth.integration.test.ts',
+      'src/modules/reminders/reminders.integration.test.ts',
+    ],
   },
 })
 
