@@ -30,6 +30,12 @@ Your goal is to analyze the policy text in Markdown and extract all relevant dat
 
 ### 5. Asset Type and Insured Asset (`assetType` and `asset`)
 - `assetType.code`: `AUTO`, `MOTO`, `HOME`, `BUSINESS`, `PERSON`, `LIFE`, `OTHER`.
+- `asset.externalReference`: Primary external unique identifier of the asset:
+  - For vehicles, rolling stock, equipment and machinery of any category (automobiles, motorcycles, trucks, vans, trailers, agricultural or industrial machinery): ALWAYS extract the license plate / registration (`PATENTE`, `DOMINIO`, `MATRICULA`, `PLACA`) in **UPPERCASE without spaces, dots, or hyphens** (e.g. `NPG712`, `A654MNO`, `A123BCD`).
+  - If the vehicle/equipment has no license plate (e.g. brand new 0km or unregistered machinery), use `CHASIS`, `VIN`, `NUMERO_SERIE` or `MOTOR`.
+  - For real estate / commerce (`HOME`, `BUSINESS`): Standardized property address or cadastral reference.
+  - For persons (`PERSON`, `LIFE`): DNI or CUIT without hyphens.
+  - If no unique identifier is found in the document, return `null`.
 - `asset.properties`: Key-value dictionary with **UPPERCASE** keys and values (e.g. `PATENTE`, `MARCA`, `MODELO`, `ANIO`, `CHASIS`, `MOTOR`, `UBICACION`).
 
 ### 6. Payment Method (`paymentMethod`)

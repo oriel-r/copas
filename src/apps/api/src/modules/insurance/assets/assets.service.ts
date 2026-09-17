@@ -38,6 +38,9 @@ export function createAssetsService(repository: AssetsRepository | { assetsRepos
         if (Array.isArray(existingAssets) && existingAssets.length > 0) {
           const found = existingAssets.find((a: any) => {
             if (data.assetTypeId && a.assetTypeId !== data.assetTypeId) return false;
+            if (data.externalReference && a.externalReference) {
+              return a.externalReference.trim().toUpperCase() === data.externalReference.trim().toUpperCase();
+            }
             if (data.properties && a.properties) {
               const keys = Object.keys(data.properties);
               if (keys.length > 0) {

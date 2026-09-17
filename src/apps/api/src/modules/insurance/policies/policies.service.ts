@@ -372,11 +372,36 @@ export function createPoliciesService(
         const insuredId = typeof insured === 'object' ? insured?.id : insured;
 
         // 5. Asset
+        const props = extracted.asset?.properties || {};
+        const fallbackExtRef =
+          props.PATENTE ??
+          props.patente ??
+          props.DOMINIO ??
+          props.dominio ??
+          props.MATRICULA ??
+          props.matricula ??
+          props.PLACA ??
+          props.placa ??
+          props.CHASIS ??
+          props.chasis ??
+          props.VIN ??
+          props.vin ??
+          props.NUMERO_SERIE ??
+          props.numero_serie ??
+          props.MOTOR ??
+          props.motor;
+
+        const rawExtRef =
+          sanitizeOptionalString(extracted.asset?.externalReference) ||
+          sanitizeOptionalString(fallbackExtRef);
+        const externalReference = rawExtRef ? rawExtRef.trim().toUpperCase() : null;
+
         const assetPayload = {
           insuredId,
           assetTypeId,
           uploadedBy: userId,
-          properties: extracted.asset?.properties || {},
+          externalReference,
+          properties: props,
         };
         const asset = assetSvc ? (
           typeof assetSvc.findOrCreate === 'function'

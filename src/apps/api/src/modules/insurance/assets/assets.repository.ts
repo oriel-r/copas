@@ -51,6 +51,7 @@ export function createAssetsRepository(db: D1Database | any, _organizationId: st
           insuredId: data.insuredId,
           assetTypeId: data.assetTypeId,
           uploadedBy: data.uploadedBy || 'system',
+          externalReference: data.externalReference ?? null,
           properties: data.properties || {},
         })
         .returning();
