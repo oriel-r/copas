@@ -3,7 +3,8 @@ import { Hono } from 'hono'
 import type { AppEnv } from '../../../core/types/env'
 
 import {
-  insuredsFilterSchema
+  insuredsFilterSchema,
+  updateInsuredRequestSchema,
 } from '@copas/contracts'
 import type { InsuredsService } from './insureds.service'
 
@@ -43,6 +44,45 @@ export const createInsuredsRouter = (deps?: { insuredsService?: InsuredsService 
       const response = await service.getFilterOptions()
       
       return c.json(response, 200)
+    })
+    .get('/:id', async (c) => {
+      const orgId = c.get('organizationId' as any)
+      if (!orgId) {
+        return c.json({ error: 'Organization required' }, 401)
+      }
+      
+      const service = getService(c)
+      const id = c.req.param('id')
+      const result = await service.getDetailById(id)
+      if (!result) {
+        return c.json({ error: 'Insured not found' }, 404)
+      }
+      return c.json(result, 200)
+    })
+    .patch('/:id', zValidator('json', updateInsuredRequestSchema), async (c) => {
+      const orgId = c.get('organizationId' as any)
+      if (!orgId) {
+        return c.json({ error: 'Organization required' }, 401)
+      }
+      
+      const service = getService(c)
+      const id = c.req.param('id')
+      const body = c.req.valid('json')
+      try {
+        const result = await service.updateProfile(id, body)
+        if (!result) {
+          return c.json({ error: 'Insured not found' }, 404)
+        }
+        return c.json(result, 200)
+      } catch (err: any) {
+        if (err.message === 'CUIT already registered' || err.code === 'CONFLICT' || err.status === 409) {
+          return c.json({ error: 'Conflict', message: 'CUIT already registered' }, 409)
+        }
+        if (err.message === 'Insured not found' || err.status === 404) {
+          return c.json({ error: 'Insured not found' }, 404)
+        }
+        throw err
+      }
     })
 
   return router

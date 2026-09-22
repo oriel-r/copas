@@ -13,6 +13,8 @@ describe('insureds.service', () => {
       create: vi.fn(),
       update: vi.fn(),
       list: vi.fn(),
+      findByIdWithDetails: vi.fn(),
+      findByCuitExcludingId: vi.fn(),
     }
     service = createInsuredsService({ insuredsRepository: mockRepo })
   })
@@ -27,6 +29,8 @@ describe('insureds.service', () => {
       expect(typeof s.create).toBe('function')
       expect(typeof s.update).toBe('function')
       expect(typeof s.list).toBe('function')
+      expect(typeof s.getDetailById).toBe('function')
+      expect(typeof s.updateProfile).toBe('function')
     })
 
     it('should initialize with positional argument insuredsRepository', () => {
@@ -221,6 +225,227 @@ describe('insureds.service', () => {
       const result = await service.list(undefined, mockTx)
       expect(result).toEqual([])
       expect(mockRepo.list).toHaveBeenCalledWith(undefined, mockTx)
+    })
+  })
+
+  describe('getDetailById', () => {
+    const baseInsured = {
+      id: 'ins-1',
+      organizationId: 'org-1',
+      uploadedBy: 'usr-1',
+      cuit: '20-30000000-3',
+      fullName: 'JUAN PEREZ',
+      phone: '+541112345678',
+      email: 'juan@example.com',
+      birthDate: '1985-05-15',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    }
+
+    const activePolicy1 = {
+      id: 'pol-1',
+      policyNumber: 'POL-001',
+      companyId: 'comp-1',
+      companyName: 'Federación Patronal',
+      branchId: 'br-1',
+      branchName: 'Automotores',
+      assetDescription: 'Toyota Corolla 2020',
+      startDate: '2026-01-01',
+      endDate: '2027-01-01',
+      status: 'active' as const,
+    }
+
+    const activePolicy2 = {
+      id: 'pol-2',
+      policyNumber: 'POL-002',
+      companyId: 'comp-2',
+      companyName: 'Sancor Seguros',
+      branchId: 'br-2',
+      branchName: 'Hogar',
+      assetDescription: 'Casa Country',
+      startDate: '2026-06-01',
+      endDate: '2027-06-01',
+      status: 'active' as const,
+    }
+
+    const expiredPolicy = {
+      id: 'pol-3',
+      policyNumber: 'POL-003',
+      companyId: 'comp-1',
+      companyName: 'Federación Patronal',
+      branchId: 'br-1',
+      branchName: 'Automotores',
+      assetDescription: 'Toyota Corolla 2018',
+      startDate: '2024-01-01',
+      endDate: '2025-01-01',
+      status: 'expired' as const,
+    }
+
+    it('should return detailed insured calculating activePoliciesCount, totalPoliciesCount, unique companies, and latestPolicy as the most recent active policy', async () => {
+      mockRepo.findByIdWithDetails.mockResolvedValueOnce({
+        ...baseInsured,
+        policies: [activePolicy1, activePolicy2, expiredPolicy],
+      })
+
+      const result = await service.getDetailById('ins-1')
+
+      expect(result).toBeDefined()
+      expect(result.id).toBe('ins-1')
+      expect(result.activePoliciesCount).toBe(2)
+      expect(result.totalPoliciesCount).toBe(3)
+      expect(result.companies).toEqual(['Federación Patronal', 'Sancor Seguros'])
+      expect(result.latestPolicy).toEqual(activePolicy2)
+      expect(mockRepo.findByIdWithDetails).toHaveBeenCalledWith('ins-1', undefined)
+    })
+
+    it('should return activePoliciesCount=0, totalPoliciesCount=0, companies=[], and latestPolicy=null when insured has no policies', async () => {
+      mockRepo.findByIdWithDetails.mockResolvedValueOnce({
+        ...baseInsured,
+        policies: [],
+      })
+
+      const result = await service.getDetailById('ins-1')
+
+      expect(result).toBeDefined()
+      expect(result.activePoliciesCount).toBe(0)
+      expect(result.totalPoliciesCount).toBe(0)
+      expect(result.companies).toEqual([])
+      expect(result.latestPolicy).toBeNull()
+    })
+
+    it('should return latestPolicy as the last historical policy when insured has only non-active policies (expired/cancelled)', async () => {
+      const cancelledPolicy = {
+        id: 'pol-0',
+        policyNumber: 'POL-000',
+        companyId: 'comp-1',
+        companyName: 'Federación Patronal',
+        branchId: 'br-1',
+        branchName: 'Automotores',
+        assetDescription: 'Moto Honda',
+        startDate: '2023-01-01',
+        endDate: '2023-06-01',
+        status: 'cancelled' as const,
+      }
+
+      mockRepo.findByIdWithDetails.mockResolvedValueOnce({
+        ...baseInsured,
+        policies: [cancelledPolicy, expiredPolicy],
+      })
+
+      const result = await service.getDetailById('ins-1')
+
+      expect(result).toBeDefined()
+      expect(result.activePoliciesCount).toBe(0)
+      expect(result.totalPoliciesCount).toBe(2)
+      expect(result.companies).toEqual(['Federación Patronal'])
+      expect(result.latestPolicy).toEqual(expiredPolicy)
+    })
+
+    it('should return null if insured does not exist or has deletedAt != null', async () => {
+      mockRepo.findByIdWithDetails.mockResolvedValueOnce(null)
+
+      const result = await service.getDetailById('ins-nonexistent')
+
+      expect(result).toBeNull()
+      expect(mockRepo.findByIdWithDetails).toHaveBeenCalledWith('ins-nonexistent', undefined)
+    })
+
+    it('should propagate tx to findByIdWithDetails', async () => {
+      const mockTx = { isTx: true } as any
+      mockRepo.findByIdWithDetails.mockResolvedValueOnce(null)
+
+      await service.getDetailById('ins-1', mockTx)
+
+      expect(mockRepo.findByIdWithDetails).toHaveBeenCalledWith('ins-1', mockTx)
+    })
+  })
+
+  describe('updateProfile', () => {
+    const existingInsured = {
+      id: 'ins-1',
+      organizationId: 'org-1',
+      uploadedBy: 'usr-1',
+      cuit: '20-30000000-3',
+      fullName: 'JUAN PEREZ',
+      phone: '+541112345678',
+      email: 'juan@example.com',
+      birthDate: '1985-05-15',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    }
+
+    it('should successfully update valid fields (fullName, phone, email, birthDate)', async () => {
+      const updateData = {
+        fullName: 'JUAN CARLOS PEREZ',
+        phone: '+541198765432',
+        email: 'juan.carlos@example.com',
+        birthDate: '1985-05-20',
+      }
+      const updated = { ...existingInsured, ...updateData }
+
+      mockRepo.findById.mockResolvedValueOnce(existingInsured)
+      mockRepo.update.mockResolvedValueOnce(updated)
+
+      const result = await service.updateProfile('ins-1', updateData)
+
+      expect(result).toEqual(updated)
+      expect(mockRepo.update).toHaveBeenCalledWith('ins-1', expect.objectContaining(updateData), undefined)
+    })
+
+    it('should allow updating with same CUIT without throwing conflict', async () => {
+      const updateData = { cuit: '20-30000000-3', fullName: 'JUAN PEREZ RENAMED' }
+      const updated = { ...existingInsured, fullName: 'JUAN PEREZ RENAMED' }
+
+      mockRepo.findById.mockResolvedValueOnce(existingInsured)
+      mockRepo.update.mockResolvedValueOnce(updated)
+
+      const result = await service.updateProfile('ins-1', updateData)
+
+      expect(result).toEqual(updated)
+      expect(mockRepo.findByCuitExcludingId).not.toHaveBeenCalled()
+      expect(mockRepo.update).toHaveBeenCalled()
+    })
+
+    it('should throw conflict error "CUIT already registered" if CUIT belongs to another insured in the organization', async () => {
+      const newCuit = '27-30000000-8'
+      mockRepo.findById.mockResolvedValueOnce(existingInsured)
+      mockRepo.findByCuitExcludingId.mockResolvedValueOnce({
+        id: 'ins-other',
+        cuit: newCuit,
+        organizationId: 'org-1',
+      })
+
+      await expect(service.updateProfile('ins-1', { cuit: newCuit })).rejects.toThrow(
+        'CUIT already registered',
+      )
+      expect(mockRepo.update).not.toHaveBeenCalled()
+    })
+
+    it('should return null when insured to update does not exist or is soft-deleted', async () => {
+      mockRepo.findById.mockResolvedValueOnce(null)
+
+      const result = await service.updateProfile('ins-nonexistent', { fullName: 'TEST' })
+
+      expect(result).toBeNull()
+      expect(mockRepo.update).not.toHaveBeenCalled()
+    })
+
+    it('should propagate tx to findById, findByCuitExcludingId, and update', async () => {
+      const mockTx = { isTx: true } as any
+      const newCuit = '27-30000000-8'
+      const updateData = { cuit: newCuit }
+
+      mockRepo.findById.mockResolvedValueOnce(existingInsured)
+      mockRepo.findByCuitExcludingId.mockResolvedValueOnce(null)
+      mockRepo.update.mockResolvedValueOnce({ ...existingInsured, cuit: newCuit })
+
+      const result = await service.updateProfile('ins-1', updateData, mockTx)
+
+      expect(mockRepo.findById).toHaveBeenCalledWith('ins-1', mockTx)
+      expect(mockRepo.findByCuitExcludingId).toHaveBeenCalledWith('org-1', newCuit, 'ins-1', mockTx)
+      expect(mockRepo.update).toHaveBeenCalledWith('ins-1', expect.objectContaining(updateData), mockTx)
     })
   })
 })

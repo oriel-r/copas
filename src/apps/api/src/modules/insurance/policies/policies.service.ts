@@ -1,5 +1,5 @@
 import type { UploadUrlRequest, UploadUrlResponse } from './policies.schema';
-import type { AiResultQueuePayload, CreatePolicyRequest, Policy } from '@copas/contracts';
+import type { AiResultQueuePayload, CreatePolicyRequest, Policy, PoliciesFilter, PoliciesDetailedResponse } from '@copas/contracts';
 import { getLogger } from '@copas/logger';
 import { member } from '@copas/db';
 import { eq, desc } from 'drizzle-orm';
@@ -547,6 +547,10 @@ export function createPoliciesService(
 
     list: async (params?: { insuredId?: string; companyId?: string; limit?: number; offset?: number }, tx?: any): Promise<Policy[]> => {
       return await repo.list(params, tx);
+    },
+
+    listDetailed: async (filters: PoliciesFilter, tx?: any): Promise<PoliciesDetailedResponse> => {
+      throw new Error('Not implemented: listDetailed');
     },
   };
 }

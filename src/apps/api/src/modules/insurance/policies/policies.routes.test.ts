@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Hono } from 'hono'
+import {
+  policiesDetailedResponseSchema,
+  type PoliciesDetailedResponse,
+} from '@copas/contracts'
 import { createPoliciesRouter } from './policies.routes'
 
 describe('policies.routes', () => {
@@ -47,6 +51,7 @@ describe('policies.routes', () => {
       update: vi.fn(),
       delete: vi.fn(),
       list: vi.fn(),
+      listDetailed: vi.fn(),
       processAiResult: vi.fn(),
       generateUploadUrl: vi.fn(),
       triggerExtraction: vi.fn(),
@@ -75,6 +80,64 @@ describe('policies.routes', () => {
       expect(res.status).toBe(200)
       const data = await res.json()
       expect(data).toEqual(policies)
+    })
+
+    it('should return 200 with PoliciesDetailedResponse when filtering by insuredId', async () => {
+      const insuredId = '018f9e2b-2222-7000-8000-000000000002'
+      const mockDetailedPolicies: PoliciesDetailedResponse = {
+        total: 1,
+        items: [
+          {
+            id: '018f9e2b-3333-7000-8000-000000000003',
+            policyNumber: 'POL-789012',
+            companyId: '018f9e2b-4444-7000-8000-000000000004',
+            companyName: 'Federación Patronal',
+            branchId: '018f9e2b-5555-7000-8000-000000000005',
+            branchName: 'Automotores',
+            assetDescription: 'Toyota Hilux 2023',
+            startDate: '2026-01-01',
+            endDate: '2027-01-01',
+            status: 'active',
+            premiumTotal: 150000,
+            currency: 'ARS',
+            billingFrequency: 'monthly',
+          },
+        ],
+      }
+      mockPoliciesService.listDetailed.mockResolvedValueOnce(mockDetailedPolicies)
+
+      const res = await app.request(`/policies?insuredId=${insuredId}`)
+
+      expect(res.status).toBe(200)
+      const data = await res.json()
+
+      const validationResult = policiesDetailedResponseSchema.safeParse(data)
+      expect(validationResult.success).toBe(true)
+      expect(data).toEqual(mockDetailedPolicies)
+      expect(mockPoliciesService.listDetailed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          insuredId,
+        }),
+      )
+    })
+
+    it('should forward insuredId, status, limit, and offset query parameters to listDetailed', async () => {
+      const insuredId = '018f9e2b-2222-7000-8000-000000000002'
+      mockPoliciesService.listDetailed.mockResolvedValueOnce({ total: 0, items: [] })
+
+      const res = await app.request(
+        `/policies?insuredId=${insuredId}&status=active&limit=10&offset=5`,
+      )
+
+      expect(res.status).toBe(200)
+      expect(mockPoliciesService.listDetailed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          insuredId,
+          status: 'active',
+          limit: 10,
+          offset: 5,
+        }),
+      )
     })
   })
 

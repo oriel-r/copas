@@ -2,7 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { drizzle } from 'drizzle-orm/d1';
 import { and, eq } from 'drizzle-orm';
 import { policies, aiExtractionResults } from '@copas/db';
-import type { Policy, CreatePolicyRequest, AiExtractionResultInsert, AiExtractionResultUpdate } from '@copas/contracts';
+import type { Policy, CreatePolicyRequest, AiExtractionResultInsert, AiExtractionResultUpdate, PoliciesFilter, PoliciesDetailedResponse } from '@copas/contracts';
 
 function getClient(db: any, tx?: any) {
   if (tx) {
@@ -150,6 +150,10 @@ export function createPoliciesRepository(db: D1Database | any, organizationId: s
         .where(eq(aiExtractionResults.id, id))
         .limit(1);
       return rows?.[0] ?? null;
+    },
+
+    findWithDetails: async (filters: PoliciesFilter, tx?: any): Promise<PoliciesDetailedResponse> => {
+      throw new Error('Not implemented: findWithDetails');
     },
   };
 }
