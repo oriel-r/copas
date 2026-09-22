@@ -152,7 +152,7 @@ export function createPoliciesRepository(db: D1Database | any, organizationId: s
       return rows?.[0] ?? null;
     },
 
-    findWithDetails: async (filters: PoliciesFilter, tx?: any): Promise<PoliciesDetailedResponse> => {
+    findWithDetails: async (_filters: PoliciesFilter, _tx?: any): Promise<PoliciesDetailedResponse> => {
       throw new Error('Not implemented: findWithDetails');
     },
   };

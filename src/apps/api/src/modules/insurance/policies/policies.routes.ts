@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { uploadUrlRequestSchema } from './policies.schema';
-import { createPolicyRequestSchema, updatePolicyRequestSchema, policiesFilterSchema, validatePdfMagicBytes } from '@copas/contracts';
+import { createPolicyRequestSchema, policiesFilterSchema, validatePdfMagicBytes } from '@copas/contracts';
 import type { PoliciesService } from './policies.service';
 import type { AppEnv } from '../../../core/types/env';
 

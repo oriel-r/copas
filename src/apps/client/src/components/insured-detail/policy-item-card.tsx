@@ -67,7 +67,7 @@ export const PolicyItemCard: React.FC<PolicyItemCardProps> = ({
         status: formData.status as any,
         startDate: formData.startDate || null,
         endDate: formData.endDate || null,
-        premiumTotal: formData.premiumTotal ? Number(formData.premiumTotal) : null,
+        premiumTotal: formData.premiumTotal ? Number(formData.premiumTotal) : undefined,
         currency: formData.currency as any,
       })
       setIsEditing(false)

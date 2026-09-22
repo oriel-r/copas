@@ -2,7 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { drizzle } from 'drizzle-orm/d1';
 import { and, eq, isNull, inArray, countDistinct, ne } from 'drizzle-orm';
 import { insureds, policies, companies, policyAssets, assets, assetTypes, branches } from '@copas/db';
-import type { Insured, CreateInsuredRequest, InsuredsDetailedResponse, InsuredDetailedItem, InsuredsFilter, InsuredFilterOptions, InsuredDetailResponse } from '@copas/contracts';
+import type { Insured, CreateInsuredRequest, InsuredsDetailedResponse, InsuredDetailedItem, InsuredsFilter, InsuredFilterOptions } from '@copas/contracts';
 import { formatAssetDescription } from '@copas/contracts';
 
 function getClient(db: any, tx?: any) {

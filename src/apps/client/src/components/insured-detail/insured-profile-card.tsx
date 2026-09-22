@@ -73,7 +73,7 @@ export const InsuredProfileCard: React.FC<InsuredProfileCardProps> = ({
       try {
         await onUpdate({
           fullName: formData.fullName.trim(),
-          cuit: formData.cuit ? formData.cuit.trim() : null,
+          cuit: formData.cuit ? formData.cuit.trim() : undefined,
           phone: formData.phone ? formData.phone.trim() : null,
           email: formData.email ? formData.email.trim() : null,
           birthDate: formData.birthDate || null,
