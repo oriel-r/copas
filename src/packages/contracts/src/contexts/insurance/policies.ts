@@ -3,6 +3,8 @@ import { z } from 'zod'
 
 import { billingFrequency, policies, policyStatus } from '@copas/db'
 
+import { insuredPolicySummarySchema } from './insureds'
+
 import {
   currencySchema,
   dateCivilSchema,
@@ -102,3 +104,28 @@ export type PolicyUpdate = z.infer<typeof policiesUpdateSchema>
 export type CreatePolicyRequest = z.infer<typeof createPolicyRequestSchema>
 export type UpdatePolicyRequest = z.infer<typeof updatePolicyRequestSchema>
 export type PolicyResponse = z.infer<typeof policyResponseSchema>
+
+export const policiesFilterSchema = z.object({
+  insuredId: z.string().optional(),
+  companyId: z.string().optional(),
+  status: z.enum([...policyStatus, 'all']).optional(),
+  limit: z.coerce.number().optional(),
+  offset: z.coerce.number().optional(),
+})
+
+export type PoliciesFilter = z.infer<typeof policiesFilterSchema>
+
+export const policyDetailedItemSchema = insuredPolicySummarySchema.extend({
+  premiumTotal: optionalMoneySchema,
+  currency: optionalCurrencySchema,
+  billingFrequency: z.enum(billingFrequency).optional(),
+})
+
+export type PolicyDetailedItem = z.infer<typeof policyDetailedItemSchema>
+
+export const policiesDetailedResponseSchema = z.object({
+  items: z.array(policyDetailedItemSchema),
+  total: z.number(),
+})
+
+export type PoliciesDetailedResponse = z.infer<typeof policiesDetailedResponseSchema>

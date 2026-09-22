@@ -12,6 +12,7 @@ export interface InsuredsTableProps {
   onPageChange?: (offset: number) => void
   onLoadMore?: () => void
   hasMore?: boolean
+  onSelectInsured?: (id: string) => void
 }
 
 export const InsuredsTable: React.FC<InsuredsTableProps> = ({
@@ -20,12 +21,21 @@ export const InsuredsTable: React.FC<InsuredsTableProps> = ({
   isLoading,
   onLoadMore,
   hasMore,
+  onSelectInsured,
 }) => {
   const data = items || insureds || []
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const handleRowClick = (id: string) => {
+    if (onSelectInsured) {
+      onSelectInsured(id)
+    } else {
+      toggleRow(id)
+    }
   }
 
   if (isLoading && data.length === 0) {
@@ -57,7 +67,7 @@ export const InsuredsTable: React.FC<InsuredsTableProps> = ({
               <React.Fragment key={item.id}>
                 <tr 
                   className="hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => toggleRow(item.id)}
+                  onClick={() => handleRowClick(item.id)}
                 >
                   <td className="px-4 py-3 text-muted-foreground">
                     {expandedRows[item.id] ? (

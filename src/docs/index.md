@@ -17,6 +17,8 @@ El conocimiento de negocio vive en [docs/index.md](/docs/index.md).
 - [Servicio Email](/src/docs/comunicaciones/email/service.md)
 
 ## Pólizas
+- [Insured Detail (Drawer) Spec](/src/docs/polizas/insured-detail.md)
+
 ### Extracción con IA
 - [Workflow de Extracción IA](/src/docs/polizas/extraccion_ia/workflow.md)
 - [Pipeline de Extracción IA (Histórico / Superseded)](/src/docs/polizas/extraccion_ia/pipeline.md)

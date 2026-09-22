@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { DemoBanner } from './demo-banner'
 import { Navbar } from './navbar'
+import { InsuredDetailDrawer } from '@/components/insured-detail/insured-detail-drawer'
 
 interface AppShellProps {
   children: ReactNode
@@ -14,6 +15,7 @@ export function AppShell({ children }: AppShellProps) {
       <main className="app-shell pb-8">
         {children}
       </main>
+      <InsuredDetailDrawer />
     </div>
   )
 }

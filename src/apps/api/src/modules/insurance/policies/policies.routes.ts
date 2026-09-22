@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { uploadUrlRequestSchema } from './policies.schema';
-import { createPolicyRequestSchema, validatePdfMagicBytes } from '@copas/contracts';
+import { createPolicyRequestSchema, policiesFilterSchema, validatePdfMagicBytes } from '@copas/contracts';
 import type { PoliciesService } from './policies.service';
 import type { AppEnv } from '../../../core/types/env';
 
@@ -14,6 +14,18 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
   const router = new Hono<AppEnv>()
     .get('/', async (c) => {
       const s = getService(c);
+      const query = c.req.query();
+      if (query.insuredId || query.companyId || query.status || query.limit || query.offset) {
+        const parsed = policiesFilterSchema.safeParse(query);
+        if (!parsed.success) {
+          return c.json({ error: 'Bad Request', details: parsed.error.issues }, 400);
+        }
+        const detailed = (s as any).listDetailed;
+        if (typeof detailed === 'function') {
+          const result = await detailed.call(s, parsed.data);
+          return c.json(result, 200);
+        }
+      }
       const result = await s.list();
       return c.json(result, 200);
     })
@@ -117,6 +129,16 @@ export function createPoliciesRouter(deps?: PoliciesService | { policiesService:
       return c.json(created, 201);
     })
     .put('/:id', async (c) => {
+      const id = c.req.param('id');
+      const body = await c.req.json();
+      const s = getService(c);
+      const updater = (s as any).update ?? (s as any).updatePolicy;
+      if (typeof updater !== 'function') return c.json({ error: 'Not implemented' }, 501);
+      const updated = await updater.call(s, id, body);
+      if (!updated) return c.json({ error: 'Policy not found' }, 404);
+      return c.json(updated, 200);
+    })
+    .patch('/:id', async (c) => {
       const id = c.req.param('id');
       const body = await c.req.json();
       const s = getService(c);

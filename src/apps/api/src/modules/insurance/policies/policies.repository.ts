@@ -1,8 +1,9 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { drizzle } from 'drizzle-orm/d1';
-import { and, eq } from 'drizzle-orm';
-import { policies, aiExtractionResults } from '@copas/db';
-import type { Policy, CreatePolicyRequest, AiExtractionResultInsert, AiExtractionResultUpdate } from '@copas/contracts';
+import { and, eq, isNull } from 'drizzle-orm';
+import { policies, aiExtractionResults, companies, policyAssets, assets, assetTypes, branches } from '@copas/db';
+import type { Policy, CreatePolicyRequest, AiExtractionResultInsert, AiExtractionResultUpdate, PoliciesFilter, PoliciesDetailedResponse, PolicyDetailedItem } from '@copas/contracts';
+import { formatAssetDescription } from '@copas/contracts';
 
 function getClient(db: any, tx?: any) {
   if (tx) {
@@ -150,6 +151,87 @@ export function createPoliciesRepository(db: D1Database | any, organizationId: s
         .where(eq(aiExtractionResults.id, id))
         .limit(1);
       return rows?.[0] ?? null;
+    },
+
+    findWithDetails: async (filters: PoliciesFilter, tx?: any): Promise<PoliciesDetailedResponse> => {
+      const client = getClient(db, tx);
+      const limit = filters.limit ?? 50;
+      const offset = filters.offset ?? 0;
+
+      const conditions = [
+        eq(policies.organizationId, organizationId),
+        isNull(policies.deletedAt),
+      ];
+
+      if (filters.insuredId) {
+        conditions.push(eq(policies.insuredId, filters.insuredId));
+      }
+      if (filters.companyId) {
+        conditions.push(eq(policies.companyId, filters.companyId));
+      }
+      if (filters.status && filters.status !== 'all') {
+        conditions.push(eq(policies.status, filters.status));
+      }
+
+      let query = client
+        .select({
+          policy: policies,
+          company: companies,
+          assetType: assetTypes,
+          asset: assets,
+          branch: branches,
+        })
+        .from(policies);
+
+      if (typeof query.leftJoin === 'function') {
+        query = query
+          .leftJoin(companies, eq(companies.id, policies.companyId))
+          .leftJoin(policyAssets, eq(policyAssets.policyId, policies.id))
+          .leftJoin(assets, eq(assets.id, policyAssets.assetId))
+          .leftJoin(assetTypes, eq(assetTypes.id, assets.assetTypeId))
+          .leftJoin(branches, eq(branches.id, assetTypes.branchId))
+          .where(and(...conditions))
+          .limit(limit)
+          .offset(offset);
+      } else {
+        query = client
+          .select()
+          .from(policies)
+          .where(and(...conditions))
+          .limit(limit)
+          .offset(offset);
+      }
+
+      const rows = await query;
+      const items: PolicyDetailedItem[] = (rows || []).map((row: any) => {
+        if (!row.policy) {
+          return row;
+        }
+        return {
+          id: row.policy.id,
+          policyNumber: row.policy.policyNumber || '-',
+          companyId: row.policy.companyId || '',
+          companyName: row.company?.name || '-',
+          branchId: row.assetType?.branchId || '',
+          branchName: row.branch?.name || '-',
+          assetDescription: formatAssetDescription({
+            properties: row.asset?.properties as any,
+            assetTypeName: row.assetType?.name,
+            assetTypeCode: row.assetType?.code,
+          }),
+          startDate: row.policy.startDate || row.policy.createdAt,
+          endDate: row.policy.endDate || row.policy.createdAt,
+          status: row.policy.status as any,
+          premiumTotal: row.policy.premiumTotal,
+          currency: row.policy.currency,
+          billingFrequency: row.policy.billingFrequency,
+        };
+      });
+
+      return {
+        items,
+        total: items.length,
+      };
     },
   };
 }

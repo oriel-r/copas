@@ -145,6 +145,76 @@ describe('installments.routes', () => {
       )
     })
 
+    it('should return all installments for a specific policyId with status=all without restricting dueDate', async () => {
+      const policyId = '018f9e2b-2222-7000-8000-000000000002'
+      const mockResponse: InstallmentsDetailedResponse = {
+        appliedFilters: {
+          dueDate: null,
+          status: 'all',
+          companyId: null,
+          insuredId: null,
+        },
+        total: 3,
+        items: [
+          {
+            installmentId: '018f9e2b-1111-7000-8000-000000000001',
+            policyId,
+            policyNumber: 'POL-12345',
+            installmentNumber: 1,
+            insuredName: 'JUAN PEREZ',
+            companyName: 'FEDERACION PATRONAL',
+            assetDescription: 'TOYOTA COROLLA (AB123CD)',
+            totalAmount: 125000,
+            currency: 'ARS',
+            dueDate: '2025-12-15',
+            status: 'paid',
+          },
+          {
+            installmentId: '018f9e2b-1111-7000-8000-000000000002',
+            policyId,
+            policyNumber: 'POL-12345',
+            installmentNumber: 2,
+            insuredName: 'JUAN PEREZ',
+            companyName: 'FEDERACION PATRONAL',
+            assetDescription: 'TOYOTA COROLLA (AB123CD)',
+            totalAmount: 125000,
+            currency: 'ARS',
+            dueDate: '2026-01-15',
+            status: 'pending',
+          },
+          {
+            installmentId: '018f9e2b-1111-7000-8000-000000000003',
+            policyId,
+            policyNumber: 'POL-12345',
+            installmentNumber: 3,
+            insuredName: 'JUAN PEREZ',
+            companyName: 'FEDERACION PATRONAL',
+            assetDescription: 'TOYOTA COROLLA (AB123CD)',
+            totalAmount: 125000,
+            currency: 'ARS',
+            dueDate: '2026-02-15',
+            status: 'pending',
+          },
+        ],
+      }
+      mockPolicyInstallmentsService.listInstallments.mockResolvedValueOnce(mockResponse)
+
+      const res = await app.request(`/installments?policyId=${policyId}&status=all`)
+
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data).toEqual(mockResponse)
+      expect(mockPolicyInstallmentsService.listInstallments).toHaveBeenCalledWith(
+        expect.objectContaining({
+          policyId,
+          status: 'all',
+          dueDate: undefined,
+        }),
+      )
+      const calledFilters = mockPolicyInstallmentsService.listInstallments.mock.calls[0][0]
+      expect(calledFilters.dueDate).toBeUndefined()
+    })
+
     it('should reject with 400 Bad Request when status query param is invalid', async () => {
       const res = await app.request('/installments?status=unsupported_status')
       expect(res.status).toBe(400)
