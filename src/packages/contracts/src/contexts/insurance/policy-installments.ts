@@ -83,6 +83,7 @@ export const installmentsFilterSchema = z.object({
 export const installmentDetailedItemSchema = z.object({
   installmentId: uuidV7Schema,
   policyId: uuidV7Schema,
+  insuredId: z.string().nullable().optional(),
   policyNumber: z.string().nullable(),
   installmentNumber: z.number().int(),
   insuredName: z.string(),

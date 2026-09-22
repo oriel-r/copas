@@ -3,10 +3,12 @@ import { AppShell } from '@/components/layout/app-shell'
 import { CarteraFilters } from '@/components/cartera/cartera-filters'
 import { InsuredsTable } from '@/components/cartera/insureds-table'
 import { useInsureds, useInsuredFilterOptions } from '@/lib/api/use-insureds'
+import { useInsuredDrawer } from '@/lib/hooks/use-insured-drawer'
 import type { InsuredsFilter } from '@copas/contracts'
 
 export const CarteraPage: React.FC = () => {
   const [filters, setFilters] = useState<InsuredsFilter>({})
+  const drawer = useInsuredDrawer()
   
   const { data: optionsData, isLoading: isLoadingOptions } = useInsuredFilterOptions()
   const { data: insuredsData, isLoading: isLoadingInsureds } = useInsureds(filters)
@@ -44,6 +46,7 @@ export const CarteraPage: React.FC = () => {
               total={insuredsData?.total || 0}
               limit={filters.limit || 50}
               offset={filters.offset || 0}
+              onSelectInsured={(id) => drawer.open(id)}
             />
           </div>
         </div>

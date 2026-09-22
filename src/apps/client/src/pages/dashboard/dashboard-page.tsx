@@ -5,6 +5,7 @@ import { useDocumentsUploadQueue } from '@/lib/api/use-documents-upload-queue'
 import { useGlobalDragDrop } from '@/lib/hooks/use-global-drag-drop'
 import { DueInstallmentsTable } from '@/components/dashboard/due-installments-table'
 import { DashboardStatsCard } from '@/components/dashboard/dashboard-stats-card'
+import { useInsuredDrawer } from '@/lib/hooks/use-insured-drawer'
 
 function getTodayDateString() {
   const dateStr = new Date().toLocaleDateString('es-AR', {
@@ -19,6 +20,7 @@ function getTodayDateString() {
 export function DashboardPage() {
 
   const uploadQueue = useDocumentsUploadQueue()
+  const drawer = useInsuredDrawer()
   
   const { isDragging } = useGlobalDragDrop({
     onFilesDropped: uploadQueue.enqueueFiles,
@@ -41,7 +43,7 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[2fr_1fr] gap-4 sm:gap-5 lg:gap-6 items-stretch w-full flex-1 min-h-0">
           {/* Bloque 1: Vencimientos del día (2/3 de la columna izquierda en desktop, 1° en mobile) */}
           <div className="order-1 lg:col-start-1 lg:col-end-3 lg:row-start-1 lg:row-end-2 min-h-0 flex flex-col">
-            <DueInstallmentsTable className="h-full" />
+            <DueInstallmentsTable className="h-full" onSelectInsured={(id) => drawer.open(id)} />
           </div>
 
           {/* Bloque 2: Estadísticas de la cartera (1/3 derecho en desktop ocupando ambas filas, 2° en mobile) */}

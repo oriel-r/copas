@@ -106,3 +106,105 @@ Contract definitions and frontend architecture to enable decoupled parallel deve
 | `PATCH /insureds/:id` | `['insureds']`, `['insured', id]` | Updates Cartera table row & Drawer header |
 | `PUT /policies/:id` | `['insured', id]`, `['policies', { insuredId }]`, `['insureds']` | Updates policy status badge & Cartera counts |
 | `PATCH /installments/:id` | `['installments']`, `['installments', { policyId }]` | Updates Dashboard due installments & Drawer |
+
+### 2.4 TypeScript Component & Hook Contracts
+
+#### Navigation Hook (`@/lib/hooks/use-insured-drawer`)
+```typescript
+export interface UseInsuredDrawerReturn {
+  isOpen: boolean
+  insuredId: string | null
+  open: (id: string) => void
+  close: () => void
+}
+export function useInsuredDrawer(): UseInsuredDrawerReturn
+```
+
+#### API Hooks (`@/lib/api/use-insured-detail`)
+```typescript
+export function useInsuredDetail(id: string | null): UseQueryResult<InsuredDetailResponse, Error>
+export function useUpdateInsured(): UseMutationResult<InsuredResponse, Error, { id: string; data: UpdateInsuredRequest }>
+export function usePoliciesByInsured(insuredId: string | null, filters?: Partial<PoliciesFilter>): UseQueryResult<PoliciesDetailedResponse, Error>
+export function useUpdatePolicy(): UseMutationResult<PolicyResponse, Error, { id: string; insuredId: string; data: UpdatePolicyRequest }>
+export function usePolicyInstallments(policyId: string | null): UseQueryResult<InstallmentsDetailedResponse, Error>
+export function useToggleInstallmentStatus(): UseMutationResult<PolicyInstallment, Error, { installmentId: string; policyId: string; currentStatus: string }>
+```
+
+#### UI Components (`@/components/insured-detail`)
+- **`<InsuredDetailDrawer />`**:
+  ```typescript
+  export interface InsuredDetailDrawerProps {
+    insuredId?: string | null
+    isOpen?: boolean
+    onClose?: () => void
+  }
+  ```
+  - Behaves as modal dialog (`role="dialog"`, `aria-modal="true"`, `aria-labelledby="insured-drawer-title"`).
+  - Listens to `Escape` key to close.
+  - Clicking on backdrop closes drawer.
+  - Locks body scroll (`overflow: hidden`) when open.
+  - Shows loading skeleton, 404 error state, or content.
+
+- **`<DrawerHeader />`**:
+  ```typescript
+  export interface DrawerHeaderProps {
+    fullName: string
+    companies: string[]
+    activePoliciesCount: number
+    totalPoliciesCount: number
+    onClose: () => void
+  }
+  ```
+
+- **`<InsuredProfileCard />`**:
+  ```typescript
+  export interface InsuredProfileCardProps {
+    insured: InsuredDetailResponse
+    onUpdate?: (data: UpdateInsuredRequest) => Promise<void> | void
+    isUpdating?: boolean
+    error?: Error | null
+  }
+  ```
+  - Displays CUIT, phone, email, birthDate.
+  - "Editar" button switches to form with inputs and "Guardar" / "Cancelar".
+  - Validates CUIT (11 digits), birthDate (cannot be future), email.
+  - Displays error banner and contextual CUIT error on 409 conflict while keeping form open.
+
+- **`<PolicyItemCard />`**:
+  ```typescript
+  export interface PolicyItemCardProps {
+    policy: InsuredPolicySummary | PolicyDetailedItem
+    insuredId: string
+    isLatestActive?: boolean
+    onUpdatePolicy?: (data: UpdatePolicyRequest) => Promise<void> | void
+    isUpdating?: boolean
+  }
+  ```
+  - Displays policy info and badge (`isLatestActive`).
+  - "Editar" button allows editing policyNumber, status, startDate, endDate, premiumTotal, currency.
+  - Validates `startDate <= endDate`.
+  - Embeds `<InstallmentsAccordion policyId={policy.id} />`.
+
+- **`<InstallmentsAccordion />`**:
+  ```typescript
+  export interface InstallmentsAccordionProps {
+    policyId: string
+    defaultOpen?: boolean
+  }
+  ```
+  - Collapsible section with lazy fetch of installments on toggle.
+  - Displays installment number, dueDate, formatted amount, status badge (`paid`, `pending`, `overdue`).
+  - Action button to toggle status (`pending` <-> `paid`).
+
+- **`<AdditionalPoliciesSection />`**:
+  ```typescript
+  export interface AdditionalPoliciesSectionProps {
+    insuredId: string
+    totalPoliciesCount: number
+    alreadyLoadedCount: number
+    onUpdatePolicy?: (policyId: string, data: UpdatePolicyRequest) => Promise<void> | void
+  }
+  ```
+  - Renders "Ver más pólizas" button when remaining policies exist.
+  - Lazily loads policies on click and renders `<PolicyItemCard />` for each.
+

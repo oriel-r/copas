@@ -9,6 +9,7 @@ export interface DueInstallmentsTableProps {
   onMarkAsPaid?: (id: string) => void;
   isMutating?: boolean | ((id: string) => boolean);
   className?: string;
+  onSelectInsured?: (insuredId: string) => void;
 }
 
 function DueInstallmentsTableView({
@@ -16,7 +17,8 @@ function DueInstallmentsTableView({
   isLoading,
   onMarkAsPaid,
   isMutating,
-  className
+  className,
+  onSelectInsured,
 }: DueInstallmentsTableProps) {
   const data = items ?? [];
   const loading = isLoading;
@@ -64,7 +66,19 @@ function DueInstallmentsTableView({
               <tbody className="divide-y divide-border">
                 {data.map((item) => (
                   <tr key={item.installmentId} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-3 py-2.5 font-medium">{item.insuredName}</td>
+                    <td className="px-3 py-2.5 font-medium">
+                      {onSelectInsured && item.insuredId ? (
+                        <button
+                          type="button"
+                          className="hover:underline cursor-pointer focus:outline-hidden text-left"
+                          onClick={() => onSelectInsured(item.insuredId!)}
+                        >
+                          {item.insuredName}
+                        </button>
+                      ) : (
+                        item.insuredName
+                      )}
+                    </td>
                     <td className="px-3 py-2.5">{item.companyName}</td>
                     <td className="px-3 py-2.5">{item.assetDescription}</td>
                     <td className="px-3 py-2.5 text-right font-medium">
