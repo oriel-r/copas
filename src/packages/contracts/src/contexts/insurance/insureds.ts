@@ -5,7 +5,6 @@ import { insureds } from '@copas/db'
 
 import {
   cuitSchema,
-  dateCivilSchema,
   nullableDateSchema,
   nullableEmailSchema,
   nullablePhoneSchema,
@@ -29,9 +28,9 @@ export const insuredsSelectSchema = createSelectSchema(insureds, {
   organizationId: () => uuidV7Schema,
   uploadedBy: () => uuidV7Schema,
   cuit: () => cuitSchema,
-  phone: () => z.string().regex(/^\+?[\d\s()-]{6,20}$/),
-  email: () => z.email(),
-  birthDate: () => dateCivilSchema,
+  phone: () => nullablePhoneSchema,
+  email: () => nullableEmailSchema,
+  birthDate: () => nullableDateSchema,
 })
 
 export const insuredsUpdateSchema = createUpdateSchema(insureds, {
@@ -39,9 +38,9 @@ export const insuredsUpdateSchema = createUpdateSchema(insureds, {
   organizationId: () => uuidV7Schema,
   uploadedBy: () => uuidV7Schema,
   cuit: () => cuitSchema,
-  phone: () => z.string().regex(/^\+?[\d\s()-]{6,20}$/),
-  email: () => z.email(),
-  birthDate: () => dateCivilSchema,
+  phone: () => nullablePhoneSchema,
+  email: () => nullableEmailSchema,
+  birthDate: () => nullableDateSchema,
 })
 
 const serverControlled = {

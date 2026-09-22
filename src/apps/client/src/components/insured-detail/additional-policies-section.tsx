@@ -8,7 +8,9 @@ export interface AdditionalPoliciesSectionProps {
   insuredId: string
   totalPoliciesCount: number
   alreadyLoadedCount: number
-  onUpdatePolicy?: (policyId: string, data: UpdatePolicyRequest) => Promise<void> | void
+  onUpdatePolicy?: (policyId: string, data: Partial<UpdatePolicyRequest>) => Promise<void> | void
+  updatingPolicyId?: string | null
+  updateError?: Error | null
 }
 
 export const AdditionalPoliciesSection: React.FC<AdditionalPoliciesSectionProps> = ({
@@ -16,6 +18,8 @@ export const AdditionalPoliciesSection: React.FC<AdditionalPoliciesSectionProps>
   totalPoliciesCount,
   alreadyLoadedCount,
   onUpdatePolicy,
+  updatingPolicyId,
+  updateError,
 }) => {
   const [shouldFetch, setShouldFetch] = useState(false)
   const { data, isLoading, error } = usePoliciesByInsured(shouldFetch ? insuredId : null)
@@ -67,6 +71,8 @@ export const AdditionalPoliciesSection: React.FC<AdditionalPoliciesSectionProps>
                   insuredId={insuredId}
                   isLatestActive={false}
                   onUpdatePolicy={onUpdatePolicy ? (d) => onUpdatePolicy(policy.id, d) : undefined}
+                  isUpdating={updatingPolicyId === policy.id}
+                  error={updatingPolicyId === policy.id ? updateError : null}
                 />
               ))}
             </div>

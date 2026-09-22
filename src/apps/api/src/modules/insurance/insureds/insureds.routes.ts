@@ -59,31 +59,39 @@ export const createInsuredsRouter = (deps?: { insuredsService?: InsuredsService 
       }
       return c.json(result, 200)
     })
-    .patch('/:id', zValidator('json', updateInsuredRequestSchema), async (c) => {
-      const orgId = c.get('organizationId' as any)
-      if (!orgId) {
-        return c.json({ error: 'Organization required' }, 401)
+    .patch(
+      '/:id',
+      zValidator('json', updateInsuredRequestSchema, (result, c) => {
+        if (!result.success) {
+          return c.json({ error: 'Bad Request', message: 'Datos de asegurado inválidos', details: result.error.issues }, 400)
+        }
+      }),
+      async (c) => {
+        const orgId = c.get('organizationId' as any)
+        if (!orgId) {
+          return c.json({ error: 'Organization required' }, 401)
+        }
+        
+        const service = getService(c)
+        const id = c.req.param('id')
+        const body = c.req.valid('json')
+        try {
+          const result = await service.updateProfile(id, body)
+          if (!result) {
+            return c.json({ error: 'Insured not found' }, 404)
+          }
+          return c.json(result, 200)
+        } catch (err: any) {
+          if (err.message === 'CUIT already registered' || err.code === 'CONFLICT' || err.status === 409) {
+            return c.json({ error: 'Conflict', message: 'CUIT already registered' }, 409)
+          }
+          if (err.message === 'Insured not found' || err.status === 404) {
+            return c.json({ error: 'Insured not found' }, 404)
+          }
+          throw err
+        }
       }
-      
-      const service = getService(c)
-      const id = c.req.param('id')
-      const body = c.req.valid('json')
-      try {
-        const result = await service.updateProfile(id, body)
-        if (!result) {
-          return c.json({ error: 'Insured not found' }, 404)
-        }
-        return c.json(result, 200)
-      } catch (err: any) {
-        if (err.message === 'CUIT already registered' || err.code === 'CONFLICT' || err.status === 409) {
-          return c.json({ error: 'Conflict', message: 'CUIT already registered' }, 409)
-        }
-        if (err.message === 'Insured not found' || err.status === 404) {
-          return c.json({ error: 'Insured not found' }, 404)
-        }
-        throw err
-      }
-    })
+    )
 
   return router
 }

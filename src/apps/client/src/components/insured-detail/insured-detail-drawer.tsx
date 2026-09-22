@@ -71,7 +71,7 @@ const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClos
     })
   }
 
-  const handleUpdatePolicy = async (policyId: string, data: UpdatePolicyRequest) => {
+  const handleUpdatePolicy = async (policyId: string, data: Partial<UpdatePolicyRequest>) => {
     await updatePolicyMutation.mutateAsync({
       id: policyId,
       insuredId: activeInsuredId,
@@ -149,7 +149,8 @@ const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClos
                     insuredId={insured.id}
                     isLatestActive={true}
                     onUpdatePolicy={(data) => handleUpdatePolicy(insured.latestPolicy!.id, data)}
-                    isUpdating={updatePolicyMutation.isPending}
+                    isUpdating={updatePolicyMutation.isPending && (updatePolicyMutation.variables as any)?.id === insured.latestPolicy.id}
+                    error={(updatePolicyMutation.variables as any)?.id === insured.latestPolicy.id ? updatePolicyMutation.error : null}
                   />
                 ) : (
                   <div className="p-4 text-center text-xs text-muted-foreground bg-muted/20 border border-border rounded-lg">
@@ -163,6 +164,8 @@ const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClos
                     totalPoliciesCount={insured.totalPoliciesCount}
                     alreadyLoadedCount={insured.latestPolicy ? 1 : 0}
                     onUpdatePolicy={handleUpdatePolicy}
+                    updatingPolicyId={updatePolicyMutation.isPending ? (updatePolicyMutation.variables as any)?.id : null}
+                    updateError={updatePolicyMutation.error}
                   />
                 )}
               </div>

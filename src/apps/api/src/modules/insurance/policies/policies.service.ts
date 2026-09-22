@@ -525,7 +525,11 @@ export function createPoliciesService(
     },
 
     update: async (id: string, data: any, tx?: any): Promise<any> => {
-      if (typeof repo.update === 'function') return await repo.update(id, data, tx);
+      const payload = { ...data };
+      if (payload.status === 'cancelled') {
+        payload.status = 'canceled';
+      }
+      if (typeof repo.update === 'function') return await repo.update(id, payload, tx);
       throw new Error('update not implemented');
     },
 

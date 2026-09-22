@@ -17,7 +17,8 @@ export const injectAppServices = createMiddleware<AppEnv>(async (c, next) => {
     c.req.path.startsWith('/installments') ||
     c.req.path.startsWith('/reminder-rules') ||
     c.req.path.startsWith('/reminders') ||
-    c.req.path.startsWith('/portfolio');
+    c.req.path.startsWith('/portfolio') ||
+    c.req.path.startsWith('/insureds');
   if (needsOrg && !organizationId) {
     throw new HTTPException(401, { message: 'organization required - set active organization' });
   }
