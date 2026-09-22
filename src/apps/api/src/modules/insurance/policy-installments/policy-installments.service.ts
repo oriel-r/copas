@@ -46,7 +46,8 @@ export function createPolicyInstallmentsService(repository: PolicyInstallmentsRe
     },
 
     listInstallments: async (filters: any, tx?: any): Promise<any> => {
-      const dueDate = filters.dueDate ?? new Date().toISOString().split('T')[0];
+      const isFilteredByTarget = Boolean(filters.policyId || filters.insuredId || filters.status === 'all');
+      const dueDate = filters.dueDate !== undefined ? filters.dueDate : (isFilteredByTarget ? undefined : new Date().toISOString().split('T')[0]);
       const status = filters.status ?? 'pending';
       const itemsRaw = await repo.findWithDetails({ ...filters, dueDate, status }, tx);
       const items = itemsRaw.map((row: any) => {
@@ -69,7 +70,7 @@ export function createPolicyInstallmentsService(repository: PolicyInstallmentsRe
       });
       return {
         appliedFilters: {
-          dueDate,
+          dueDate: dueDate ?? null,
           status,
           companyId: filters.companyId ?? null,
           insuredId: filters.insuredId ?? null,

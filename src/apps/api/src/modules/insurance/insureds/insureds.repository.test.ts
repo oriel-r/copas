@@ -240,6 +240,104 @@ describe('insureds.repository', () => {
       expect(mockDb.select).not.toHaveBeenCalled()
     })
   })
+
+  describe('findByIdWithDetails', () => {
+    it('should return insured with their policies, company, and branch details', async () => {
+      const insuredWithDetails = {
+        id: 'ins-1',
+        organizationId: 'org-1',
+        uploadedBy: 'usr-1',
+        cuit: '20-30000000-3',
+        fullName: 'JUAN PEREZ',
+        phone: '+541112345678',
+        email: 'juan@example.com',
+        birthDate: '1985-05-15',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        policies: [
+          {
+            id: 'pol-1',
+            policyNumber: 'POL-100',
+            companyId: 'comp-1',
+            companyName: 'Federación Patronal',
+            branchId: 'br-1',
+            branchName: 'Automotores',
+            assetDescription: 'Toyota Corolla',
+            startDate: '2026-01-01',
+            endDate: '2027-01-01',
+            status: 'active',
+          },
+        ],
+      }
+      mockDb.limit.mockResolvedValueOnce([insuredWithDetails])
+
+      const result = await repository.findByIdWithDetails('ins-1')
+      expect(result).toBeDefined()
+      expect(result?.id).toBe('ins-1')
+      expect(result?.policies).toHaveLength(1)
+    })
+
+    it('should return null when insured not found', async () => {
+      mockDb.limit.mockResolvedValueOnce([])
+
+      const result = await repository.findByIdWithDetails('ins-999')
+      expect(result).toBeNull()
+    })
+
+    it('should return null if insured is soft-deleted', async () => {
+      mockDb.limit.mockResolvedValueOnce([])
+
+      const result = await repository.findByIdWithDetails('ins-deleted')
+      expect(result).toBeNull()
+    })
+
+    it('should use transaction tx if provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([]),
+      }
+
+      const result = await repository.findByIdWithDetails('ins-1', mockTx as any)
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('findByCuitExcludingId', () => {
+    it('should return insured when another insured with the same CUIT exists in organization', async () => {
+      const otherInsured = {
+        id: 'ins-2',
+        organizationId: 'org-1',
+        cuit: '20-30000000-3',
+        fullName: 'OTRO ASEGURADO',
+      }
+      mockDb.limit.mockResolvedValueOnce([otherInsured])
+
+      const result = await repository.findByCuitExcludingId('org-1', '20-30000000-3', 'ins-1')
+      expect(result).toEqual(otherInsured)
+    })
+
+    it('should return null if no other insured has the CUIT in the organization', async () => {
+      mockDb.limit.mockResolvedValueOnce([])
+
+      const result = await repository.findByCuitExcludingId('org-1', '20-30000000-3', 'ins-1')
+      expect(result).toBeNull()
+    })
+
+    it('should use transaction tx if provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([]),
+      }
+
+      const result = await repository.findByCuitExcludingId('org-1', '20-30000000-3', 'ins-1', mockTx as any)
+      expect(result).toBeNull()
+    })
+  })
 })
 
 
