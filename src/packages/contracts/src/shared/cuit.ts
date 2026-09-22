@@ -17,5 +17,16 @@ function validCuit(cuit: string): boolean {
 
 export const cuitSchema = z
   .string()
-  .regex(/^\d{2}-\d{8}-\d$/, 'CUIT inválido (formato XX-XXXXXXXX-X)')
-  .refine(validCuit, 'CUIT inválido (dígito verificador incorrecto)')
+  .transform((val) => {
+    const clean = val.replace(/\D/g, '')
+    if (clean.length === 11 && !val.includes('-')) {
+      return `${clean.slice(0, 2)}-${clean.slice(2, 10)}-${clean.slice(10)}`
+    }
+    return val.trim()
+  })
+  .pipe(
+    z
+      .string()
+      .regex(/^\d{2}-\d{8}-\d$/, 'CUIT inválido (formato XX-XXXXXXXX-X)')
+      .refine(validCuit, 'CUIT inválido (dígito verificador incorrecto)')
+  )

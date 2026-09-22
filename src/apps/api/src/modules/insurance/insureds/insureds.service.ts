@@ -77,7 +77,9 @@ export function createInsuredsService(repository: InsuredsRepository | { insured
         return null;
       }
       if (data.cuit !== undefined && data.cuit !== null && data.cuit.trim() !== '') {
-        if (data.cuit !== existing.cuit) {
+        const cleanNew = data.cuit.replace(/\D/g, '');
+        const cleanExisting = (existing.cuit || '').replace(/\D/g, '');
+        if (cleanNew !== cleanExisting) {
           const conflict = await repo.findByCuitExcludingId(existing.organizationId, data.cuit, id, tx);
           if (conflict) {
             throw new Error('CUIT already registered');

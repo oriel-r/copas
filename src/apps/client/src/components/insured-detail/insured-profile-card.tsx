@@ -71,11 +71,16 @@ export const InsuredProfileCard: React.FC<InsuredProfileCardProps> = ({
     if (!validate()) return
     if (onUpdate) {
       try {
+        const cleanCuit = formData.cuit ? formData.cuit.replace(/\D/g, '') : ''
+        const formattedCuit = cleanCuit.length === 11
+          ? `${cleanCuit.slice(0, 2)}-${cleanCuit.slice(2, 10)}-${cleanCuit.slice(10)}`
+          : (formData.cuit ? formData.cuit.trim() : undefined)
+
         await onUpdate({
           fullName: formData.fullName.trim(),
-          cuit: formData.cuit ? formData.cuit.trim() : undefined,
-          phone: formData.phone ? formData.phone.trim() : null,
-          email: formData.email ? formData.email.trim() : null,
+          cuit: formattedCuit,
+          phone: formData.phone?.trim() ? formData.phone.trim() : null,
+          email: formData.email?.trim() ? formData.email.trim() : null,
           birthDate: formData.birthDate || null,
         })
         setIsEditing(false)

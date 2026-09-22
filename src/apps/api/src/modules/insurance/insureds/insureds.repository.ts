@@ -342,12 +342,14 @@ export function createInsuredsRepository(db: D1Database | any, organizationId: s
 
     findByCuitExcludingId: async (orgId: string, cuit: string, excludeId: string, tx?: any): Promise<Insured | null> => {
       const client = getClient(db, tx);
+      const clean = cuit.replace(/\D/g, '');
+      const formatted = clean.length === 11 ? `${clean.slice(0, 2)}-${clean.slice(2, 10)}-${clean.slice(10)}` : cuit;
       const rows = await client
         .select()
         .from(insureds)
         .where(and(
           eq(insureds.organizationId, orgId), 
-          eq(insureds.cuit, cuit), 
+          inArray(insureds.cuit, [cuit, clean, formatted]),
           ne(insureds.id, excludeId),
           isNull(insureds.deletedAt)
         ))

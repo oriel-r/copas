@@ -183,11 +183,16 @@ export function useUpdateInsured(): UseMutationResult<
       })
 
       if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
         if (res.status === 409) {
-          const errData = await res.json().catch(() => ({}))
           throw new Error(errData.message || 'El CUIT ya se encuentra registrado')
         }
-        throw new Error('Error al actualizar asegurado')
+        const issuesMsg = Array.isArray(errData.details)
+          ? errData.details.map((d: any) => d.message).join(', ')
+          : Array.isArray(errData.error?.issues)
+          ? errData.error.issues.map((i: any) => i.message).join(', ')
+          : null
+        throw new Error(issuesMsg || errData.message || errData.error || 'Error al actualizar asegurado')
       }
       return (await res.json()) as InsuredResponse
     },
