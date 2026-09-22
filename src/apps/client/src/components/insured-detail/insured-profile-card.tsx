@@ -71,18 +71,48 @@ export const InsuredProfileCard: React.FC<InsuredProfileCardProps> = ({
     if (!validate()) return
     if (onUpdate) {
       try {
-        const cleanCuit = formData.cuit ? formData.cuit.replace(/\D/g, '') : ''
-        const formattedCuit = cleanCuit.length === 11
-          ? `${cleanCuit.slice(0, 2)}-${cleanCuit.slice(2, 10)}-${cleanCuit.slice(10)}`
-          : (formData.cuit ? formData.cuit.trim() : undefined)
+        const dirty: Partial<UpdateInsuredRequest> = {}
 
-        await onUpdate({
-          fullName: formData.fullName.trim(),
-          cuit: formattedCuit,
-          phone: formData.phone?.trim() ? formData.phone.trim() : null,
-          email: formData.email?.trim() ? formData.email.trim() : null,
-          birthDate: formData.birthDate || null,
-        })
+        const trimmedName = formData.fullName.trim()
+        if (trimmedName !== (insured.fullName || '').trim()) {
+          dirty.fullName = trimmedName
+        }
+
+        const cleanCuit = formData.cuit ? formData.cuit.replace(/\D/g, '') : ''
+        const originalCleanCuit = (insured.cuit || '').replace(/\D/g, '')
+        if (cleanCuit !== originalCleanCuit) {
+          const formattedCuit = cleanCuit.length === 11
+            ? `${cleanCuit.slice(0, 2)}-${cleanCuit.slice(2, 10)}-${cleanCuit.slice(10)}`
+            : (formData.cuit ? formData.cuit.trim() : undefined)
+          if (formattedCuit) {
+            dirty.cuit = formattedCuit
+          }
+        }
+
+        const trimmedPhone = formData.phone?.trim() ? formData.phone.trim() : null
+        const originalPhone = (insured.phone || '').trim() || null
+        if (trimmedPhone !== originalPhone) {
+          dirty.phone = trimmedPhone
+        }
+
+        const trimmedEmail = formData.email?.trim() ? formData.email.trim() : null
+        const originalEmail = (insured.email || '').trim() || null
+        if (trimmedEmail !== originalEmail) {
+          dirty.email = trimmedEmail
+        }
+
+        const birthDateVal = formData.birthDate || null
+        const originalBirthDate = insured.birthDate || null
+        if (birthDateVal !== originalBirthDate) {
+          dirty.birthDate = birthDateVal
+        }
+
+        if (Object.keys(dirty).length === 0) {
+          setIsEditing(false)
+          return
+        }
+
+        await onUpdate(dirty as UpdateInsuredRequest)
         setIsEditing(false)
       } catch {
         // error is handled via prop

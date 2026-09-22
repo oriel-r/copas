@@ -233,22 +233,28 @@ export function usePoliciesByInsured(
 export function useUpdatePolicy(): UseMutationResult<
   PolicyResponse,
   Error,
-  { id: string; insuredId: string; data: UpdatePolicyRequest }
+  { id: string; insuredId: string; data: Partial<UpdatePolicyRequest> }
 > {
   const queryClient = useQueryClient()
 
-  return useMutation<PolicyResponse, Error, { id: string; insuredId: string; data: UpdatePolicyRequest }>({
+  return useMutation<PolicyResponse, Error, { id: string; insuredId: string; data: Partial<UpdatePolicyRequest> }>({
     mutationFn: async ({ id, data }) => {
       if (isDemoMode()) {
         return { id, ...data } as unknown as PolicyResponse
       }
 
-      const res = await (apiClient.policies as any)[':id'].$put({
+      const res = await (apiClient.policies as any)[':id'].$patch({
         param: { id },
         json: data,
       })
       if (!res.ok) {
-        throw new Error('Error al actualizar póliza')
+        const errData = await res.json().catch(() => ({}))
+        const issuesMsg = Array.isArray(errData.details)
+          ? errData.details.map((d: any) => d.message).join(', ')
+          : Array.isArray(errData.error?.issues)
+          ? errData.error.issues.map((i: any) => i.message).join(', ')
+          : null
+        throw new Error(issuesMsg || errData.message || errData.error || 'Error al actualizar póliza')
       }
       return (await res.json()) as PolicyResponse
     },

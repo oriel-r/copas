@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { InsuredPolicySummary, PolicyDetailedItem, UpdatePolicyRequest } from '@copas/contracts'
-import { Card, CardHeader, CardTitle, CardContent, Button } from '@copas/ui'
+import { Card, CardHeader, CardTitle, CardContent, Button, Alert } from '@copas/ui'
 import { formatCurrency } from '@/lib/formatters'
 import { InstallmentsAccordion } from './installments-accordion'
 
@@ -8,8 +8,9 @@ export interface PolicyItemCardProps {
   policy: InsuredPolicySummary | PolicyDetailedItem
   insuredId: string
   isLatestActive?: boolean
-  onUpdatePolicy?: (data: UpdatePolicyRequest) => Promise<void> | void
+  onUpdatePolicy?: (data: Partial<UpdatePolicyRequest>) => Promise<void> | void
   isUpdating?: boolean
+  error?: Error | null
 }
 
 export const PolicyItemCard: React.FC<PolicyItemCardProps> = ({
@@ -18,14 +19,17 @@ export const PolicyItemCard: React.FC<PolicyItemCardProps> = ({
   isLatestActive = false,
   onUpdatePolicy,
   isUpdating = false,
+  error = null,
 }) => {
   const [isEditing, setIsEditing] = useState(false)
+  const getInitialStatus = (status?: string) => (status === 'cancelled' ? 'canceled' : status || 'active')
+
   const [formData, setFormData] = useState({
     policyNumber: policy.policyNumber || '',
-    status: policy.status || 'active',
+    status: getInitialStatus(policy.status),
     startDate: policy.startDate || '',
     endDate: policy.endDate || '',
-    premiumTotal: (policy as any).premiumTotal ? String((policy as any).premiumTotal) : '',
+    premiumTotal: (policy as any).premiumTotal !== undefined && (policy as any).premiumTotal !== null ? String((policy as any).premiumTotal) : '',
     currency: (policy as any).currency || 'ARS',
   })
   const [dateError, setDateError] = useState<string | null>(null)
@@ -33,10 +37,10 @@ export const PolicyItemCard: React.FC<PolicyItemCardProps> = ({
   const handleEditClick = () => {
     setFormData({
       policyNumber: policy.policyNumber || '',
-      status: policy.status || 'active',
+      status: getInitialStatus(policy.status),
       startDate: policy.startDate || '',
       endDate: policy.endDate || '',
-      premiumTotal: (policy as any).premiumTotal ? String((policy as any).premiumTotal) : '',
+      premiumTotal: (policy as any).premiumTotal !== undefined && (policy as any).premiumTotal !== null ? String((policy as any).premiumTotal) : '',
       currency: (policy as any).currency || 'ARS',
     })
     setDateError(null)
@@ -62,15 +66,55 @@ export const PolicyItemCard: React.FC<PolicyItemCardProps> = ({
     if (!validate()) return
 
     if (onUpdatePolicy) {
-      await onUpdatePolicy({
-        policyNumber: formData.policyNumber.trim(),
-        status: formData.status as any,
-        startDate: formData.startDate || null,
-        endDate: formData.endDate || null,
-        premiumTotal: formData.premiumTotal ? Number(formData.premiumTotal) : undefined,
-        currency: formData.currency as any,
-      })
-      setIsEditing(false)
+      const dirty: Partial<UpdatePolicyRequest> = {}
+
+      const trimmedNumber = formData.policyNumber.trim()
+      if (trimmedNumber !== (policy.policyNumber || '').trim()) {
+        dirty.policyNumber = trimmedNumber
+      }
+
+      const originalStatus = getInitialStatus(policy.status)
+      if (formData.status !== originalStatus) {
+        dirty.status = formData.status as any
+      }
+
+      const newStart = formData.startDate || null
+      const originalStart = policy.startDate || null
+      if (newStart !== originalStart) {
+        dirty.startDate = newStart
+      }
+
+      const newEnd = formData.endDate || null
+      const originalEnd = policy.endDate || null
+      if (newEnd !== originalEnd) {
+        dirty.endDate = newEnd
+      }
+
+      const newPremium = formData.premiumTotal ? Number(formData.premiumTotal) : undefined
+      const originalPremium = (policy as any).premiumTotal !== undefined && (policy as any).premiumTotal !== null
+        ? Number((policy as any).premiumTotal)
+        : undefined
+      if (newPremium !== originalPremium) {
+        dirty.premiumTotal = newPremium
+      }
+
+      const newCurrency = formData.currency
+      const originalCurrency = (policy as any).currency || 'ARS'
+      if (newCurrency !== originalCurrency) {
+        dirty.currency = newCurrency as any
+      }
+
+      if (Object.keys(dirty).length === 0) {
+        setIsEditing(false)
+        return
+      }
+
+      try {
+        await onUpdatePolicy(dirty)
+        setIsEditing(false)
+      } catch {
+        // error handled via prop
+      }
     }
   }
 
@@ -94,6 +138,12 @@ export const PolicyItemCard: React.FC<PolicyItemCardProps> = ({
         )}
       </CardHeader>
       <CardContent className="p-4 pt-2">
+        {error && (
+          <div className="mb-3">
+            <Alert variant="destructive">{error.message || 'Error al actualizar póliza'}</Alert>
+          </div>
+        )}
+
         {isEditing ? (
           <form onSubmit={handleSubmit} className="space-y-3">
             {dateError && <div className="text-xs text-destructive">{dateError}</div>}
@@ -124,7 +174,7 @@ export const PolicyItemCard: React.FC<PolicyItemCardProps> = ({
                 >
                   <option value="active">Activa</option>
                   <option value="expired">Vencida</option>
-                  <option value="cancelled">Cancelada</option>
+                  <option value="canceled">Cancelada</option>
                 </select>
               </div>
             </div>
