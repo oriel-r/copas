@@ -549,8 +549,8 @@ export function createPoliciesService(
       return await repo.list(params, tx);
     },
 
-    listDetailed: async (_filters: PoliciesFilter, _tx?: any): Promise<PoliciesDetailedResponse> => {
-      throw new Error('Not implemented: listDetailed');
+    listDetailed: async (filters: PoliciesFilter, tx?: any): Promise<PoliciesDetailedResponse> => {
+      return await repo.findWithDetails(filters, tx);
     },
   };
 }

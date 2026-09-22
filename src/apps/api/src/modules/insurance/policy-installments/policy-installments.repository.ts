@@ -146,6 +146,7 @@ export function createPolicyInstallmentsRepository(db: D1Database | any, organiz
           currency: policyInstallments.currency,
           status: policyInstallments.status,
           policyId: policies.id,
+          insuredId: insureds.id,
           policyNumber: policies.policyNumber,
           companyName: companies.name,
           insuredFullName: insureds.fullName,
