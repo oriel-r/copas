@@ -116,3 +116,12 @@ export const insuredFilterOptionsSchema = z.object({
 })
 
 export type InsuredFilterOptions = z.infer<typeof insuredFilterOptionsSchema>
+
+export const insuredDetailResponseSchema = insuredResponseSchema.extend({
+  companies: z.array(z.string()),
+  activePoliciesCount: z.number(),
+  totalPoliciesCount: z.number(),
+  latestPolicy: insuredPolicySummarySchema.nullable(),
+})
+
+export type InsuredDetailResponse = z.infer<typeof insuredDetailResponseSchema>

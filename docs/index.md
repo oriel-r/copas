@@ -23,6 +23,7 @@ Para la documentación técnica y de implementación, consulta el índice técni
 
 ## Pólizas
 - [Gestión de Cartera y Pólizas](/docs/polizas/cartera.md)
+- [Detalle de Asegurado (Drawer)](/docs/polizas/detalle_asegurado.md)
 
 ### Extracción con IA
 - [Servicio de Extracción Documental con IA](/docs/polizas/extraccion_ia/servicio.md)

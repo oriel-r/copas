@@ -13,6 +13,8 @@ supersededBy: ""
 
 Flujos del dominio asegurador.
 
+- [Ficha y Detalle de Asegurado (Drawer)](/docs/polizas/detalle_asegurado.md)
+
 ## Preguntas pendientes
 
 - ¿Transiciones de estado de la póliza (`active`, `overdue`, `expired`, `renewed`, `canceled`)?
