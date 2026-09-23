@@ -1,10 +1,16 @@
+import type { ComponentType } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import * as ComponentModule from './due-installments-table'
-import type { InstallmentDetailedItem } from '@copas/contracts'
+import type { InstallmentDetailedItem, ReminderDispatchSummary } from '@copas/contracts'
+
+const componentExports = ComponentModule as {
+  DueInstallmentsTable?: ComponentType<Record<string, unknown>>
+  default?: ComponentType<Record<string, unknown>>
+}
 
 const DueInstallmentsTable =
-  (ComponentModule as any).DueInstallmentsTable ?? (ComponentModule as any).default
+  componentExports.DueInstallmentsTable ?? componentExports.default ?? (() => null)
 
 describe('DueInstallmentsTable', () => {
   const mockItems: InstallmentDetailedItem[] = [
@@ -143,4 +149,283 @@ describe('DueInstallmentsTable', () => {
       expect(screen.getByText('JUAN CARLOS PEREZ')).toBeInTheDocument()
     })
   })
+
+  describe('Batch manual reminder dispatch (Lote)', () => {
+    let mockOnDispatchBatch: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      mockOnDispatchBatch = vi.fn()
+    })
+
+    it('T-01: should render "Enviar recordatorios de hoy" button in header when there are pending installments', () => {
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchBatch={mockOnDispatchBatch}
+        />,
+      )
+
+      const batchButton = screen.getByRole('button', { name: /enviar recordatorios de hoy/i })
+      expect(batchButton).toBeInTheDocument()
+      expect(batchButton).toBeEnabled()
+    })
+
+    it('T-02: should disable batch button when there are no pending installments', () => {
+      const allPaidItems: InstallmentDetailedItem[] = [
+        { ...mockItems[0], status: 'paid' },
+        { ...mockItems[1], status: 'paid' },
+      ]
+
+      render(
+        <DueInstallmentsTable
+          items={allPaidItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchBatch={mockOnDispatchBatch}
+        />,
+      )
+
+      const batchButton = screen.getByRole('button', { name: /enviar recordatorios/i })
+      expect(batchButton).toBeDisabled()
+    })
+
+    it('T-03: should disable batch button and show "Enviando recordatorios..." when isDispatchingBatch is true', () => {
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchBatch={mockOnDispatchBatch}
+          isDispatchingBatch={true}
+        />,
+      )
+
+      const batchButton = screen.getByRole('button', {
+        name: /enviando recordatorios|enviar recordatorios/i,
+      })
+      expect(batchButton).toBeDisabled()
+      expect(screen.getByText(/enviando recordatorios/i)).toBeInTheDocument()
+      expect(batchButton).toHaveAttribute('aria-busy', 'true')
+    })
+
+    it('T-04: should call onDispatchBatch callback when clicking batch button', () => {
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchBatch={mockOnDispatchBatch}
+        />,
+      )
+
+      const batchButton = screen.getByRole('button', { name: /enviar recordatorios de hoy/i })
+      fireEvent.click(batchButton)
+
+      expect(mockOnDispatchBatch).toHaveBeenCalledTimes(1)
+    })
+
+    it('T-08: should render inline Alert with batch summary breakdown (totalEnqueued, totalSkipped, etc.)', () => {
+      const summary: ReminderDispatchSummary = {
+        scheduledDate: '2026-09-23',
+        totalEvaluated: 12,
+        totalEnqueued: 10,
+        totalSkipped: 2,
+        totalAlreadySent: 1,
+        errors: [],
+      }
+
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          batchSummary={summary}
+        />,
+      )
+
+      const alert = screen.getByRole('alert')
+      expect(alert).toBeInTheDocument()
+      expect(within(alert).getByText(/10/)).toBeInTheDocument()
+      expect(within(alert).getByText(/2/)).toBeInTheDocument()
+    })
+
+    it('T-09: should allow dismissing/removing the alert banner when clicking close button', () => {
+      const mockOnDismissAlert = vi.fn()
+      const summary: ReminderDispatchSummary = {
+        scheduledDate: '2026-09-23',
+        totalEvaluated: 5,
+        totalEnqueued: 5,
+        totalSkipped: 0,
+        totalAlreadySent: 0,
+        errors: [],
+      }
+
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          batchSummary={summary}
+          onDismissAlert={mockOnDismissAlert}
+        />,
+      )
+
+      const alert = screen.getByRole('alert')
+      const closeButton = within(alert).getByRole('button', { name: /cerrar|close/i })
+      fireEvent.click(closeButton)
+
+      expect(mockOnDismissAlert).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('Individual manual reminder dispatch (Por cuota)', () => {
+    let mockOnDispatchInstallment: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      mockOnDispatchInstallment = vi.fn()
+    })
+
+    it('T-05: should render "Notificar" / WhatsApp button for each pending installment with accessible aria-label', () => {
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchInstallment={mockOnDispatchInstallment}
+        />,
+      )
+
+      const notifyBtn1 = screen.getByRole('button', {
+        name: /recordatorio.*whatsapp.*juan carlos perez|notificar.*juan carlos perez/i,
+      })
+      const notifyBtn2 = screen.getByRole('button', {
+        name: /recordatorio.*whatsapp.*maria elena lopez|notificar.*maria elena lopez/i,
+      })
+
+      expect(notifyBtn1).toBeInTheDocument()
+      expect(notifyBtn2).toBeInTheDocument()
+    })
+
+    it('T-06: should disable "Notificar" button for installments with status "paid"', () => {
+      const itemsWithPaid: InstallmentDetailedItem[] = [
+        {
+          ...mockItems[0],
+          status: 'paid',
+        },
+        mockItems[1],
+      ]
+
+      render(
+        <DueInstallmentsTable
+          items={itemsWithPaid}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchInstallment={mockOnDispatchInstallment}
+        />,
+      )
+
+      const notifyBtn1 = screen.getByRole('button', {
+        name: /recordatorio.*whatsapp.*juan carlos perez|notificar.*juan carlos perez/i,
+      })
+      expect(notifyBtn1).toBeDisabled()
+
+      const notifyBtn2 = screen.getByRole('button', {
+        name: /recordatorio.*whatsapp.*maria elena lopez|notificar.*maria elena lopez/i,
+      })
+      expect(notifyBtn2).toBeEnabled()
+    })
+
+    it('T-07: should display spinner or loading state exclusively on the row currently dispatching', () => {
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchInstallment={mockOnDispatchInstallment}
+          isDispatchingInstallment={(id: string) => id === mockItems[0].installmentId}
+        />,
+      )
+
+      const notifyBtn1 = screen.getByRole('button', {
+        name: /recordatorio.*whatsapp.*juan carlos perez|notificar.*juan carlos perez/i,
+      })
+      const notifyBtn2 = screen.getByRole('button', {
+        name: /recordatorio.*whatsapp.*maria elena lopez|notificar.*maria elena lopez/i,
+      })
+
+      const isRow1Loading =
+        notifyBtn1.getAttribute('aria-busy') === 'true' ||
+        notifyBtn1.querySelector('.animate-spin') !== null ||
+        notifyBtn1.hasAttribute('disabled')
+      expect(isRow1Loading).toBe(true)
+
+      expect(notifyBtn2).not.toHaveAttribute('aria-busy', 'true')
+      expect(notifyBtn2.querySelector('.animate-spin')).toBeNull()
+      expect(notifyBtn2).toBeEnabled()
+    })
+  })
+
+  describe('Conflict 409 handling and confirmation modal', () => {
+    let mockOnDispatchInstallment: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      mockOnDispatchInstallment = vi.fn()
+    })
+
+    it('T-10: should open confirmation modal when dispatching an installment that responds with 409 Conflict', () => {
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchInstallment={mockOnDispatchInstallment}
+          conflictInstallment={mockItems[0]}
+        />,
+      )
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).toBeInTheDocument()
+      expect(within(dialog).getByText(/ya.*(enviado|notific)/i)).toBeInTheDocument()
+      expect(within(dialog).getByText(/JUAN CARLOS PEREZ/i)).toBeInTheDocument()
+    })
+
+    it('T-11: should call onDispatchInstallment with forceResend=true when clicking "Reenviar recordatorio" in modal', () => {
+      const mockOnConfirmForceResend = vi.fn()
+
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchInstallment={mockOnDispatchInstallment}
+          conflictInstallment={mockItems[0]}
+          onConfirmForceResend={mockOnConfirmForceResend}
+        />,
+      )
+
+      const dialog = screen.getByRole('dialog')
+      const resendBtn = within(dialog).getByRole('button', { name: /reenviar/i })
+      fireEvent.click(resendBtn)
+
+      expect(
+        mockOnConfirmForceResend.mock.calls.length > 0 ||
+        mockOnDispatchInstallment.mock.calls.some(
+          ([id, force]) => id === mockItems[0].installmentId && force === true,
+        ),
+      ).toBe(true)
+    })
+
+    it('T-12: should close the confirmation modal without resending when clicking "Cancelar"', () => {
+      const mockOnCancelConflict = vi.fn()
+
+      render(
+        <DueInstallmentsTable
+          items={mockItems}
+          onMarkAsPaid={mockOnMarkAsPaid}
+          onDispatchInstallment={mockOnDispatchInstallment}
+          conflictInstallment={mockItems[0]}
+          onCancelConflict={mockOnCancelConflict}
+        />,
+      )
+
+      const dialog = screen.getByRole('dialog')
+      const cancelBtn = within(dialog).getByRole('button', { name: /cancelar/i })
+      fireEvent.click(cancelBtn)
+
+      expect(mockOnCancelConflict).toHaveBeenCalledTimes(1)
+      expect(mockOnDispatchInstallment).not.toHaveBeenCalledWith(mockItems[0].installmentId, true)
+    })
+  })
 })
+

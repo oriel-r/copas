@@ -23,6 +23,9 @@ El conocimiento de negocio vive en [docs/index.md](/docs/index.md).
 - [Workflow de Extracción IA](/src/docs/polizas/extraccion_ia/workflow.md)
 - [Pipeline de Extracción IA (Histórico / Superseded)](/src/docs/polizas/extraccion_ia/pipeline.md)
 
+## Recordatorios
+- [Disparo Manual de WhatsApps](/src/docs/recordatorios/disparo-manual.md)
+
 ## Arquitectura
 ### Convenciones de Módulos
 - [Scaffolding de Módulo](/src/docs/arquitectura/convenciones-modulos/module-scaffolding.md)
