@@ -7,6 +7,7 @@
     "cf-typegen": "wrangler types --config infra/cloudflare/wrangler.jsonc --env-interface CloudflareBindings",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config infra/cloudflare/wrangler.jsonc",
     "db:migrate:staging": "wrangler d1 migrations apply DB --remote --env staging --config infra/cloudflare/wrangler.jsonc",
+    "db:migrate:prod": "wrangler d1 migrations apply DB --remote --config infra/cloudflare/wrangler.jsonc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && vitest run --config vitest.cloudflare.config.ts",
     "test:unit": "vitest run",

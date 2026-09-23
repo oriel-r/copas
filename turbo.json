@@ -21,6 +21,10 @@
       "cache": false,
       "passThroughEnv": ["*"]
     },
+    "db:migrate:prod": {
+      "cache": false,
+      "passThroughEnv": ["*"]
+    },
     "deploy": {
       "dependsOn": ["^build", "build" ],
       "cache": false,
