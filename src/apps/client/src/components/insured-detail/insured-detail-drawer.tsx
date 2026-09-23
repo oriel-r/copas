@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useInsuredDrawer } from '@/lib/hooks/use-insured-drawer'
 import {
   useInsuredDetail,
@@ -26,19 +26,51 @@ export const InsuredDetailDrawer: React.FC<InsuredDetailDrawerProps> = ({
   const drawer = useInsuredDrawer()
 
   const activeInsuredId = propInsuredId !== undefined ? propInsuredId : drawer.insuredId
-  const isDrawerOpen = propIsOpen !== undefined ? propIsOpen : drawer.isOpen
+  const isDrawerOpen = Boolean(propIsOpen !== undefined ? propIsOpen : drawer.isOpen) && Boolean(activeInsuredId)
   const handleClose = propOnClose !== undefined ? propOnClose : drawer.close
 
-  if (!isDrawerOpen || !activeInsuredId) {
+  const [renderedInsuredId, setRenderedInsuredId] = useState<string | null>(
+    isDrawerOpen && activeInsuredId ? activeInsuredId : null
+  )
+  const [isRendered, setIsRendered] = useState(isDrawerOpen)
+  const [isExiting, setIsExiting] = useState(false)
+
+  useEffect(() => {
+    if (isDrawerOpen && activeInsuredId) {
+      setRenderedInsuredId(activeInsuredId)
+      setIsRendered(true)
+      setIsExiting(false)
+    } else if (isRendered) {
+      setIsExiting(true)
+      const timer = setTimeout(() => {
+        setIsRendered(false)
+        setIsExiting(false)
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isDrawerOpen, activeInsuredId, isRendered])
+
+  if (!isRendered || !renderedInsuredId) {
     return null
   }
 
-  return <InsuredDetailDrawerContent activeInsuredId={activeInsuredId} handleClose={handleClose} />
+  return (
+    <InsuredDetailDrawerContent
+      activeInsuredId={renderedInsuredId}
+      handleClose={handleClose}
+      isExiting={isExiting}
+    />
+  )
 }
 
-const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClose: () => void }> = ({
+const InsuredDetailDrawerContent: React.FC<{
+  activeInsuredId: string
+  handleClose: () => void
+  isExiting?: boolean
+}> = ({
   activeInsuredId,
   handleClose,
+  isExiting = false,
 }) => {
   const drawerRef = useRef<HTMLDivElement>(null)
 
@@ -49,20 +81,24 @@ const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClos
   // ESC key listener & body scroll lock
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !isExiting) {
         handleClose()
       }
     }
 
     const originalOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    if (!isExiting) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = originalOverflow
+    }
     window.addEventListener('keydown', handleKeyDown)
 
     return () => {
       document.body.style.overflow = originalOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [handleClose])
+  }, [handleClose, isExiting])
 
   const handleUpdateInsured = async (data: any) => {
     await updateInsuredMutation.mutateAsync({
@@ -81,22 +117,32 @@ const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClos
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end overflow-hidden"
+      className={`fixed inset-0 z-50 flex justify-end overflow-hidden ${
+        isExiting ? 'pointer-events-none' : ''
+      }`}
       role="dialog"
-      aria-modal="true"
+      aria-modal={!isExiting}
       aria-labelledby="insured-drawer-title"
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity animate-in fade-in duration-300 ease-out"
-        onClick={handleClose}
+        className={`fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity ${
+          isExiting
+            ? 'animate-out fade-out duration-300 ease-in fill-mode-forwards pointer-events-none'
+            : 'animate-in fade-in duration-300 ease-out'
+        }`}
+        onClick={isExiting ? undefined : handleClose}
         data-testid="drawer-backdrop"
       />
 
       {/* Slide-over Drawer Panel */}
       <div
         ref={drawerRef}
-        className="relative w-full max-w-xl sm:max-w-2xl bg-card border-l border-border shadow-2xl h-full flex flex-col z-10 overflow-hidden animate-in slide-in-from-right duration-300 ease-out"
+        className={`relative w-full max-w-xl sm:max-w-2xl bg-card border-l border-border shadow-2xl h-full flex flex-col z-10 overflow-hidden ${
+          isExiting
+            ? 'animate-out slide-out-to-right duration-300 ease-in fill-mode-forwards pointer-events-none'
+            : 'animate-in slide-in-from-right duration-300 ease-out'
+        }`}
       >
         {isLoading && (
           <div className="flex-1 p-6 space-y-4 overflow-y-auto animate-pulse">
