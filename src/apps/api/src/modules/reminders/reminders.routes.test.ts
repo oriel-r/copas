@@ -1,27 +1,61 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Hono } from 'hono'
 import { remindersRouter } from './reminders.routes'
-import type { RemindersDueResponse } from '@copas/contracts'
+import {
+  type ReminderDispatchSummary,
+  type RemindersDueResponse,
+  type InstallmentReminderResult,
+  reminderDispatchSummarySchema,
+  installmentReminderResultSchema,
+  ReminderInstallmentNotFoundError,
+  ReminderAlreadySentError,
+  NoActiveReminderRuleError,
+  getTodayArgentina,
+} from '@copas/contracts'
 
 describe('reminders.routes', () => {
   let mockOrchestratorService: any
   let app: Hono
 
+  const defaultOrgId = '018f9e2b-0000-7000-8000-000000000001'
+
+  const setupApp = (options: { orgId?: string | null; services?: any } = {}) => {
+    const testApp = new Hono()
+    testApp.use('*', async (c, next) => {
+      if (options.orgId !== undefined) {
+        if (options.orgId !== null) {
+          c.set('organizationId' as any, options.orgId)
+        }
+      } else {
+        c.set('organizationId' as any, defaultOrgId)
+      }
+
+      if (options.services !== undefined) {
+        if (options.services !== null) {
+          c.set('services' as any, options.services)
+        }
+      } else {
+        c.set('remindersOrchestrator' as any, mockOrchestratorService)
+        c.set('reminders' as any, mockOrchestratorService)
+        c.set('services' as any, {
+          remindersOrchestrator: mockOrchestratorService,
+          reminders: mockOrchestratorService,
+        })
+      }
+      await next()
+    })
+    testApp.route('/reminders', remindersRouter)
+    return testApp
+  }
+
   beforeEach(() => {
     mockOrchestratorService = {
       getDueRemindersPreview: vi.fn(),
       dispatchDueRemindersForOrg: vi.fn(),
+      dispatchInstallmentReminder: vi.fn(),
     }
 
-    app = new Hono()
-    app.use('*', async (c, next) => {
-      ;(c as any).set('services', {
-        remindersOrchestrator: mockOrchestratorService,
-        reminders: mockOrchestratorService,
-      })
-      await next()
-    })
-    app.route('/reminders', remindersRouter)
+    app = setupApp()
   })
 
   describe('GET /reminders/due', () => {
@@ -175,6 +209,275 @@ describe('reminders.routes', () => {
 
       const res = await unconfiguredApp.request('/reminders/due')
       expect(res.status).toBe(500)
+    })
+  })
+
+  describe('POST /reminders/executions', () => {
+    const validSummary: ReminderDispatchSummary = {
+      scheduledDate: '2026-09-23',
+      totalEvaluated: 12,
+      totalEnqueued: 10,
+      totalSkipped: 2,
+      totalAlreadySent: 0,
+      errors: [],
+    }
+
+    it('should return 201 Created when passing scheduledDate returning ReminderDispatchSummary', async () => {
+      mockOrchestratorService.dispatchDueRemindersForOrg.mockResolvedValueOnce(validSummary)
+
+      const res = await app.request('/reminders/executions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledDate: '2026-09-23' }),
+      })
+
+      expect(res.status).toBe(201)
+      const data = await res.json()
+      const validation = reminderDispatchSummarySchema.safeParse(data)
+      expect(validation.success).toBe(true)
+      expect(data).toEqual(validSummary)
+
+      const firstCallArg = mockOrchestratorService.dispatchDueRemindersForOrg.mock.calls[0][0]
+      if (typeof firstCallArg === 'object') {
+        expect(firstCallArg).toMatchObject({
+          organizationId: defaultOrgId,
+          scheduledDate: '2026-09-23',
+        })
+      } else {
+        expect(mockOrchestratorService.dispatchDueRemindersForOrg).toHaveBeenCalledWith(
+          defaultOrgId,
+          '2026-09-23',
+        )
+      }
+    })
+
+    it('should return 201 Created when passing empty body {}, defaulting scheduledDate to Argentina today', async () => {
+      const todayArg = getTodayArgentina()
+      const defaultSummary: ReminderDispatchSummary = {
+        ...validSummary,
+        scheduledDate: todayArg,
+      }
+      mockOrchestratorService.dispatchDueRemindersForOrg.mockResolvedValueOnce(defaultSummary)
+
+      const res = await app.request('/reminders/executions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(201)
+      const data = await res.json()
+      const validation = reminderDispatchSummarySchema.safeParse(data)
+      expect(validation.success).toBe(true)
+      expect(data).toEqual(defaultSummary)
+
+      const callArgs = mockOrchestratorService.dispatchDueRemindersForOrg.mock.calls[0]
+      if (typeof callArgs[0] === 'object') {
+        expect(callArgs[0]).toMatchObject({ organizationId: defaultOrgId })
+        if (callArgs[0].scheduledDate !== undefined) {
+          expect(callArgs[0].scheduledDate).toBe(todayArg)
+        }
+      } else {
+        expect(callArgs[0]).toBe(defaultOrgId)
+        if (callArgs[1] !== undefined) {
+          expect(callArgs[1]).toBe(todayArg)
+        }
+      }
+    })
+
+    it.each([
+      ['arbitrary string', 'invalid'],
+      ['slash separator', '2026/09/23'],
+      ['DD-MM-YYYY format', '23-09-2026'],
+      ['single digit month', '2026-9-23'],
+      ['single digit day', '2026-09-3'],
+      ['number type', 20260923],
+    ])('should return 400 Bad Request when passing invalid scheduledDate (%s)', async (_, invalidDate) => {
+      const res = await app.request('/reminders/executions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledDate: invalidDate }),
+      })
+
+      expect(res.status).toBe(400)
+      expect(mockOrchestratorService.dispatchDueRemindersForOrg).not.toHaveBeenCalled()
+    })
+
+    it('should return 401 Unauthorized when organizationId is missing in context', async () => {
+      const unauthApp = setupApp({ orgId: null })
+
+      const res = await unauthApp.request('/reminders/executions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledDate: '2026-09-23' }),
+      })
+
+      expect(res.status).toBe(401)
+      expect(mockOrchestratorService.dispatchDueRemindersForOrg).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('POST /reminders/installments/:id', () => {
+    const testInstallmentId = '018f9e2b-3333-7000-8000-000000000003'
+    const testRuleId = '018f9e2b-1111-7000-8000-000000000001'
+    const testHash = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+
+    it('should return 201 Created with status: "enqueued", messageId, skipReason: null, deduplicationHash when successful', async () => {
+      const mockResult: InstallmentReminderResult = {
+        installmentId: testInstallmentId,
+        ruleId: testRuleId,
+        deduplicationHash: testHash,
+        status: 'enqueued',
+        messageId: '018f9e2b-5555-7000-8000-000000000005',
+        skipReason: null,
+      }
+      mockOrchestratorService.dispatchInstallmentReminder.mockResolvedValueOnce(mockResult)
+
+      const res = await app.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(201)
+      const data = await res.json()
+      const validation = installmentReminderResultSchema.safeParse(data)
+      expect(validation.success).toBe(true)
+      expect(data).toEqual(mockResult)
+      expect(mockOrchestratorService.dispatchInstallmentReminder).toHaveBeenCalledWith(
+        testInstallmentId,
+        expect.anything(),
+      )
+    })
+
+    it.each([
+      ['missing_phone', 'missing_phone'],
+      ['opt_out', 'opt_out'],
+    ])('should return 201 Created with status: "skipped" and skipReason: %s', async (_, skipReason) => {
+      const mockResult: InstallmentReminderResult = {
+        installmentId: testInstallmentId,
+        ruleId: testRuleId,
+        deduplicationHash: testHash,
+        status: 'skipped',
+        messageId: null,
+        skipReason,
+      }
+      mockOrchestratorService.dispatchInstallmentReminder.mockResolvedValueOnce(mockResult)
+
+      const res = await app.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(201)
+      const data = await res.json()
+      const validation = installmentReminderResultSchema.safeParse(data)
+      expect(validation.success).toBe(true)
+      expect(data.status).toBe('skipped')
+      expect(data.skipReason).toBe(skipReason)
+      expect(data.messageId).toBeNull()
+    })
+
+    it('should return 409 Conflict when already sent and forceResend is false', async () => {
+      mockOrchestratorService.dispatchInstallmentReminder.mockRejectedValueOnce(
+        new ReminderAlreadySentError(),
+      )
+
+      const res = await app.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceResend: false }),
+      })
+
+      expect(res.status).toBe(409)
+      const body = await res.json()
+      expect(body).toHaveProperty('error')
+    })
+
+    it('should return 201 Created when already sent and forceResend is true', async () => {
+      const mockResult: InstallmentReminderResult = {
+        installmentId: testInstallmentId,
+        ruleId: testRuleId,
+        deduplicationHash: testHash,
+        status: 'enqueued',
+        messageId: '018f9e2b-6666-7000-8000-000000000006',
+        skipReason: null,
+      }
+      mockOrchestratorService.dispatchInstallmentReminder.mockResolvedValueOnce(mockResult)
+
+      const res = await app.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceResend: true }),
+      })
+
+      expect(res.status).toBe(201)
+      const data = await res.json()
+      expect(data).toEqual(mockResult)
+      expect(mockOrchestratorService.dispatchInstallmentReminder).toHaveBeenCalledWith(
+        testInstallmentId,
+        expect.objectContaining({ forceResend: true }),
+      )
+    })
+
+    it('should return 404 Not Found when installment not found / belongs to another org', async () => {
+      mockOrchestratorService.dispatchInstallmentReminder.mockRejectedValueOnce(
+        new ReminderInstallmentNotFoundError(),
+      )
+
+      const res = await app.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(404)
+      const body = await res.json()
+      expect(body).toHaveProperty('error')
+    })
+
+    it('should return 422 Unprocessable Entity when no active reminder rule exists for cuotas', async () => {
+      mockOrchestratorService.dispatchInstallmentReminder.mockRejectedValueOnce(
+        new NoActiveReminderRuleError(),
+      )
+
+      const res = await app.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(422)
+      const body = await res.json()
+      expect(body).toHaveProperty('error')
+    })
+
+    it('should return 401 Unauthorized when organizationId is missing in context', async () => {
+      const unauthApp = setupApp({ orgId: null })
+
+      const res = await unauthApp.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      expect(res.status).toBe(401)
+      expect(mockOrchestratorService.dispatchInstallmentReminder).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['invalid scheduledDate', { scheduledDate: 'invalid-date' }],
+      ['non-boolean forceResend', { forceResend: 'yes' as any }],
+    ])('should return 400 Bad Request when request body has %s', async (_, invalidBody) => {
+      const res = await app.request(`/reminders/installments/${testInstallmentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invalidBody),
+      })
+
+      expect(res.status).toBe(400)
+      expect(mockOrchestratorService.dispatchInstallmentReminder).not.toHaveBeenCalled()
     })
   })
 })

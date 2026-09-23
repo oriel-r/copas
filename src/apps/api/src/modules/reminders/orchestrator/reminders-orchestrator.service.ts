@@ -3,9 +3,16 @@ import { drizzle } from 'drizzle-orm/d1'
 import { and, eq } from 'drizzle-orm'
 import { vDueInstallments, vExpiringPolicies, vDueReminders } from '@copas/db'
 import type {
+  InstallmentReminderResult,
   ReminderDispatchSummary,
   RemindersDueQuery,
   RemindersDueResponse,
+} from '@copas/contracts'
+import {
+  getTodayArgentina,
+  NoActiveReminderRuleError,
+  ReminderInstallmentNotFoundError,
+  ReminderAlreadySentError,
 } from '@copas/contracts'
 import type { ReminderRulesService } from '../reminder-rules/reminder-rules.service'
 import { buildReminderTemplateComponents } from './template-components.builder'
@@ -657,11 +664,191 @@ export function createRemindersOrchestratorService(
     }
   }
 
+  const dispatchInstallmentReminder = async (
+    installmentId: string,
+    options?: { forceResend?: boolean; scheduledDate?: string; organizationId?: string },
+  ): Promise<InstallmentReminderResult> => {
+    const orgId = options?.organizationId || organizationId
+    const scheduledDate = options?.scheduledDate || getTodayArgentina()
+
+    const activeRules = await reminderRulesService.getActiveRules(orgId)
+    const rule = activeRules.find(r => r.eventSource === 'installment_due' || !r.eventSource)
+    if (!rule) {
+      throw new NoActiveReminderRuleError('No existe regla de recordatorio activa para la cuota')
+    }
+
+    const client = getClient(db)
+    let rows: any[] = []
+    
+    if (typeof client?.select === 'function') {
+      const queryRes = client
+        .select()
+        .from(vDueInstallments)
+        .where(
+          and(
+            eq(vDueInstallments.organizationId, orgId),
+            eq(vDueInstallments.installmentId, installmentId)
+          ),
+        )
+      rows = (await queryRes) || []
+    } else if (typeof client?.prepare === 'function') {
+      const res = await client
+        .prepare(`SELECT * FROM v_due_installments WHERE organizationId = ? AND (installmentId = ? OR id = ?)`)
+        .bind(orgId, installmentId, installmentId)
+        .all()
+      rows = res.results || []
+    }
+
+    if (!rows.length) {
+      throw new ReminderInstallmentNotFoundError('Cuota no encontrada o perteneciente a otra organización')
+    }
+    const row = rows[0]
+    const actualInstallmentId = row.installmentId || row.id
+
+    const rawDb = (client as any)?.prepare ? client : (db?.db ?? db)
+    if ((!row.insuredId || row.insuredId === actualInstallmentId) && row.policyId && typeof rawDb?.prepare === 'function') {
+      try {
+        const polRow: any = await rawDb.prepare('SELECT insuredId FROM policies WHERE id = ?').bind(row.policyId).first()
+        if (polRow?.insuredId) {
+          row.insuredId = polRow.insuredId
+        }
+      } catch {}
+    }
+
+    const hashString = `${orgId}:${rule.id}:${actualInstallmentId}:${scheduledDate}`
+    const encoder = new TextEncoder()
+    const data = encoder.encode(hashString)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const deduplicationHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+
+    if (!options?.forceResend && await messagesService.isAlreadySent(deduplicationHash)) {
+      throw new ReminderAlreadySentError('Recordatorio ya enviado en la fecha (requiere forceResend: true)')
+    }
+
+    let endpoint: any = null
+    try {
+      endpoint = await channelEndpointsService.resolveWhatsAppEndpointAndCredentials(orgId)
+    } catch {
+      endpoint = null
+    }
+
+    const isOptedOut = Boolean(row.isOptedOut) || (consentsService ? await consentsService.isInsuredOptedOut(row.insuredId, 'billing') : false)
+    const phone = row.insuredPhone || row.phone
+
+    let skipReason: string | null = null
+    if (isOptedOut) skipReason = 'opt_out'
+    else if (!phone) skipReason = 'missing_phone'
+    else if (!endpoint) skipReason = 'no_endpoint'
+
+    if (skipReason) {
+      let message = null
+      try {
+        if (typeof conversationsService?.getOrCreateActiveConversation === 'function') {
+          const conversation = await conversationsService.getOrCreateActiveConversation({
+            organizationId: orgId,
+            organizationChannelEndpointId: endpoint?.organizationChannelEndpointId,
+            insuredId: row.insuredId,
+            type: 'reminder',
+          })
+          if (conversation?.id) {
+            if (typeof conversationsService?.linkEntityToConversation === 'function') {
+              await conversationsService.linkEntityToConversation(conversation.id, {
+                policyId: row.policyId,
+                installmentId: actualInstallmentId,
+                insuredId: row.insuredId,
+              })
+            }
+            if (typeof messagesService?.recordOutboundMessage === 'function') {
+              message = await messagesService.recordOutboundMessage({
+                organizationId: orgId,
+                conversationId: conversation.id,
+                content: 'skipped reminder',
+                status: 'skipped',
+                skipReason,
+                deduplicationHash,
+                metadata: {
+                  ruleId: rule.id,
+                  eventSource: rule.eventSource,
+                  entityId: actualInstallmentId,
+                },
+              })
+            }
+          }
+        }
+      } catch {}
+      
+      return {
+        installmentId: actualInstallmentId,
+        ruleId: rule.id,
+        deduplicationHash,
+        status: 'skipped',
+        messageId: message?.id ?? null,
+        skipReason
+      }
+    }
+
+    const conversation = await conversationsService.getOrCreateActiveConversation({
+      organizationId: orgId,
+      organizationChannelEndpointId: endpoint.organizationChannelEndpointId,
+      insuredId: row.insuredId,
+      type: 'reminder',
+    })
+
+    await conversationsService.linkEntityToConversation(conversation.id, {
+      policyId: row.policyId,
+      installmentId: actualInstallmentId,
+      insuredId: row.insuredId,
+    })
+
+    const templateName = (rule as any).templateName || rule.templateId || 'reminder_default'
+
+    const message = await messagesService.recordOutboundMessage({
+      organizationId: orgId,
+      conversationId: conversation.id,
+      templateId: rule.templateId || null,
+      content: `Sent reminder template: ${templateName}`,
+      status: 'sent',
+      deduplicationHash,
+      metadata: {
+        ruleId: rule.id,
+        eventSource: rule.eventSource,
+        entityId: actualInstallmentId,
+      },
+    })
+
+    const components = buildReminderTemplateComponents({
+      templateName,
+      row,
+    })
+
+    await whatsappDispatchService.enqueueTemplateReminder({
+      organizationId: orgId,
+      messageId: message.id,
+      conversationId: conversation.id,
+      endpoint,
+      to: phone,
+      templateName,
+      components,
+      idempotencyKey: options?.forceResend ? `${deduplicationHash}-resend-${Date.now()}` : deduplicationHash,
+    })
+
+    return {
+      installmentId: actualInstallmentId,
+      ruleId: rule.id,
+      deduplicationHash,
+      status: 'enqueued',
+      messageId: message.id,
+      skipReason: null
+    }
+  }
+
   return {
     getDueRemindersPreviewFromView,
     getDueRemindersPreview,
     dispatchDueRemindersFromView,
     dispatchDueRemindersForOrg,
+    dispatchInstallmentReminder,
   }
 }
 

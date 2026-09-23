@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
 import { createRemindersOrchestratorService } from './reminders-orchestrator.service'
-import type { ReminderDispatchSummary, RemindersDueResponse } from '@copas/contracts'
+import {
+  type ReminderDispatchSummary,
+  type RemindersDueResponse,
+  type InstallmentReminderResult,
+  installmentReminderResultSchema,
+  ReminderInstallmentNotFoundError,
+  ReminderAlreadySentError,
+  NoActiveReminderRuleError,
+  getTodayArgentina,
+} from '@copas/contracts'
 
 describe('reminders-orchestrator.service', () => {
   let mockDb: any
@@ -1049,6 +1059,292 @@ describe('reminders-orchestrator.service', () => {
         expect(summary.totalSkipped).toBe(1)
         expect(summary.totalAlreadySent).toBe(1)
       })
+    })
+  })
+
+  describe('dispatchInstallmentReminder', () => {
+    const activeRule = {
+      id: testRuleId,
+      organizationId: testOrgId,
+      eventSource: 'installment_due' as const,
+      offsetDays: 0,
+      isEnabled: true,
+      templateId: 'tmpl-due-installment',
+    }
+
+    const baseInstallment = {
+      id: testInstallmentId,
+      organizationId: testOrgId,
+      policyId: testPolicyId,
+      installmentNumber: 1,
+      dueDate: '2026-09-23',
+      totalAmount: 12500,
+      currency: 'ARS',
+      status: 'pending',
+      policyNumber: 'POL-200',
+      companyName: 'FEDERACION PATRONAL',
+      insuredId: testInsuredId,
+      insuredFullName: 'LAURA MARTINEZ',
+      insuredPhone: '+5491144445555',
+    }
+
+    const setupInstallmentMock = (installment: any | null) => {
+      const result = installment ? [installment] : []
+      mockDb.where.mockImplementation(() => {
+        const p = Promise.resolve(result) as any
+        p.limit = vi.fn().mockResolvedValue(result)
+        return p
+      })
+      mockDb.limit.mockResolvedValue(result)
+    }
+
+    it('should compute deterministic SHA-256 hash: SHA-256(orgId + ":" + ruleId + ":" + entityId + ":" + scheduledDate)', async () => {
+      const scheduledDate = '2026-09-23'
+      const expectedHash = createHash('sha256')
+        .update(`${testOrgId}:${testRuleId}:${testInstallmentId}:${scheduledDate}`)
+        .digest('hex')
+
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      setupInstallmentMock(baseInstallment)
+
+      mockChannelEndpointsService.resolveWhatsAppEndpointAndCredentials.mockResolvedValueOnce({
+        endpointId: 'cep-1',
+        phoneNumberId: 'phone-id-1',
+        credentials: { accessToken: 'token-1' },
+      })
+      mockMessagesService.isAlreadySent.mockResolvedValueOnce(false)
+      mockConversationsService.getOrCreateActiveConversation.mockResolvedValueOnce({
+        id: 'conv-1',
+        organizationId: testOrgId,
+        status: 'open',
+      })
+      mockConversationsService.linkEntityToConversation.mockResolvedValueOnce(undefined)
+      mockMessagesService.recordOutboundMessage.mockResolvedValueOnce({
+        id: 'msg-sha256',
+        status: 'sent',
+      })
+      mockWhatsappDispatchService.enqueueTemplateReminder.mockResolvedValueOnce(undefined)
+
+      const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+        organizationId: testOrgId,
+        scheduledDate,
+      })
+
+      expect(mockMessagesService.isAlreadySent).toHaveBeenCalledWith(expectedHash)
+      expect(result.deduplicationHash).toBe(expectedHash)
+      expect(result.ruleId).toBe(testRuleId)
+      expect(result.installmentId).toBe(testInstallmentId)
+    })
+
+    it('should reject / throw with ReminderInstallmentNotFoundError (404) when installment is not found', async () => {
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      setupInstallmentMock(null)
+
+      await expect(
+        service.dispatchInstallmentReminder('non-existent-id', {
+          organizationId: testOrgId,
+          scheduledDate: '2026-09-23',
+        }),
+      ).rejects.toSatisfy((err: any) => {
+        return err instanceof ReminderInstallmentNotFoundError && err.code === 'NOT_FOUND'
+      })
+
+      expect(mockWhatsappDispatchService.enqueueTemplateReminder).not.toHaveBeenCalled()
+    })
+
+    it('should reject / throw with NoActiveReminderRuleError (422) when no active rule exists', async () => {
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([])
+      setupInstallmentMock(baseInstallment)
+
+      await expect(
+        service.dispatchInstallmentReminder(testInstallmentId, {
+          organizationId: testOrgId,
+          scheduledDate: '2026-09-23',
+        }),
+      ).rejects.toSatisfy((err: any) => {
+        return err instanceof NoActiveReminderRuleError && err.code === 'NO_ACTIVE_RULE'
+      })
+
+      expect(mockWhatsappDispatchService.enqueueTemplateReminder).not.toHaveBeenCalled()
+    })
+
+    it('should reject / throw with ReminderAlreadySentError (409) when already sent and forceResend is false', async () => {
+      const scheduledDate = '2026-09-23'
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      setupInstallmentMock(baseInstallment)
+      mockMessagesService.isAlreadySent.mockResolvedValueOnce(true)
+
+      await expect(
+        service.dispatchInstallmentReminder(testInstallmentId, {
+          organizationId: testOrgId,
+          scheduledDate,
+          forceResend: false,
+        }),
+      ).rejects.toSatisfy((err: any) => {
+        return err instanceof ReminderAlreadySentError && err.code === 'ALREADY_SENT'
+      })
+
+      expect(mockWhatsappDispatchService.enqueueTemplateReminder).not.toHaveBeenCalled()
+    })
+
+    it('should bypass already sent check and enqueue reminder when already sent and forceResend is true', async () => {
+      const scheduledDate = '2026-09-23'
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      setupInstallmentMock(baseInstallment)
+      mockMessagesService.isAlreadySent.mockResolvedValueOnce(true)
+
+      mockChannelEndpointsService.resolveWhatsAppEndpointAndCredentials.mockResolvedValueOnce({
+        endpointId: 'cep-1',
+        phoneNumberId: 'phone-id-1',
+        credentials: { accessToken: 'token-1' },
+      })
+      mockConversationsService.getOrCreateActiveConversation.mockResolvedValueOnce({
+        id: 'conv-resend',
+        organizationId: testOrgId,
+        status: 'open',
+      })
+      mockConversationsService.linkEntityToConversation.mockResolvedValueOnce(undefined)
+      mockMessagesService.recordOutboundMessage.mockResolvedValueOnce({
+        id: 'msg-resend-ok',
+        status: 'sent',
+      })
+      mockWhatsappDispatchService.enqueueTemplateReminder.mockResolvedValueOnce(undefined)
+
+      const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+        organizationId: testOrgId,
+        scheduledDate,
+        forceResend: true,
+      })
+
+      expect(mockWhatsappDispatchService.enqueueTemplateReminder).toHaveBeenCalled()
+      expect(result.status).toBe('enqueued')
+      expect(result.messageId).toBe('msg-resend-ok')
+      expect(result.skipReason).toBeNull()
+    })
+
+    it('should return status: "skipped" with skipReason: "opt_out" when insured is opted out', async () => {
+      const mockConsentsService = {
+        isInsuredOptedOut: vi.fn().mockResolvedValueOnce(true),
+      }
+
+      const serviceWithConsent = createRemindersOrchestratorService({
+        db: mockDb,
+        organizationId: testOrgId,
+        reminderRulesService: mockReminderRulesService,
+        channelEndpointsService: mockChannelEndpointsService,
+        conversationsService: mockConversationsService,
+        messagesService: mockMessagesService,
+        whatsappDispatchService: mockWhatsappDispatchService,
+        consentsService: mockConsentsService,
+      } as any)
+
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      setupInstallmentMock(baseInstallment)
+      mockMessagesService.isAlreadySent.mockResolvedValueOnce(false)
+      mockMessagesService.recordOutboundMessage.mockResolvedValueOnce({
+        id: 'msg-optout',
+        status: 'skipped',
+      })
+
+      const result = await serviceWithConsent.dispatchInstallmentReminder(testInstallmentId, {
+        organizationId: testOrgId,
+        scheduledDate: '2026-09-23',
+      })
+
+      expect(result.status).toBe('skipped')
+      expect(result.skipReason).toBe('opt_out')
+      expect(mockWhatsappDispatchService.enqueueTemplateReminder).not.toHaveBeenCalled()
+    })
+
+    it('should return status: "skipped" with skipReason: "missing_phone" when insured has no phone', async () => {
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      const noPhoneInstallment = { ...baseInstallment, insuredPhone: null }
+      setupInstallmentMock(noPhoneInstallment)
+      mockMessagesService.isAlreadySent.mockResolvedValueOnce(false)
+      mockMessagesService.recordOutboundMessage.mockResolvedValueOnce({
+        id: 'msg-no-phone',
+        status: 'skipped',
+      })
+
+      const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+        organizationId: testOrgId,
+        scheduledDate: '2026-09-23',
+      })
+
+      expect(result.status).toBe('skipped')
+      expect(result.skipReason).toBe('missing_phone')
+      expect(mockWhatsappDispatchService.enqueueTemplateReminder).not.toHaveBeenCalled()
+    })
+
+    it('should call whatsappDispatchService.enqueueTemplateReminder and return status: "enqueued" when deliverable', async () => {
+      const scheduledDate = '2026-09-23'
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      setupInstallmentMock(baseInstallment)
+      mockMessagesService.isAlreadySent.mockResolvedValueOnce(false)
+
+      mockChannelEndpointsService.resolveWhatsAppEndpointAndCredentials.mockResolvedValueOnce({
+        endpointId: 'cep-1',
+        phoneNumberId: 'phone-id-1',
+        credentials: { accessToken: 'token-1' },
+      })
+      mockConversationsService.getOrCreateActiveConversation.mockResolvedValueOnce({
+        id: 'conv-deliv',
+        organizationId: testOrgId,
+        status: 'open',
+      })
+      mockConversationsService.linkEntityToConversation.mockResolvedValueOnce(undefined)
+      mockMessagesService.recordOutboundMessage.mockResolvedValueOnce({
+        id: 'msg-deliv-1',
+        status: 'sent',
+      })
+      mockWhatsappDispatchService.enqueueTemplateReminder.mockResolvedValueOnce(undefined)
+
+      const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+        organizationId: testOrgId,
+        scheduledDate,
+      })
+
+      expect(mockWhatsappDispatchService.enqueueTemplateReminder).toHaveBeenCalled()
+      expect(result.status).toBe('enqueued')
+      expect(result.messageId).toBe('msg-deliv-1')
+      expect(result.skipReason).toBeNull()
+      const validation = installmentReminderResultSchema.safeParse(result)
+      expect(validation.success).toBe(true)
+    })
+
+    it('should default scheduledDate to Argentina civil date when scheduledDate option is omitted', async () => {
+      const todayArg = getTodayArgentina()
+      const expectedHash = createHash('sha256')
+        .update(`${testOrgId}:${testRuleId}:${testInstallmentId}:${todayArg}`)
+        .digest('hex')
+
+      mockReminderRulesService.getActiveRules.mockResolvedValueOnce([activeRule])
+      setupInstallmentMock(baseInstallment)
+      mockMessagesService.isAlreadySent.mockResolvedValueOnce(false)
+
+      mockChannelEndpointsService.resolveWhatsAppEndpointAndCredentials.mockResolvedValueOnce({
+        endpointId: 'cep-1',
+        phoneNumberId: 'phone-id-1',
+        credentials: { accessToken: 'token-1' },
+      })
+      mockConversationsService.getOrCreateActiveConversation.mockResolvedValueOnce({
+        id: 'conv-default-date',
+        organizationId: testOrgId,
+        status: 'open',
+      })
+      mockConversationsService.linkEntityToConversation.mockResolvedValueOnce(undefined)
+      mockMessagesService.recordOutboundMessage.mockResolvedValueOnce({
+        id: 'msg-default-date',
+        status: 'sent',
+      })
+      mockWhatsappDispatchService.enqueueTemplateReminder.mockResolvedValueOnce(undefined)
+
+      const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+        organizationId: testOrgId,
+      })
+
+      expect(mockMessagesService.isAlreadySent).toHaveBeenCalledWith(expectedHash)
+      expect(result.deduplicationHash).toBe(expectedHash)
     })
   })
 })
