@@ -81,14 +81,14 @@ const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClos
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end"
+      className="fixed inset-0 z-50 flex justify-end overflow-hidden"
       role="dialog"
       aria-modal="true"
       aria-labelledby="insured-drawer-title"
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity animate-in fade-in duration-300 ease-out"
         onClick={handleClose}
         data-testid="drawer-backdrop"
       />
@@ -96,7 +96,7 @@ const InsuredDetailDrawerContent: React.FC<{ activeInsuredId: string; handleClos
       {/* Slide-over Drawer Panel */}
       <div
         ref={drawerRef}
-        className="relative w-full max-w-xl sm:max-w-2xl bg-card border-l border-border shadow-2xl h-full flex flex-col z-10 overflow-hidden"
+        className="relative w-full max-w-xl sm:max-w-2xl bg-card border-l border-border shadow-2xl h-full flex flex-col z-10 overflow-hidden animate-in slide-in-from-right duration-300 ease-out"
       >
         {isLoading && (
           <div className="flex-1 p-6 space-y-4 overflow-y-auto animate-pulse">
