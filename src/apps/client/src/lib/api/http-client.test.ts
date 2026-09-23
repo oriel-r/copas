@@ -1,4 +1,5 @@
 import { describe, expect, it, afterEach, vi } from 'vitest'
+import { backendUrl } from '../backend'
 import { ApiError } from './api-error'
 import { http } from './http-client'
 
@@ -21,7 +22,7 @@ describe('http client', () => {
     expect(result).toEqual({ ok: true })
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/api/thing')
+    expect(url).toBe(backendUrl('/api/thing'))
     expect(init.method).toBe('POST')
     expect(init.credentials).toBe('include')
     expect(JSON.parse(init.body as string)).toEqual({ name: 'x' })
@@ -83,7 +84,7 @@ describe('http client', () => {
     expect(result).toEqual({ updated: true })
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/api/item/1')
+    expect(url).toBe(backendUrl('/api/item/1'))
     expect(init.method).toBe('PUT')
     expect(JSON.parse(init.body as string)).toEqual({ title: 'New' })
   })
@@ -101,7 +102,7 @@ describe('http client', () => {
     expect(result).toEqual({ patched: true })
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/api/item/1')
+    expect(url).toBe(backendUrl('/api/item/1'))
     expect(init.method).toBe('PATCH')
   })
 
@@ -118,7 +119,7 @@ describe('http client', () => {
     expect(result).toEqual({ deleted: true })
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('/api/item/1')
+    expect(url).toBe(backendUrl('/api/item/1'))
     expect(init.method).toBe('DELETE')
   })
 

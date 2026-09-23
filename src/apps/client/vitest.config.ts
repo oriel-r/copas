@@ -11,5 +11,8 @@ export default mergeConfig(viteConfig, defineConfig({
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     css: false,
+    env: {
+      VITE_BACKEND_URL: '',
+    },
   },
 }))

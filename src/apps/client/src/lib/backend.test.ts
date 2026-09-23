@@ -44,7 +44,7 @@ describe('backend', () => {
       await probeBackend(100)
 
       expect(fetchMock).toHaveBeenCalledWith(
-        '/',
+        backendUrl('/'),
         expect.objectContaining({ method: 'GET', mode: 'no-cors', signal: expect.any(AbortSignal) }),
       )
     })
@@ -71,7 +71,7 @@ describe('backend', () => {
       const result = await probeBackend()
       expect(result).toBe(true)
       expect(fetchMock).toHaveBeenCalledWith(
-        '/',
+        backendUrl('/'),
         expect.objectContaining({ method: 'GET', mode: 'no-cors' }),
       )
     })
