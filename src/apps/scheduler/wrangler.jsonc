@@ -5,7 +5,7 @@
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
   "triggers": {
-    "crons": ["0 11 * * 1-5"]
+    "crons": ["0 11 * * *"]
   },
   "services": [
     {
@@ -18,7 +18,7 @@
     "staging": {
       "name": "scheduler-staging",
       "triggers": {
-        "crons": ["0 11 * * 1-5"]
+        "crons": ["0 11 * * *"]
       },
       "services": [
         {

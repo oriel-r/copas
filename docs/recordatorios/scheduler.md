@@ -3,7 +3,7 @@ type: concept
 producer: oriel
 status: draft
 created: 2026-08-25T21:19:54.815Z
-updated:
+updated: 2026-09-25T18:51:00.000Z
 expires: 
 deprecatedReason: ""
 supersededBy: ""
@@ -20,8 +20,8 @@ Worker cron liviano que orquesta el despacho diario de recordatorios de vencimie
 
 ## Ventana Horaria y Frecuencia
 
-- **Frecuencia por defecto**: Lunes a viernes a las 08:00 ART (`America/Argentina/Buenos_Aires`, UTC-3 fijo, sin horario de verano).
-- **Trigger Cron en Cloudflare**: `0 11 * * 1-5` (11:00 UTC = 08:00 ART).
+- **Frecuencia por defecto**: Todos los días a las 08:00 ART (`America/Argentina/Buenos_Aires`, UTC-3 fijo, sin horario de verano).
+- **Trigger Cron en Cloudflare**: `0 11 * * *` (11:00 UTC = 08:00 ART).
 - **Cómputo de fecha civil**: Se deriva `scheduledDate` en formato `YYYY-MM-DD` correspondiente a la fecha actual en Argentina.
 
 ## Evaluación de Reglas de Recordatorio (`reminder_rules`)
