@@ -339,7 +339,6 @@ export function createRemindersOrchestratorService(
                   await conversationsService.linkEntityToConversation(conversation.id, {
                     policyId: row.policyId,
                     installmentId: isInstallment ? (row.installmentId || entityId) : undefined,
-                    insuredId: row.insuredId,
                   })
                 }
 
@@ -351,6 +350,7 @@ export function createRemindersOrchestratorService(
                     status: 'skipped',
                     skipReason,
                     deduplicationHash,
+                    templateId: row.templateId || null,
                     metadata: {
                       ruleId: row.ruleId,
                       eventSource: row.eventSource,
@@ -360,8 +360,8 @@ export function createRemindersOrchestratorService(
                 }
               }
             }
-          } catch {
-            // Ignore conversation creation errors for skipped reminders
+          } catch (e: any) {
+            console.error('[RemindersOrchestrator] Error creating conversation or recording skipped reminder:', e)
           }
           continue
         }
@@ -376,7 +376,6 @@ export function createRemindersOrchestratorService(
         await conversationsService.linkEntityToConversation(conversation.id, {
           policyId: row.policyId,
           installmentId: isInstallment ? (row.installmentId || entityId) : undefined,
-          insuredId: row.insuredId,
         })
 
         const templateName = row.templateName || row.templateId || 'reminder_default'
@@ -572,7 +571,6 @@ export function createRemindersOrchestratorService(
                     await conversationsService.linkEntityToConversation(conversation.id, {
                       policyId: row.policyId,
                       installmentId: isInstallment ? (row.installmentId || row.id) : undefined,
-                      insuredId: row.insuredId,
                     })
                   }
 
@@ -584,6 +582,7 @@ export function createRemindersOrchestratorService(
                       status: 'skipped',
                       skipReason,
                       deduplicationHash,
+                      templateId: rule.templateId || null,
                       metadata: {
                         ruleId: rule.id,
                         eventSource: rule.eventSource,
@@ -593,8 +592,8 @@ export function createRemindersOrchestratorService(
                   }
                 }
               }
-            } catch {
-              // Ignore conversation creation errors for skipped reminders
+            } catch (e: any) {
+              console.error('[RemindersOrchestrator] Error creating conversation or recording skipped reminder:', e)
             }
             continue
           }
@@ -609,7 +608,6 @@ export function createRemindersOrchestratorService(
           await conversationsService.linkEntityToConversation(conversation.id, {
             policyId: row.policyId,
             installmentId: isInstallment ? (row.installmentId || row.id) : undefined,
-            insuredId: row.insuredId,
           })
 
           const templateName =
@@ -756,7 +754,6 @@ export function createRemindersOrchestratorService(
               await conversationsService.linkEntityToConversation(conversation.id, {
                 policyId: row.policyId,
                 installmentId: actualInstallmentId,
-                insuredId: row.insuredId,
               })
             }
             if (typeof messagesService?.recordOutboundMessage === 'function') {
@@ -767,6 +764,7 @@ export function createRemindersOrchestratorService(
                 status: 'skipped',
                 skipReason,
                 deduplicationHash,
+                templateId: rule.templateId || null,
                 metadata: {
                   ruleId: rule.id,
                   eventSource: rule.eventSource,
@@ -776,7 +774,9 @@ export function createRemindersOrchestratorService(
             }
           }
         }
-      } catch {}
+      } catch (e: any) {
+        console.error('[RemindersOrchestrator] Error creating conversation or recording skipped reminder:', e)
+      }
       
       return {
         installmentId: actualInstallmentId,
@@ -798,7 +798,6 @@ export function createRemindersOrchestratorService(
     await conversationsService.linkEntityToConversation(conversation.id, {
       policyId: row.policyId,
       installmentId: actualInstallmentId,
-      insuredId: row.insuredId,
     })
 
     const templateName = (rule as any).templateName || rule.templateId || 'reminder_default'

@@ -55,6 +55,13 @@
         "max_retries": 3,
         "dead_letter_queue": "copas-ai-result-dlq",
         "retry_delay": 60
+      },
+      {
+        "queue": "copas-whatsapp-inbound",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "copas-whatsapp-inbound-dlq"
       }
     ]
   },
@@ -145,6 +152,13 @@
             "max_retries": 3,
             "dead_letter_queue": "copas-ai-result-dlq-staging",
             "retry_delay": 60
+          },
+          {
+            "queue": "copas-whatsapp-inbound-staging",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 3,
+            "dead_letter_queue": "copas-whatsapp-inbound-dlq-staging"
           }
         ]
       }

@@ -55,6 +55,35 @@ export async function queue(
       const response = await sendMetaMessage(payload, env, accessTokenOverride)
 
       if (response.ok) {
+        let resData: any = {}
+        try {
+          resData = await response.json()
+        } catch {
+          // ignore json parse error
+        }
+        const wamid = resData?.messages?.[0]?.id
+        if (wamid) {
+          const sentStatus: WhatsAppStatusUpdateQueueMessage = {
+            type: 'whatsapp-status-update',
+            metadata: {
+              organizationId: payload.organizationId || 'system',
+              idempotencyKey: 'status:sent:' + wamid,
+            },
+            payload: {
+              wamid,
+              messageId: payload.messageId,
+              phoneNumberId: payload.phoneNumberId,
+              recipientPhone: payload.to,
+              status: 'sent',
+              timestamp: Math.floor(Date.now() / 1000),
+            },
+          }
+          try {
+            await env.WHATSAPP_INBOUND_QUEUE.send(sentStatus)
+          } catch {
+            // ignore queue error to avoid redelivery of already sent WhatsApp message
+          }
+        }
         msg.ack()
       } else if (response.status === 429 || response.status >= 500) {
         msg.retry()

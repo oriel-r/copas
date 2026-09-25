@@ -9,6 +9,7 @@ export type WhatsAppStatusError = {
 
 export type WhatsAppStatusUpdatePayload = {
   wamid: string
+  messageId?: string
   phoneNumberId: string
   recipientPhone: string
   recipientUserId?: string

@@ -23,23 +23,19 @@ export function createMessagesService(messagesRepoOrDeps: any, _orgIdArg?: strin
       tx?: any
     }, txArg?: any): Promise<Message> => {
       const tx = params.tx ?? txArg
+      const createPayload = {
+        organizationId: params.organizationId,
+        conversationId: params.conversationId,
+        templateId: params.templateId ?? null,
+        direction: 'outbound' as const,
+        status: params.status || 'sent',
+        content: { text: params.content, templateId: params.templateId },
+        deduplicationHash: params.deduplicationHash,
+        metadata: params.metadata ?? null,
+      }
       const message = tx !== undefined 
-        ? await messagesRepo.create({
-            organizationId: params.organizationId,
-            conversationId: params.conversationId,
-            direction: 'outbound',
-            status: params.status || 'sent',
-            content: { text: params.content, templateId: params.templateId },
-            deduplicationHash: params.deduplicationHash,
-          }, tx)
-        : await messagesRepo.create({
-            organizationId: params.organizationId,
-            conversationId: params.conversationId,
-            direction: 'outbound',
-            status: params.status || 'sent',
-            content: { text: params.content, templateId: params.templateId },
-            deduplicationHash: params.deduplicationHash,
-          })
+        ? await messagesRepo.create(createPayload, tx)
+        : await messagesRepo.create(createPayload)
 
       const statusDetails = params.skipReason ? { reason: params.skipReason, ...params.metadata } : params.metadata
       if (tx !== undefined) {
@@ -55,6 +51,28 @@ export function createMessagesService(messagesRepoOrDeps: any, _orgIdArg?: strin
         ? await messagesRepo.findByDeduplicationHash(deduplicationHash, tx)
         : await messagesRepo.findByDeduplicationHash(deduplicationHash)
       return existing !== null
+    },
+
+    updateWamid: async (messageId: string, wamid: string, tx?: any): Promise<void> => {
+      if (typeof (messagesRepo as any).updateWamid === 'function') {
+        await (messagesRepo as any).updateWamid(messageId, wamid, tx)
+      }
+    },
+
+    findByWamid: async (wamid: string, tx?: any): Promise<Message | null> => {
+      if (typeof (messagesRepo as any).findByWamid === 'function') {
+        return (messagesRepo as any).findByWamid(wamid, tx)
+      }
+      return null
+    },
+
+    recordStatus: async (
+      messageId: string,
+      status: any,
+      details?: Record<string, unknown>,
+      tx?: any,
+    ): Promise<any> => {
+      return messagesRepo.createStatus(messageId, status, details, tx)
     },
   }
 }

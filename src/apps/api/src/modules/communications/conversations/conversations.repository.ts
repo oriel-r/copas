@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { drizzle } from 'drizzle-orm/d1'
-import { and, eq } from 'drizzle-orm'
-import { conversations, conversationEntities } from '@copas/db'
+import { and, eq, isNull } from 'drizzle-orm'
+import { conversations, conversationEntities, conversationParticipants } from '@copas/db'
 import type { Conversation, ConversationInsert } from '@copas/contracts'
 
 function getClient(db: any, tx?: any) {
@@ -30,11 +30,15 @@ export function createConversationsRepository(arg1: any, arg2?: string) {
       const tx = isObj ? second : third
 
       const client = getClient(database, tx)
+      const endpointCondition = endpointId
+        ? eq(conversations.organizationChannelEndpointId, endpointId)
+        : isNull(conversations.organizationChannelEndpointId)
+
       const query = client.select().from(conversations).where(
         and(
           eq(conversations.organizationId, organizationId),
           eq(conversations.insuredId, insuredId),
-          eq(conversations.organizationChannelEndpointId, endpointId),
+          endpointCondition,
           eq(conversations.status, 'open')
         )
       )
@@ -49,7 +53,7 @@ export function createConversationsRepository(arg1: any, arg2?: string) {
       const rows = await client.insert(conversations).values({
         id: data.id || crypto.randomUUID(),
         organizationId: data.organizationId || organizationId,
-        organizationChannelEndpointId: data.organizationChannelEndpointId,
+        organizationChannelEndpointId: data.organizationChannelEndpointId ?? null,
         insuredId: data.insuredId,
         type: data.type || 'reminder',
         status: data.status || 'open',
@@ -59,6 +63,20 @@ export function createConversationsRepository(arg1: any, arg2?: string) {
       
       const res = Array.isArray(rows) ? rows[0] : rows
       if (!res) throw new Error('Failed to create conversation')
+
+      if (data.insuredId && res.id) {
+        try {
+          await client.insert(conversationParticipants).values({
+            id: crypto.randomUUID(),
+            conversationId: res.id,
+            insuredId: data.insuredId,
+            joinedAt: new Date(),
+          })
+        } catch {
+          // Ignore participant insert if already exists
+        }
+      }
+
       return res as any
     },
 
@@ -68,31 +86,90 @@ export function createConversationsRepository(arg1: any, arg2?: string) {
       tx?: any
     ): Promise<void> => {
       const client = getClient(database, tx)
-      const rowsToInsert: any[] = []
+      const now = new Date()
+
       if (entity.policyId) {
-        rowsToInsert.push({
-          id: crypto.randomUUID(),
-          conversationId,
-          policyId: entity.policyId,
-        })
-      }
-      if (entity.installmentId) {
-        rowsToInsert.push({
-          id: crypto.randomUUID(),
-          conversationId,
-          installmentId: entity.installmentId,
-        })
-      }
-      if (entity.insuredId) {
-        rowsToInsert.push({
-          id: crypto.randomUUID(),
-          conversationId,
-          insuredId: entity.insuredId,
-        })
+        let hasExisting = false
+        if (typeof client?.select === 'function') {
+          try {
+            const existing = await client
+              .select({ id: conversationEntities.id })
+              .from(conversationEntities)
+              .where(
+                and(
+                  eq(conversationEntities.conversationId, conversationId),
+                  eq(conversationEntities.policyId, entity.policyId),
+                ),
+              )
+            hasExisting = Array.isArray(existing) && existing.length > 0
+          } catch {
+            hasExisting = false
+          }
+        }
+        if (!hasExisting) {
+          await client.insert(conversationEntities).values({
+            id: crypto.randomUUID(),
+            conversationId,
+            policyId: entity.policyId,
+            linkedAt: now,
+          })
+        }
       }
 
-      for (const row of rowsToInsert) {
-        await client.insert(conversationEntities).values(row)
+      if (entity.installmentId) {
+        let hasExisting = false
+        if (typeof client?.select === 'function') {
+          try {
+            const existing = await client
+              .select({ id: conversationEntities.id })
+              .from(conversationEntities)
+              .where(
+                and(
+                  eq(conversationEntities.conversationId, conversationId),
+                  eq(conversationEntities.installmentId, entity.installmentId),
+                ),
+              )
+            hasExisting = Array.isArray(existing) && existing.length > 0
+          } catch {
+            hasExisting = false
+          }
+        }
+        if (!hasExisting) {
+          await client.insert(conversationEntities).values({
+            id: crypto.randomUUID(),
+            conversationId,
+            installmentId: entity.installmentId,
+            linkedAt: now,
+          })
+        }
+      }
+
+      if (entity.insuredId) {
+        let hasExisting = false
+        if (typeof client?.select === 'function') {
+          try {
+            const existing = await client
+              .select({ id: conversationEntities.id })
+              .from(conversationEntities)
+              .where(
+                and(
+                  eq(conversationEntities.conversationId, conversationId),
+                  eq(conversationEntities.insuredId, entity.insuredId),
+                ),
+              )
+            hasExisting = Array.isArray(existing) && existing.length > 0
+          } catch {
+            hasExisting = false
+          }
+        }
+        if (!hasExisting) {
+          await client.insert(conversationEntities).values({
+            id: crypto.randomUUID(),
+            conversationId,
+            insuredId: entity.insuredId,
+            linkedAt: now,
+          })
+        }
       }
     },
   }

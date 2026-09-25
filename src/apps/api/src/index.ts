@@ -6,6 +6,8 @@ import { registerRoutes } from './core/setup/app.router';
 import { registerErrorHandlers } from './core/setup/app.errors';
 import type { AppEnv } from './core/types/env';
 import { createInsuranceModule } from './modules/insurance/insurance.module';
+import { createCommunicationsModule } from './modules/communications/communications.module';
+import type { WhatsAppStatusUpdatePayload } from '@copas/contracts';
 
 // 1. Create the main instance
 const app = new Hono<AppEnv>();
@@ -45,6 +47,7 @@ const handler = Object.assign(app, {
         body?.type === 'ai_result' ||
         !!body?.structuredPayload ||
         !!body?.payload?.structuredPayload;
+      const isWhatsAppStatusUpdate = body?.type === 'whatsapp-status-update';
 
       const payload = body?.payload ?? body;
       const organizationId =
@@ -69,9 +72,48 @@ const handler = Object.assign(app, {
           userId,
           aiExtractionResultId: payload?.aiExtractionResultId,
           attempts: (message as any).attempts,
-          queue: 'copas-ai-result',
+          queue: (batch as any).queue || 'unknown',
         },
         async () => {
+          if (isWhatsAppStatusUpdate) {
+            try {
+              const commModule = createCommunicationsModule(env.DB, organizationId || '');
+              const updatePayload = payload as WhatsAppStatusUpdatePayload;
+              const wamid = updatePayload?.wamid;
+              const messageId = updatePayload?.messageId;
+              const status = updatePayload?.status || 'sent';
+
+              if (messageId && wamid) {
+                await commModule.messages.updateWamid(messageId, wamid);
+                await commModule.messages.recordStatus(messageId, status, {
+                  wamid,
+                  phoneNumberId: updatePayload.phoneNumberId,
+                  recipientPhone: updatePayload.recipientPhone,
+                  errors: updatePayload.errors,
+                });
+              } else if (wamid) {
+                const foundMsg = await commModule.messages.findByWamid(wamid);
+                if (foundMsg) {
+                  await commModule.messages.recordStatus(foundMsg.id, status, {
+                    wamid,
+                    phoneNumberId: updatePayload.phoneNumberId,
+                    recipientPhone: updatePayload.recipientPhone,
+                    errors: updatePayload.errors,
+                  });
+                }
+              }
+
+              if (typeof message.ack === 'function') message.ack();
+            } catch (err: any) {
+              queueLogger.error('Failed to process WhatsApp status update: {error}', {
+                error: err?.message ?? String(err),
+                stack: err?.stack,
+              });
+              if (typeof message.ack === 'function') message.ack();
+            }
+            return;
+          }
+
           if (!isAiResult) {
             queueLogger.warn('Discarding non-ai-result message', { type: body?.type });
             if (typeof message.ack === 'function') message.ack();

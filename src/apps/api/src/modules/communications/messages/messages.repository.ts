@@ -81,10 +81,15 @@ export function createMessagesRepository(arg1: any, arg2?: string) {
         id: data.id || crypto.randomUUID(),
         organizationId: data.organizationId || organizationId,
         conversationId: data.conversationId,
+        templateId: data.templateId ?? null,
         direction: data.direction || 'outbound',
         senderKind: data.senderKind || 'system',
+        senderUserId: data.senderUserId ?? null,
+        senderInsuredId: data.senderInsuredId ?? null,
         content: typeof data.content === 'object' ? JSON.stringify(data.content) : String(data.content ?? ''),
         deduplicationHash: data.deduplicationHash ?? null,
+        wamid: data.wamid ?? null,
+        metadata: data.metadata ?? null,
         sentAt: data.sentAt ? (typeof data.sentAt === 'string' ? new Date(data.sentAt) : data.sentAt) : new Date(),
         createdAt: data.createdAt ? (typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt) : undefined,
         updatedAt: data.updatedAt ? (typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt) : undefined,
@@ -95,6 +100,38 @@ export function createMessagesRepository(arg1: any, arg2?: string) {
       const rows = typeof query.returning === 'function' ? await query.returning() : await query
       const res = Array.isArray(rows) ? rows[0] : rows
       return (res as any) || (payload as any)
+    },
+
+    updateWamid: async (messageId: string, wamid: string, tx?: any): Promise<void> => {
+      const client = getClient(database, tx)
+      await client
+        .update(messages)
+        .set({ wamid, updatedAt: new Date() })
+        .where(eq(messages.id, messageId))
+    },
+
+    findByWamid: async (wamid: string, tx?: any): Promise<Message | null> => {
+      const client = getClient(database, tx)
+      const query = client
+        .select()
+        .from(messages)
+        .where(eq(messages.wamid, wamid))
+      const rows = typeof query?.limit === 'function' ? await query.limit(1) : await query
+      const res = Array.isArray(rows) ? rows[0] : rows
+      if (!res || res === client || res.select) return null
+      return res as any
+    },
+
+    findById: async (messageId: string, tx?: any): Promise<Message | null> => {
+      const client = getClient(database, tx)
+      const query = client
+        .select()
+        .from(messages)
+        .where(eq(messages.id, messageId))
+      const rows = typeof query?.limit === 'function' ? await query.limit(1) : await query
+      const res = Array.isArray(rows) ? rows[0] : rows
+      if (!res || res === client || res.select) return null
+      return res as any
     },
 
     createStatus: async (

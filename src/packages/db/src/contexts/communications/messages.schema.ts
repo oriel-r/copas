@@ -34,6 +34,7 @@ export const messages = sqliteTable(
     }),
     content: text('content').notNull(),
     deduplicationHash: text('deduplicationHash'),
+    wamid: text('wamid'),
     sentAt: integer('sentAt', { mode: 'timestamp_ms' }),
     metadata: json<Record<string, unknown>>('metadata'),
   },
@@ -46,6 +47,7 @@ export const messages = sqliteTable(
       table.organizationId,
       table.deduplicationHash,
     ),
+    index('messages_wamid_idx').on(table.wamid),
     index('messages_conversation_sent_at_idx').on(
       table.conversationId,
       table.sentAt,

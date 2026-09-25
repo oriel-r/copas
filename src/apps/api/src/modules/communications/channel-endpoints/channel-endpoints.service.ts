@@ -43,7 +43,7 @@ export function createChannelEndpointsService(
 
         return {
           ...endpoint,
-          organizationChannelEndpointId: endpoint.organizationChannelEndpointId || endpoint.id,
+          organizationChannelEndpointId: endpoint.organizationChannelEndpointId ?? null,
           endpointId: endpoint.endpointId || endpoint.id,
           phoneNumberId,
           credentials: {
@@ -54,9 +54,17 @@ export function createChannelEndpointsService(
       }
 
       if (options.platformWhatsAppAccessToken && options.platformWhatsAppPhoneNumberId) {
+        let fallbackDbEndpoint = null
+        if (typeof (channelEndpointsRepo as any).findPlatformFallback === 'function') {
+          try {
+            fallbackDbEndpoint = await (channelEndpointsRepo as any).findPlatformFallback('whatsapp')
+          } catch {
+            fallbackDbEndpoint = null
+          }
+        }
         return {
-          organizationChannelEndpointId: 'platform',
-          endpointId: 'platform',
+          organizationChannelEndpointId: fallbackDbEndpoint?.organizationChannelEndpointId ?? null,
+          endpointId: fallbackDbEndpoint?.endpointId || fallbackDbEndpoint?.id,
           phoneNumberId: options.platformWhatsAppPhoneNumberId,
           provider: 'whatsapp',
           ownerKind: 'platform',

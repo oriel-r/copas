@@ -625,8 +625,8 @@ erDiagram
 `subscriptions (organization_id) WHERE status = 'active'` (una suscripción activa
 por org); `organization_channel_endpoints (organization_channel_id)
 WHERE is_primary` (un solo primario);
-`organization_channel_endpoints (endpoint_id) WHERE status = 'active'` (un endpoint
-no se asigna activo a dos orgs a la vez).
+`organization_channel_endpoints (organization_channel_id) WHERE status = 'active'` (un solo
+endpoint activo por canal de organización; los endpoints de plataforma pueden ser compartidos entre múltiples organizaciones).
 
 **FKs compuestas**:
 - *Invariante canal/template (`system_notifications`)*: `message_templates` declara

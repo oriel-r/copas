@@ -31,8 +31,8 @@ export const organizationChannelEndpoints = sqliteTable(
     uniqueIndex('organization_channel_endpoints_primary_uq')
       .on(table.organizationChannelId)
       .where(sql`${table.isPrimary} = 1`),
-    uniqueIndex('organization_channel_endpoints_endpoint_active_uq')
-      .on(table.endpointId)
+    uniqueIndex('organization_channel_endpoints_active_uq')
+      .on(table.organizationChannelId)
       .where(sql`${table.status} = 'active'`),
     index('organization_channel_endpoints_endpoint_id_idx').on(table.endpointId),
     index('organization_channel_endpoints_org_channel_id_idx').on(
