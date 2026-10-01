@@ -3,7 +3,7 @@ type: decision
 producer: oriel
 status: active
 created: 2026-08-25
-updated: 2026-09-07
+updated: 2026-10-01
 expires: 2027-09-07
 deprecatedReason: ""
 supersededBy: ""
@@ -23,7 +23,7 @@ hacen I/O externa y no escriben el dominio.
 | Worker | Rol | Escribe dominio | Medio |
 |---|---|---|---|
 | `api` | Core: auth + insurance + subir PDF + pagos + despacho | sí | — |
-| `client` | Frontend | no | HTTP |
+| `client` | Frontend + Gateway / Reverse Proxy (`/api`) | no | Assets + Service Binding (`api`) |
 | `email-service` | Envía email (Resend) | no | cola `email` |
 | `whatsapp-service` | Envía + recibe webhooks WhatsApp | no | colas `whatsapp`, `whatsapp-inbound` |
 | `extractor` | Extrae datos del PDF (servicio externo) | no | colas `ai`, `ai-result` |
@@ -31,6 +31,7 @@ hacen I/O externa y no escriben el dominio.
 
 ## Decisiones
 
+- **Enmascaramiento Same-Origin en `/api` vía Service Binding.** El worker `client` expone el frontend SPA y actúa como Gateway / Reverse Proxy interceptando `/api/*`, reescribiendo la ruta y delegando a `api` vía Service Binding interno. Esto elimina la sobrecarga de preflight CORS, convierte las cookies de sesión (Better Auth) en First-Party sin restricciones cross-site en subdominios de `workers.dev`, y protege la topología interna de servicios.
 - **`extractor` extrae, `api` registra.** El extractor devuelve JSON; `api` persiste
   `ai_extraction_results` (`on_review`) y, al recibir el resultado, crea la póliza
   y sus entidades (transaccional). La revisión humana es posterior (aprobación).

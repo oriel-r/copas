@@ -1,5 +1,6 @@
 const backendBaseUrl = (import.meta.env.VITE_BACKEND_URL ?? '').replace(/\/+$/, '')
-const authPath = import.meta.env.VITE_AUTH_PATH ?? '/auth'
+const defaultAuthPath = backendBaseUrl ? '/auth' : '/api/auth'
+const authPath = import.meta.env.VITE_AUTH_PATH ?? defaultAuthPath
 
 export function backendUrl(path: string) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`

@@ -29,11 +29,12 @@ pnpm --filter api dev
 pnpm --filter client dev
 ```
 
-El client apunta a la API vía `VITE_BACKEND_URL` en `.env.development`
-(`http://localhost:8788`). Ese archivo solo se carga en `vite dev`, por lo que
-no afecta el build ni el deploy.
+El client opera en modo **Same-Origin** mediante enmascaramiento en `/api`:
+- En producción/staging, el worker del client enruta `/api/*` hacia el worker `api` mediante Cloudflare Service Bindings.
+- En desarrollo local (`vite dev`), Vite utiliza un proxy interno (`/api` -> `http://localhost:8788`).
+- Si se define `VITE_BACKEND_URL`, se utiliza como fallback directo omitiendo el proxy local.
 
 Variables disponibles (ver `.env.example`):
 
-- `VITE_BACKEND_URL`: origen del backend. Vacío para usar el mismo origen.
-- `VITE_AUTH_PATH`: ruta donde está montado el handler de Better Auth (`/auth`).
+- `VITE_BACKEND_URL`: origen del backend. Vacío para usar el mismo origen (/api).
+- `VITE_AUTH_PATH`: ruta donde está montado el handler de Better Auth (por defecto `/api/auth` en modo same-origin).

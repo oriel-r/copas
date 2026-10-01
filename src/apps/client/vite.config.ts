@@ -12,12 +12,27 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
-    cloudflare(),
+    ...(!process.env.VITEST
+      ? [
+          cloudflare({
+            viteEnvironment: { name: 'worker' },
+          }),
+        ]
+      : []),
     Icons({ compiler: 'jsx', jsx: 'react' }),
   ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_BACKEND_TARGET || 'http://localhost:8788',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
     },
   },
 })

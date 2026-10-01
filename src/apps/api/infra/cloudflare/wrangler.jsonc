@@ -105,7 +105,7 @@
       },
       "vars": {
         "BACKEND_URL": "https://api-staging.orielromero-work.workers.dev",
-        "BETTER_AUTH_URL": "https://api-staging.orielromero-work.workers.dev",
+        "BETTER_AUTH_URL": "https://client-staging.orielromero-work.workers.dev/api",
         "CLIENT_URL": "https://client-staging.orielromero-work.workers.dev",
         "NODE_ENV": "staging",
         "R2_ACCOUNT_ID": "35d060878ef1601397d88e02e01cf4fb",
