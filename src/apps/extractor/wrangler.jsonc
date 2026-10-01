@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "extractor",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
@@ -54,13 +54,6 @@
   "env": {
     "staging": {
       "name": "extractor-staging",
-      "ai": {
-        "binding": "AI",
-        "remote": true
-      },
-      "secrets": {
-        "required": ["MISTRAL_API_KEY"]
-      },
       "workflows": [
         {
           "name": "policy-extraction-workflow-staging",
@@ -85,9 +78,6 @@
             "retry_delay": 60
           }
         ]
-      },
-      "vars": {
-        "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
       }
     }
   }

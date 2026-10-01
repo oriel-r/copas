@@ -35,7 +35,7 @@ export default defineConfig(async () => {
       plugins: [
         cloudflareTest({
           wrangler: {
-            configPath: './infra/cloudflare/wrangler.jsonc',
+            configPath: './wrangler.jsonc',
           },
           miniflare: {
             bindings: {

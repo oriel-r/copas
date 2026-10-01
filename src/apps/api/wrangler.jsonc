@@ -1,7 +1,7 @@
 {
-  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "api",
-  "main": "../../src/index.ts",
+  "main": "src/index.ts",
   "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
@@ -11,11 +11,11 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "copas-auth",
+      "database_name": "copas-db",
       "database_id": "<PRODUCTION_DATABASE_ID>",
       "preview_database_id": "local-copas-auth",
-      "migrations_dir": "../../../../packages/db/migrations",
-      "migrations_pattern": "../../../../packages/db/migrations/*/migration.sql"
+      "migrations_dir": "../../packages/db/migrations",
+      "migrations_pattern": "../../packages/db/migrations/*/migration.sql"
     }
   ],
 
@@ -67,10 +67,10 @@
   },
 
   "vars": {
-    "BACKEND_URL": "http://localhost:8788",
-    "BETTER_AUTH_URL": "http://localhost:8788",
-    "CLIENT_URL": "http://localhost:5173",
-    "NODE_ENV": "development",
+    "BACKEND_URL": "https://api.orielromero-work.workers.dev",
+    "BETTER_AUTH_URL": "https://client.orielromero-work.workers.dev/api",
+    "CLIENT_URL": "https://client.orielromero-work.workers.dev",
+    "NODE_ENV": "production",
     "R2_ACCOUNT_ID": "35d060878ef1601397d88e02e01cf4fb",
     "R2_BUCKET_NAME": "copas-documents"
   },
@@ -91,24 +91,11 @@
   "env": {
     "staging": {
       "name": "api-staging",
-      "secrets": {
-        "required": [
-          "BETTER_AUTH_SECRET",
-          "GOOGLE_CLIENT_ID",
-          "GOOGLE_CLIENT_SECRET",
-          "MICROSOFT_CLIENT_ID",
-          "MICROSOFT_CLIENT_SECRET",
-          "MICROSOFT_TENANT_ID",
-          "R2_ACCESS_KEY_ID",
-          "R2_SECRET_ACCESS_KEY"
-        ]
-      },
       "vars": {
         "BACKEND_URL": "https://api-staging.orielromero-work.workers.dev",
         "BETTER_AUTH_URL": "https://client-staging.orielromero-work.workers.dev/api",
         "CLIENT_URL": "https://client-staging.orielromero-work.workers.dev",
         "NODE_ENV": "staging",
-        "R2_ACCOUNT_ID": "35d060878ef1601397d88e02e01cf4fb",
         "R2_BUCKET_NAME": "copas-documents-staging"
       },
       "d1_databases": [
@@ -116,8 +103,8 @@
           "binding": "DB",
           "database_name": "copas-db-staging",
           "database_id": "67e4d215-9600-4a10-9e97-58a0a1b3fcfa",
-          "migrations_dir": "../../../../packages/db/migrations",
-          "migrations_pattern": "../../../../packages/db/migrations/*/migration.sql"
+          "migrations_dir": "../../packages/db/migrations",
+          "migrations_pattern": "../../packages/db/migrations/*/migration.sql"
         }
       ],
       "kv_namespaces": [

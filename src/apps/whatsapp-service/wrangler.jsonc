@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "whatsapp-service",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
@@ -39,16 +39,6 @@
   "env": {
     "staging": {
       "name": "whatsapp-service-staging",
-      "observability": {
-        "enabled": true
-      },
-      "secrets": {
-        "required": [
-          "META_APP_SECRET",
-          "META_VERIFY_TOKEN",
-          "INTEGRATION_ENCRYPTION_KEY"
-        ]
-      },
       "queues": {
         "producers": [
           {
@@ -66,10 +56,6 @@
             "retry_delay": 30
           }
         ]
-      },
-      "vars": {
-        "META_GRAPH_API_VERSION": "v20.0",
-        "META_GRAPH_API_BASE_URL": "https://graph.facebook.com"
       }
     }
   }

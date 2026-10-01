@@ -2,8 +2,11 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "scheduler",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
   "triggers": {
     "crons": ["0 11 * * *"]
   },
@@ -17,9 +20,6 @@
   "env": {
     "staging": {
       "name": "scheduler-staging",
-      "triggers": {
-        "crons": ["0 11 * * *"]
-      },
       "services": [
         {
           "binding": "API",

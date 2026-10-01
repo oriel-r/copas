@@ -7,7 +7,7 @@ pnpm --filter api db:migrate:local
 pnpm --filter api dev
 ```
 
-Copy `infra/cloudflare/.dev.vars.example` to `infra/cloudflare/.dev.vars` and
+Copy `.dev.vars.example` to `.dev.vars` and
 fill in the local Better Auth and OAuth secrets.
 
 The Better Auth routes are exposed under `/auth`.
@@ -36,7 +36,7 @@ Apply staging migrations with:
 pnpm --filter api db:migrate:staging
 ```
 
-Replace the placeholder D1 and KV IDs in `infra/cloudflare/wrangler.jsonc`
+Replace the placeholder D1 and KV IDs in `wrangler.jsonc`
 before deploying.
 
 ## Tests

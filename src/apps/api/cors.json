@@ -5,7 +5,8 @@
         "origins": [
           "http://localhost:5173",
           "http://localhost:3000",
-          "https://client-staging.orielromero-work.workers.dev"
+          "https://client-staging.orielromero-work.workers.dev",
+          "https://client.orielromero-work.workers.dev"
         ],
         "methods": [
           "GET",
