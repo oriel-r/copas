@@ -4,12 +4,14 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
   "observability": {
     "enabled": true
   },
   "env": {
     "staging": {
-      "name": "email-service-staging"
+      "name": "email-service-staging",
+      "workers_dev": false
     }
   }
 }

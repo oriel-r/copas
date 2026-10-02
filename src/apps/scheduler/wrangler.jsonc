@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
   "observability": {
     "enabled": true
   },
@@ -20,6 +21,7 @@
   "env": {
     "staging": {
       "name": "scheduler-staging",
+      "workers_dev": false,
       "services": [
         {
           "binding": "API",
