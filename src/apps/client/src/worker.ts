@@ -11,8 +11,13 @@ export default {
   async fetch(request: Request, env: Env, _ctx: unknown): Promise<Response> {
     const url = new URL(request.url);
 
-    // Interceptar rutas /api/* y /api para enrutar hacia el backend
-    if (url.pathname.startsWith('/api/') || url.pathname === '/api') {
+    // Interceptar rutas /api/*, /api, /auth/* y /auth para enrutar hacia el backend
+    if (
+      url.pathname.startsWith('/api/') ||
+      url.pathname === '/api' ||
+      url.pathname.startsWith('/auth/') ||
+      url.pathname === '/auth'
+    ) {
       if (!env.API_SERVICE) {
         return new Response(
           JSON.stringify({
