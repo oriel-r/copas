@@ -1,4 +1,8 @@
+import path from 'node:path'
 import type { NodePlopAPI } from 'plop'
+
+const baseDir = path.resolve(process.env.INIT_CWD ?? process.cwd())
+const resolveTarget = (p: string) => (path.isAbsolute(p) ? p : path.join(baseDir, p))
 
 export default async function (plop: NodePlopAPI) {
   plop.setGenerator('app', {
@@ -12,7 +16,7 @@ export default async function (plop: NodePlopAPI) {
     ],
     actions: (answers) => {
       const today = new Date().toISOString().slice(0, 10)
-      const basePath = 'code/apps/{{name}}'
+      const basePath = 'src/apps/{{name}}'
       return [
         {
           type: 'add',
@@ -50,7 +54,7 @@ export default async function (plop: NodePlopAPI) {
     ],
     actions: (answers) => {
       const today = new Date().toISOString().slice(0, 10)
-      const basePath = 'code/packages/{{name}}'
+      const basePath = 'src/packages/{{name}}'
       return [
         {
           type: 'add',
@@ -94,7 +98,7 @@ export default async function (plop: NodePlopAPI) {
         type: 'list',
         name: 'type',
         message: 'Type?',
-        choices: ['concept', 'convention', 'decision', 'roadmap', 'media-script', 'meta', 'raw_data'],
+        choices: ['concept', 'convention', 'decision', 'roadmap', 'media-script', 'meta', 'raw_data', 'rules', 'guide'],
       },
       {
         type: 'input',
@@ -126,7 +130,7 @@ export default async function (plop: NodePlopAPI) {
       return [
         {
           type: 'add',
-          path: '{{title}}.md',
+          path: resolveTarget(`${answers.title}.md`),
           templateFile: 'generator/doc/template.hbs',
           data: { created, heading },
         },

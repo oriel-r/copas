@@ -1,0 +1,24 @@
+{
+  "name": "whatsapp-service",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8793",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:mutation": "stryker run"
+  },
+  "dependencies": {
+    "@copas/contracts": "workspace:*",
+    "@copas/logger": "workspace:*",
+    "hono": "^4.12.33"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260804.1",
+    "@types/node": "^24.13.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.110.0"
+  }
+}

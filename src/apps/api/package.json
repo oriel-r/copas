@@ -1,0 +1,37 @@
+{
+  "name": "api",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8788",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:staging": "wrangler d1 migrations apply DB --remote --env staging",
+    "db:migrate:prod": "wrangler d1 migrations apply DB --remote",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && vitest run --config vitest.cloudflare.config.ts",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.cloudflare.config.ts",
+    "test:watch": "vitest",
+    "test:mutation": "stryker run"
+  },
+  "dependencies": {
+    "@copas/auth": "workspace:*",
+    "@copas/contracts": "workspace:*",
+    "@copas/db": "workspace:*",
+    "@copas/logger": "workspace:*",
+    "@hono/zod-validator": "^0.9.1",
+    "aws4fetch": "^1.0.20",
+    "better-auth": "^1.7.1",
+    "drizzle-orm": "1.0.0-rc.4",
+    "hono": "^4.12.33"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "@cloudflare/workers-types": "^5.20260804.1",
+    "@types/node": "^24.13.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.110.0"
+  }
+}

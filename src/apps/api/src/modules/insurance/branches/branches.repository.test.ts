@@ -1,0 +1,193 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createBranchesRepository } from './branches.repository'
+import type { BranchInsert } from '@copas/contracts'
+
+const { mockDrizzle } = vi.hoisted(() => ({
+  mockDrizzle: vi.fn((d1: any) => ({
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    offset: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    _drizzleWrapped: true,
+    _rawD1: d1,
+  })),
+}))
+
+vi.mock('drizzle-orm/d1', () => ({
+  drizzle: mockDrizzle,
+}))
+
+describe('branches.repository', () => {
+  let mockDb: any
+  let repository: ReturnType<typeof createBranchesRepository>
+
+  beforeEach(() => {
+    mockDrizzle.mockClear()
+    mockDb = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      offset: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      values: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockReturnThis(),
+    }
+    repository = createBranchesRepository({ db: mockDb })
+  })
+
+  describe('D1 vs Drizzle wrapping', () => {
+    it('should wrap D1 database with drizzle lazily when db.prepare is a function', async () => {
+      const mockD1 = { prepare: vi.fn() }
+      const repo = createBranchesRepository({ db: mockD1 as any })
+      await repo.findById('branch-1')
+      expect(mockDrizzle).toHaveBeenCalledWith(mockD1)
+    })
+
+    it('should wrap D1 database with drizzle lazily when passed positionally', async () => {
+      const mockD1 = { prepare: vi.fn() }
+      const repo = createBranchesRepository(mockD1 as any)
+      await repo.findById('branch-1')
+      expect(mockDrizzle).toHaveBeenCalledWith(mockD1)
+    })
+
+    it('should wrap tx with drizzle if tx has prepare function', async () => {
+      const mockTx = { prepare: vi.fn() }
+      await repository.findById('branch-1', mockTx as any)
+      expect(mockDrizzle).toHaveBeenCalledWith(mockTx)
+    })
+  })
+
+  describe('findById', () => {
+    it('should return branch by id', async () => {
+      const branch = { id: 'branch-1', code: 'AUTO', name: 'Automotores' }
+      mockDb.limit.mockResolvedValueOnce([branch])
+
+      const result = await repository.findById('branch-1')
+      expect(result).toEqual(branch)
+    })
+
+    it('should return null if branch not found', async () => {
+      mockDb.limit.mockResolvedValueOnce([])
+
+      const result = await repository.findById('branch-999')
+      expect(result).toBeNull()
+    })
+
+    it('should use transaction tx if provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([{ id: 'branch-1' }]),
+      }
+
+      const result = await repository.findById('branch-1', mockTx as any)
+      expect(result).toEqual({ id: 'branch-1' })
+      expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('findByCode', () => {
+    it('should return branch by code', async () => {
+      const branch = { id: 'branch-1', code: 'HOME', name: 'Hogar' }
+      mockDb.limit.mockResolvedValueOnce([branch])
+
+      const result = await repository.findByCode('HOME')
+      expect(result).toEqual(branch)
+    })
+
+    it('should return null if code not found', async () => {
+      mockDb.limit.mockResolvedValueOnce([])
+
+      const result = await repository.findByCode('UNKNOWN')
+      expect(result).toBeNull()
+    })
+
+    it('should use transaction tx in findByCode if provided', async () => {
+      const branch = { id: 'branch-1', code: 'MOTO', name: 'Motos' }
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValueOnce([branch]),
+      }
+
+      const result = await repository.findByCode('MOTO', mockTx as any)
+      expect(result).toEqual(branch)
+      expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('create', () => {
+    it('should insert and return new branch', async () => {
+      const input: BranchInsert = { code: 'VIDA', name: 'Vida' }
+      const created = { id: 'branch-2', ...input }
+      mockDb.returning.mockResolvedValueOnce([created])
+
+      const result = await repository.create(input)
+      expect(result).toEqual(created)
+      expect(mockDb.insert).toHaveBeenCalled()
+    })
+
+    it('should use transaction tx in create if provided', async () => {
+      const input: BranchInsert = { code: 'ART', name: 'ART' }
+      const created = { id: 'branch-3', ...input }
+      const mockTx = {
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([created]),
+      }
+
+      const result = await repository.create(input, mockTx as any)
+      expect(result).toEqual(created)
+      expect(mockTx.insert).toHaveBeenCalled()
+      expect(mockDb.insert).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('list', () => {
+    it('should return list of branches with default limit and offset', async () => {
+      const list = [{ id: 'branch-1', code: 'AUTO', name: 'Automotores' }]
+      mockDb.offset.mockResolvedValueOnce(list)
+
+      const result = await repository.list({})
+      expect(result).toEqual(list)
+      expect(mockDb.limit).toHaveBeenCalledWith(50)
+      expect(mockDb.offset).toHaveBeenCalledWith(0)
+    })
+
+    it('should use custom limit and offset if provided', async () => {
+      mockDb.offset.mockResolvedValueOnce([])
+
+      await repository.list({ limit: 10, offset: 20 })
+      expect(mockDb.limit).toHaveBeenCalledWith(10)
+      expect(mockDb.offset).toHaveBeenCalledWith(20)
+    })
+
+    it('should use transaction tx in list if provided', async () => {
+      const mockTx = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        offset: vi.fn().mockResolvedValueOnce([]),
+      }
+
+      await repository.list({}, mockTx as any)
+      expect(mockTx.select).toHaveBeenCalled()
+      expect(mockDb.select).not.toHaveBeenCalled()
+    })
+  })
+})
+
+

@@ -1,0 +1,195 @@
+import { Hono } from 'hono';
+import type { MessageBatch, ExecutionContext } from '@cloudflare/workers-types';
+import { ensureLogger, getLogger, withLogContext } from '@copas/logger';
+import { applyMiddlewares } from './core/setup/app.middlewares';
+import { registerRoutes } from './core/setup/app.router';
+import { registerErrorHandlers } from './core/setup/app.errors';
+import type { AppEnv } from './core/types/env';
+import { createInsuranceModule } from './modules/insurance/insurance.module';
+import { createCommunicationsModule } from './modules/communications/communications.module';
+import type { WhatsAppStatusUpdatePayload } from '@copas/contracts';
+
+// 1. Create the main instance
+const app = new Hono<AppEnv>();
+
+// 2. Bootstrap in strict order
+applyMiddlewares(app);
+const routes = registerRoutes(app);
+registerErrorHandlers(app);
+
+function calcApiBackoff(attempts?: number): number {
+  const a = typeof attempts === 'number' && attempts > 0 ? attempts : 1;
+  return Math.min(30 * 2 ** (a - 1), 3600);
+}
+
+// 3. Export app with queue handler
+const handler = Object.assign(app, {
+  fetch: app.fetch.bind(app),
+  async queue(batch: MessageBatch<any>, env: any, _ctx: ExecutionContext): Promise<void> {
+    if (!batch?.messages?.length) return;
+
+    ensureLogger({ 
+      appName: 'api', 
+      environment: env?.NODE_ENV,
+      lowestLevel: env?.LOG_LEVEL,
+    });
+    const queueLogger = getLogger(['api', 'queue']);
+
+    queueLogger.info('Received queue batch with {messagesCount} messages', {
+      messagesCount: batch.messages.length,
+      queue: 'copas-ai-result',
+    });
+
+    for (const message of batch.messages) {
+      const body: any = message.body;
+      const isAiResult =
+        body?.type === 'ai-result' ||
+        body?.type === 'ai_result' ||
+        !!body?.structuredPayload ||
+        !!body?.payload?.structuredPayload;
+      const isWhatsAppStatusUpdate = body?.type === 'whatsapp-status-update';
+
+      const payload = body?.payload ?? body;
+      const organizationId =
+        body?.metadata?.organizationId ||
+        payload?.organizationId ||
+        (payload as any)?.metadata?.organizationId;
+      const userId =
+        body?.metadata?.userId ||
+        payload?.userId ||
+        (payload as any)?.metadata?.userId ||
+        (payload as any)?.uploadedBy;
+
+      const requestId =
+        body?.metadata?.requestId ||
+        payload?.requestId ||
+        (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `queue-${message.id}`);
+
+      await withLogContext(
+        {
+          requestId,
+          organizationId,
+          userId,
+          aiExtractionResultId: payload?.aiExtractionResultId,
+          attempts: (message as any).attempts,
+          queue: (batch as any).queue || 'unknown',
+        },
+        async () => {
+          if (isWhatsAppStatusUpdate) {
+            try {
+              const commModule = createCommunicationsModule(env.DB, organizationId || '');
+              const updatePayload = payload as WhatsAppStatusUpdatePayload;
+              const wamid = updatePayload?.wamid;
+              const messageId = updatePayload?.messageId;
+              const status = updatePayload?.status || 'sent';
+
+              if (messageId && wamid) {
+                await commModule.messages.updateWamid(messageId, wamid);
+                await commModule.messages.recordStatus(messageId, status, {
+                  wamid,
+                  phoneNumberId: updatePayload.phoneNumberId,
+                  recipientPhone: updatePayload.recipientPhone,
+                  errors: updatePayload.errors,
+                });
+              } else if (wamid) {
+                const foundMsg = await commModule.messages.findByWamid(wamid);
+                if (foundMsg) {
+                  await commModule.messages.recordStatus(foundMsg.id, status, {
+                    wamid,
+                    phoneNumberId: updatePayload.phoneNumberId,
+                    recipientPhone: updatePayload.recipientPhone,
+                    errors: updatePayload.errors,
+                  });
+                }
+              }
+
+              if (typeof message.ack === 'function') message.ack();
+            } catch (err: any) {
+              queueLogger.error('Failed to process WhatsApp status update: {error}', {
+                error: err?.message ?? String(err),
+                stack: err?.stack,
+              });
+              if (typeof message.ack === 'function') message.ack();
+            }
+            return;
+          }
+
+          if (!isAiResult) {
+            queueLogger.warn('Discarding non-ai-result message', { type: body?.type });
+            if (typeof message.ack === 'function') message.ack();
+            return;
+          }
+
+          if (!organizationId) {
+            queueLogger.error('Missing organizationId in message body', { body });
+            if (typeof message.ack === 'function') message.ack();
+            return;
+          }
+
+          const start = performance.now();
+          queueLogger.info('Processing AI result message started for {aiExtractionResultId}', {
+            aiExtractionResultId: payload?.aiExtractionResultId,
+            organizationId,
+            userId,
+            attempts: (message as any).attempts,
+            policyNumber: payload?.structuredPayload?.policy?.policyNumber,
+            company: payload?.structuredPayload?.company?.name,
+          });
+          queueLogger.debug('AI result message structured payload for {aiExtractionResultId}: {structuredPayload}', {
+            aiExtractionResultId: payload?.aiExtractionResultId,
+            structuredPayload: payload?.structuredPayload,
+          });
+
+          try {
+            const insuranceModule = createInsuranceModule(
+              env.DB as any,
+              organizationId,
+              (env as any).DOCUMENT_BUCKET,
+              (env as any).AI_QUEUE
+            );
+            await insuranceModule.policies.processAiResult({
+              ...payload,
+              organizationId,
+              userId,
+            });
+
+            const durationMs = Math.round((performance.now() - start) * 100) / 100;
+            queueLogger.info('AI result message processed successfully in {durationMs}ms', {
+              durationMs,
+              aiExtractionResultId: payload?.aiExtractionResultId,
+            });
+
+            if (typeof message.ack === 'function') message.ack();
+          } catch (err: any) {
+            const durationMs = Math.round((performance.now() - start) * 100) / 100;
+            const msg = err?.message ?? String(err);
+            const delaySeconds = calcApiBackoff((message as any).attempts);
+
+            queueLogger.error('AI result message processing failed in {durationMs}ms: {error}', {
+              aiExtractionResultId: payload?.aiExtractionResultId,
+              organizationId,
+              attempts: (message as any).attempts,
+              delaySeconds,
+              durationMs,
+              error: msg,
+              stack: err?.stack,
+              structuredPayload: payload?.structuredPayload,
+            });
+
+            if (typeof (message as any).retry === 'function') {
+              (message as any).retry({ delaySeconds });
+            } else {
+              throw err;
+            }
+          }
+        }
+      );
+    }
+  },
+});
+
+export type { AppType } from './core/setup/app.router';
+export { RemindersRpcEntrypoint } from './modules/reminders/reminders-rpc.entrypoint';
+export default handler;
+
+

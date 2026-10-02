@@ -22,3 +22,5 @@ Each document type answers a specific question.
 | `media_script` | Scripts for audiovisual content | — |
 | `meta` | Documentation about the documentation system itself | — |
 | `roadmap` | Roadmaps and planning | *Where are we going?* |
+| `rules` | Normative rules and constraints | *What must/must not be done?* |
+| `guide` | Step-by-step how-to guides | *How do we do X?* |

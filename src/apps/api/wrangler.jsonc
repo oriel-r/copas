@@ -1,0 +1,147 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-06",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "copas-db",
+			"database_id": "76383265-232c-46a2-8bb9-37716b8d1728",
+			"preview_database_id": "local-copas-auth",
+			"migrations_dir": "../../packages/db/migrations",
+			"migrations_pattern": "../../packages/db/migrations/*/migration.sql"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "AUTH_KV",
+			"id": "520b469ccbee4bb6b027a7d277c54fab",
+			"preview_id": "local-copas-auth-kv"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "DOCUMENT_BUCKET",
+			"bucket_name": "copas-documents",
+			"preview_bucket_name": "local-copas-documents"
+		}
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "AI_QUEUE",
+				"queue": "copas-ai-extraction"
+			},
+			{
+				"binding": "WHATSAPP_QUEUE",
+				"queue": "copas-whatsapp"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "copas-ai-result",
+				"max_batch_size": 10,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+				"dead_letter_queue": "copas-ai-result-dlq",
+				"retry_delay": 60
+			},
+			{
+				"queue": "copas-whatsapp-inbound",
+				"max_batch_size": 10,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "copas-whatsapp-inbound-dlq"
+			}
+		]
+	},
+	"vars": {
+		"BACKEND_URL": "https://api.orielromero-work.workers.dev",
+		"BETTER_AUTH_URL": "https://client.orielromero-work.workers.dev",
+		"CLIENT_URL": "https://client.orielromero-work.workers.dev",
+		"NODE_ENV": "production",
+		"R2_ACCOUNT_ID": "35d060878ef1601397d88e02e01cf4fb",
+		"R2_BUCKET_NAME": "copas-documents"
+	},
+	"secrets": {
+		"required": [
+			"BETTER_AUTH_SECRET",
+			"GOOGLE_CLIENT_ID",
+			"GOOGLE_CLIENT_SECRET",
+			"MICROSOFT_CLIENT_ID",
+			"MICROSOFT_CLIENT_SECRET",
+			"MICROSOFT_TENANT_ID",
+			"R2_ACCESS_KEY_ID",
+			"R2_SECRET_ACCESS_KEY"
+		]
+	},
+	"env": {
+		"staging": {
+			"name": "api-staging",
+			"vars": {
+				"BACKEND_URL": "https://api-staging.orielromero-work.workers.dev",
+				"BETTER_AUTH_URL": "https://client-staging.orielromero-work.workers.dev",
+				"CLIENT_URL": "https://client-staging.orielromero-work.workers.dev",
+				"NODE_ENV": "staging",
+				"R2_BUCKET_NAME": "copas-documents-staging"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "copas-db-staging",
+					"database_id": "67e4d215-9600-4a10-9e97-58a0a1b3fcfa",
+					"migrations_dir": "../../packages/db/migrations",
+					"migrations_pattern": "../../packages/db/migrations/*/migration.sql"
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "AUTH_KV",
+					"id": "39b5a26b060c4b20acf2a05d6fc6ceaf"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "DOCUMENT_BUCKET",
+					"bucket_name": "copas-documents-staging"
+				}
+			],
+			"queues": {
+				"producers": [
+					{
+						"binding": "AI_QUEUE",
+						"queue": "copas-ai-extraction-staging"
+					},
+					{
+						"binding": "WHATSAPP_QUEUE",
+						"queue": "copas-whatsapp-staging"
+					}
+				],
+				"consumers": [
+					{
+						"queue": "copas-ai-result-staging",
+						"max_batch_size": 10,
+						"max_batch_timeout": 30,
+						"max_retries": 3,
+						"dead_letter_queue": "copas-ai-result-dlq-staging",
+						"retry_delay": 60
+					},
+					{
+						"queue": "copas-whatsapp-inbound-staging",
+						"max_batch_size": 10,
+						"max_batch_timeout": 5,
+						"max_retries": 3,
+						"dead_letter_queue": "copas-whatsapp-inbound-dlq-staging"
+					}
+				]
+			}
+		}
+	}
+}

@@ -3,13 +3,37 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "passThroughEnv": ["*"]
     },
-    "lint": {},
-    "test": {},
+    "lint": {
+      "passThroughEnv": ["*"]
+    },
+    "test": {
+      "passThroughEnv": ["*"]
+    },
+    "test:mutation": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/stryker/**"],
+      "passThroughEnv": ["*"]
+    },
+    "db:migrate:staging": {
+      "cache": false,
+      "passThroughEnv": ["*"]
+    },
+    "db:migrate:prod": {
+      "cache": false,
+      "passThroughEnv": ["*"]
+    },
+    "deploy": {
+      "dependsOn": ["^build", "build" ],
+      "cache": false,
+      "passThroughEnv": ["*"]
+    },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["*"]
     }
   }
 }

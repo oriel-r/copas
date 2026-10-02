@@ -1,0 +1,86 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "extractor",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "observability": {
+    "enabled": true
+  },
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.md"],
+      "fallthrough": true
+    }
+  ],
+  "workflows": [
+    {
+      "name": "policy-extraction-workflow",
+      "binding": "EXTRACTION_WORKFLOW",
+      "class_name": "PolicyExtractionWorkflow"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "AI_RESULT_QUEUE",
+        "queue": "copas-ai-result"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "copas-ai-extraction",
+        "max_batch_size": 5,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "copas-ai-extraction-dlq",
+        "retry_delay": 60
+      }
+    ]
+  },
+  "vars": {
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
+  },
+  "secrets": {
+    "required": [
+      "MISTRAL_API_KEY"
+    ]
+  },
+  "env": {
+    "staging": {
+      "name": "extractor-staging",
+      "workers_dev": false,
+      "workflows": [
+        {
+          "name": "policy-extraction-workflow-staging",
+          "binding": "EXTRACTION_WORKFLOW",
+          "class_name": "PolicyExtractionWorkflow"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "AI_RESULT_QUEUE",
+            "queue": "copas-ai-result-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "copas-ai-extraction-staging",
+            "max_batch_size": 5,
+            "max_batch_timeout": 30,
+            "max_retries": 3,
+            "dead_letter_queue": "copas-ai-extraction-dlq-staging",
+            "retry_delay": 60
+          }
+        ]
+      }
+    }
+  }
+}

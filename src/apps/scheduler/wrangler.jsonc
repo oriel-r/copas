@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "scheduler",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["0 11 * * *"]
+  },
+  "services": [
+    {
+      "binding": "API",
+      "service": "api",
+      "entrypoint": "RemindersRpcEntrypoint"
+    }
+  ],
+  "env": {
+    "staging": {
+      "name": "scheduler-staging",
+      "workers_dev": false,
+      "services": [
+        {
+          "binding": "API",
+          "service": "api-staging",
+          "entrypoint": "RemindersRpcEntrypoint"
+        }
+      ]
+    }
+  }
+}

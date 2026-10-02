@@ -1,0 +1,6 @@
+BETTER_AUTH_SECRET=local-development-secret-must-be-at-least-32-chars-long
+GOOGLE_CLIENT_ID=optional_google_client_id
+GOOGLE_CLIENT_SECRET=optional_google_client_secret
+MICROSOFT_CLIENT_ID=optional_microsoft_client_id
+MICROSOFT_CLIENT_SECRET=optional_microsoft_client_secret
+MICROSOFT_TENANT_ID=optional_microsoft_tenant_id

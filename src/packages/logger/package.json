@@ -1,0 +1,21 @@
+{
+  "name": "@copas/logger",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@logtape/logtape": "^2.3.2",
+    "@logtape/pretty": "^2.3.2",
+    "hono": "^4.12.33"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260804.1",
+    "@types/node": "^24.13.3",
+    "typescript": "^6.0.3"
+  }
+}
