@@ -12,7 +12,7 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:mutation": "stryker run",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy -c wrangler.jsonc"
   },
   "dependencies": {
     "@copas/contracts": "workspace:*",
