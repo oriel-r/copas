@@ -61,10 +61,15 @@ function isAllowedQAReadPath(filePath) {
 
 function agentFromText(text) {
   if (!text) return null;
+  if (/<identity>[\s\S]*?You are Antigravity/i.test(text)) {
+    return 'antigravity';
+  }
   if (/senior-architect|Senior Software Architect/i.test(text)) {
     return 'senior-architect';
   }
-  const stripped = text.replace(/"invoke_subagent"[\s\S]*?"TypeName"\s*:\s*"[^"]+"/g, '');
+  const stripped = text
+    .replace(/<RULE[\s\S]*?<\/RULE[^>]*>/gi, '')
+    .replace(/"invoke_subagent"[\s\S]*?"TypeName"\s*:\s*"[^"]+"/g, '');
   if (/senior-implementer|Senior Implementer|Senior TypeScript Developer \/ Implementer/i.test(stripped)) {
     return 'senior-implementer';
   }

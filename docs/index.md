@@ -1,6 +1,6 @@
 # Business Knowledge Map
 
-Mapa general de conocimiento de negocio y producto de Copas, estructurado por contextos delimitados.
+Mapa general de conocimiento de negocio y producto de CoPAS, estructurado por contextos delimitados.
 Para la documentación técnica y de implementación, consulta el índice técnico en [src/docs](/src/docs/index.md).
 
 ## Producto

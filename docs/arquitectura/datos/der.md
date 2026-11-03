@@ -9,9 +9,9 @@ deprecatedReason: ""
 supersededBy: ""
 ---
 
-# Diagrama ER de COPAS (v2)
+# Diagrama ER de CoPAS (v2)
 
-DER de la base de datos de COPAS. Análisis que originó esta versión:
+DER de la base de datos de CoPAS. Análisis que originó esta versión:
 [der_analisis.md](der_analisis.md).
 
 Las tablas de autenticación y organización (`user`, `account`, `session`,
