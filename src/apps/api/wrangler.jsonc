@@ -6,6 +6,7 @@
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
+	"workers_dev": false,
 	"observability": {
 		"enabled": true
 	},
@@ -63,7 +64,7 @@
 		]
 	},
 	"vars": {
-		"BACKEND_URL": "https://api.orielromero-work.workers.dev",
+		"BACKEND_URL": "https://client.orielromero-work.workers.dev/api",
 		"BETTER_AUTH_URL": "https://client.orielromero-work.workers.dev",
 		"CLIENT_URL": "https://client.orielromero-work.workers.dev",
 		"NODE_ENV": "production",
