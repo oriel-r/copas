@@ -1,6 +1,6 @@
 # @copas/ui
 
-Shared UI component library and design system for the Copas monorepo.
+Shared UI component library and design system for the CoPAS monorepo.
 
 ## Overview
 

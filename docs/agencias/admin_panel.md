@@ -9,7 +9,7 @@ updated:
 # Admin Panel
 
 ## Objetivo
-Interfaz de gestión para administradores de Copas.
+Interfaz de gestión para administradores de CoPAS.
 
 ## Reglas de Negocio
 - **Registro Cerrado**: Bloqueado el registro público. Solo ingresan usuarios pre-creados.

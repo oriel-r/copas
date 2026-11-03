@@ -11,7 +11,7 @@ supersededBy: ""
 
 # Disparo Manual de WhatsApps (Batch e Individual)
 
-Especificación técnica de la orquestación a demanda para el envío manual de recordatorios vía WhatsApp, respetando los límites de contexto y la arquitectura de mensajería saliente de Copas.
+Especificación técnica de la orquestación a demanda para el envío manual de recordatorios vía WhatsApp, respetando los límites de contexto y la arquitectura de mensajería saliente de CoPAS.
 
 ## Casos de Uso
 

@@ -11,7 +11,7 @@ supersededBy: ""
 
 # Decisión: Testing de Mutaciones Enfocado en Lógica de Negocio Real
 
-Define la estrategia arquitectónica, configuración y criterios de diseño de pruebas de mutación (Stryker) en Copas para garantizar que los tests validen reglas de dominio reales e invariantes del negocio en lugar de perseguir mutantes artificiales en código defensivo o infraestructura.
+Define la estrategia arquitectónica, configuración y criterios de diseño de pruebas de mutación (Stryker) en CoPAS para garantizar que los tests validen reglas de dominio reales e invariantes del negocio en lugar de perseguir mutantes artificiales en código defensivo o infraestructura.
 
 ---
 

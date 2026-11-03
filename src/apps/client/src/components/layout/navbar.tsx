@@ -3,6 +3,7 @@ import { NavLink } from 'react-router'
 import { Button } from '@copas/ui'
 import { signOut } from '@/lib/session'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
+import { BrandLogo } from '@/components/layout/brand-logo'
 
 export interface NavbarProps {
   onSignOut?: () => void
@@ -22,7 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onSignOut, isSigningOut }) => {
     <nav className="w-full bg-transparent backdrop-blur-sm sticky top-0 z-50">
       <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-8">
-          <div className="text-xl font-bold tracking-tight text-foreground">CoPAS</div>
+          <BrandLogo size="sm" />
           <div className="flex space-x-4">
             <NavLink
               to="/dashboard"
