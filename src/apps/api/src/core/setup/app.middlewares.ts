@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { secureHeaders } from 'hono/secure-headers';
 import { requestLoggerMiddleware } from '@copas/logger';
 import { sessionMiddleware } from '../middlewares/session';
 import { injectAppServices } from '../di';
 import type { AppEnv } from '../types/env';
 
 export const applyMiddlewares = (app: Hono<AppEnv>) => {
+  app.use('*', secureHeaders());
   app.use('*', requestLoggerMiddleware({ appName: 'api', category: ['api', 'http'] }));
   app.use(
     '*',
