@@ -4,6 +4,7 @@ import { queryClient } from './query-client'
 import { ErrorBoundary } from '@copas/ui'
 import { RealSessionSync, useSessionStore } from '@/lib/session'
 import { ThemeProvider } from '@/lib/theme'
+import { Toaster } from '@/components/ui/toaster'
 
 type ProvidersProps = {
   children: ReactNode
@@ -23,6 +24,7 @@ export function Providers({ children }: ProvidersProps) {
         <ErrorBoundary>
           {status === 'online' ? <RealSessionSync /> : null}
           {children}
+          <Toaster />
         </ErrorBoundary>
       </QueryClientProvider>
     </ThemeProvider>

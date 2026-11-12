@@ -81,6 +81,11 @@ export function DocumentUploadCard({ queue, className }: DocumentUploadCardProps
                           Subiendo...
                         </span>
                       )}
+                      {item.status === 'processing' && (
+                        <span className="text-amber-600 dark:text-amber-400 font-medium text-[11px] animate-pulse">
+                          Procesando con IA...
+                        </span>
+                      )}
                       {item.status === 'success' && (
                         <span className="text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">
                           Subido ✓
