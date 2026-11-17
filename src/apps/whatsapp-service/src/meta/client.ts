@@ -34,11 +34,18 @@ export async function sendMetaMessage(payload: WhatsAppOutboundQueuePayload, env
     body.interactive = payload.interactive
   }
 
-  const response = await fetch(url, {
+  const fetchInit: RequestInit = {
     method: 'POST',
     headers,
     body: JSON.stringify(body)
-  })
+  }
+
+  const parsedTimeoutMs = env.META_FETCH_TIMEOUT_MS ? Number(env.META_FETCH_TIMEOUT_MS) : Number.NaN
+  if (Number.isFinite(parsedTimeoutMs) && parsedTimeoutMs > 0) {
+    fetchInit.signal = AbortSignal.timeout(parsedTimeoutMs)
+  }
+
+  const response = await fetch(url, fetchInit)
 
   return response
 }

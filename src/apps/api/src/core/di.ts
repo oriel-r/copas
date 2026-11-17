@@ -49,9 +49,12 @@ export const injectAppServices = createMiddleware<AppEnv>(async (c, next) => {
         effectiveOrganizationId,
         (c.env as any).WHATSAPP_QUEUE,
         {
-          platformWhatsAppAccessToken: (c.env as any)?.WHATSAPP_ACCESS_TOKEN,
-          platformWhatsAppPhoneNumberId: (c.env as any)?.WHATSAPP_PHONE_NUMBER_ID,
-          platformWhatsAppWabaId: (c.env as any)?.WHATSAPP_WABA_ID,
+          platformWhatsAppAccessToken:
+            (c.env as any)?.PLATFORM_WHATSAPP_ACCESS_TOKEN ?? (c.env as any)?.WHATSAPP_ACCESS_TOKEN,
+          platformWhatsAppPhoneNumberId:
+            (c.env as any)?.PLATFORM_WHATSAPP_PHONE_NUMBER_ID ?? (c.env as any)?.WHATSAPP_PHONE_NUMBER_ID,
+          platformWhatsAppWabaId:
+            (c.env as any)?.PLATFORM_WHATSAPP_WABA_ID ?? (c.env as any)?.WHATSAPP_WABA_ID,
         }
       );
     },
