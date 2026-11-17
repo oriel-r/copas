@@ -405,7 +405,7 @@ export function createRemindersOrchestratorService(
           installmentId: isInstallment ? (row.installmentId || entityId) : undefined,
         })
 
-        const templateName = row.templateName || row.templateId || 'reminder_default'
+        const templateName = await resolveRuleTemplateName(row, client, db)
 
         try {
           const message = await messagesService.recordOutboundMessage({

@@ -47,7 +47,13 @@ export function buildReminderTemplateComponents({
   row,
 }: BuildTemplateComponentsParams): WhatsAppTemplateComponent[] {
   if (templateName === 'recordatorio_vencimiento') {
-    const customerName = row.insuredFullName?.trim() || 'Estimado/a cliente'
+    const rawCustomer =
+      typeof row.insuredFullName === 'string' && row.insuredFullName.trim()
+        ? row.insuredFullName
+        : typeof (row as any).fullName === 'string'
+          ? (row as any).fullName
+          : ''
+    const customerName = rawCustomer.trim() || 'Estimado/a cliente'
     const plateNumber = row.plateNumber?.trim() || 'registrada'
     const expirationDate = formatDateCivil(row.dueDate || row.expirationDate || row.targetDate)
     const amount = formatCurrencyAmount(row.totalAmount)
