@@ -2,9 +2,13 @@ import { sql } from 'drizzle-orm'
 import { check, index, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 import { enumCheck, fk, entity } from '../../shared'
-import { endpointStatus, ownerKind, provider } from '../../enums'
+import { endpointConnectionStatus, endpointStatus, ownerKind, provider } from '../../enums'
 import { organization } from '@copas/auth'
 import { channels } from './channels.schema'
+
+const connectionStatusLiteral = sql.raw(
+  endpointConnectionStatus.map((v) => `'${v}'`).join(', '),
+)
 
 export const channelEndpoints = sqliteTable(
   'channel_endpoints',
@@ -21,6 +25,7 @@ export const channelEndpoints = sqliteTable(
       () => organization.id,
     ),
     status: text('status').notNull().default('active'),
+    connectionStatus: text('connectionStatus'),
   },
   (table) => [
     index('channel_endpoints_channel_id_idx').on(table.channelId),
@@ -30,6 +35,10 @@ export const channelEndpoints = sqliteTable(
     enumCheck('channel_endpoints_provider_check', sql`${table.provider}`, provider),
     enumCheck('channel_endpoints_owner_kind_check', sql`${table.ownerKind}`, ownerKind),
     enumCheck('channel_endpoints_status_check', sql`${table.status}`, endpointStatus),
+    check(
+      'channel_endpoints_connection_status_check',
+      sql`${table.connectionStatus} IS NULL OR ${table.connectionStatus} IN (${connectionStatusLiteral})`,
+    ),
     check(
       'channel_endpoints_owner_organization_coherence',
       sql`CASE ${table.ownerKind}

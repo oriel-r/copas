@@ -36,6 +36,12 @@ export const DEMO_SESSION: SessionData = {
   },
 }
 
+export const DEMO_ORGANIZATION = {
+  id: 'demo-org',
+  name: 'Agencia Demo',
+  slug: 'agencia-demo',
+} as const
+
 type BackendStatus = 'checking' | 'online' | 'offline'
 
 type SessionState = {

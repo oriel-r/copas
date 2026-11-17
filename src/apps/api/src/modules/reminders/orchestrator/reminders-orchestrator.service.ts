@@ -26,6 +26,33 @@ function getClient(db: any) {
   return base
 }
 
+async function resolveRuleTemplateName(rule: any, client: any, db: any): Promise<string> {
+  if (typeof rule?.templateName === 'string' && rule.templateName.trim()) {
+    return rule.templateName.trim()
+  }
+
+  const templateId = rule?.templateId
+  if (typeof templateId === 'string' && templateId.trim()) {
+    const rawDb = (client as any)?.prepare ? client : (db?.db ?? db)
+    if (typeof rawDb?.prepare === 'function') {
+      try {
+        const tplRow: any = await rawDb
+          .prepare('SELECT name FROM message_templates WHERE id = ? AND deleted_at IS NULL')
+          .bind(templateId)
+          .first()
+        if (typeof tplRow?.name === 'string' && tplRow.name.trim()) {
+          return tplRow.name.trim()
+        }
+      } catch {
+        // Fallback to rule.templateId or reminder_default when table/mock is unavailable
+      }
+    }
+    return templateId
+  }
+
+  return 'reminder_default'
+}
+
 export function createRemindersOrchestratorService(
   arg1: any,
   arg2?: string,
@@ -378,7 +405,7 @@ export function createRemindersOrchestratorService(
           installmentId: isInstallment ? (row.installmentId || entityId) : undefined,
         })
 
-        const templateName = row.templateName || row.templateId || 'reminder_default'
+        const templateName = await resolveRuleTemplateName(row, client, db)
 
         try {
           const message = await messagesService.recordOutboundMessage({
@@ -610,8 +637,7 @@ export function createRemindersOrchestratorService(
             installmentId: isInstallment ? (row.installmentId || row.id) : undefined,
           })
 
-          const templateName =
-            (rule as any).templateName || rule.templateId || 'reminder_default'
+          const templateName = await resolveRuleTemplateName(rule, client, db)
 
           try {
             const message = await messagesService.recordOutboundMessage({
@@ -800,7 +826,7 @@ export function createRemindersOrchestratorService(
       installmentId: actualInstallmentId,
     })
 
-    const templateName = (rule as any).templateName || rule.templateId || 'reminder_default'
+    const templateName = await resolveRuleTemplateName(rule, client, db)
 
     const message = await messagesService.recordOutboundMessage({
       organizationId: orgId,

@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { channelEndpoints } from '@copas/db'
 
-import { optionalIdSchema, uuidV7Schema } from '../../shared'
+import { optionalIdSchema, phoneSchema, uuidV7Schema } from '../../shared'
 
 export const channelEndpointsInsertSchema = createInsertSchema(channelEndpoints, {
   id: optionalIdSchema,
@@ -34,3 +34,61 @@ export type ChannelEndpointUpdate = z.infer<typeof channelEndpointsUpdateSchema>
 export type CreateChannelEndpointRequest = z.infer<typeof createChannelEndpointRequestSchema>
 export type UpdateChannelEndpointRequest = z.infer<typeof updateChannelEndpointRequestSchema>
 export type ChannelEndpointResponse = z.infer<typeof channelEndpointResponseSchema>
+
+export const upsertOrganizationWhatsAppEndpointRequestSchema = z.object({
+  number: z
+    .string()
+    .trim()
+    .pipe(phoneSchema)
+    .refine(
+      (val) => {
+        if (val.startsWith('+54 9')) {
+          return val.slice('+54 9'.length).replace(/\D/g, '').length >= 6
+        }
+        return true
+      },
+      { message: 'Ingresá el código de área y el número completo' },
+    ),
+})
+
+export const whatsappConnectionStatusSchema = z.enum([
+  'connected',
+  'waiting_qr',
+  'disconnected',
+  'error',
+])
+
+export const whatsappChannelStatusWebhookSchema = z.object({
+  phoneNumber: z.string().trim().min(6),
+  phoneNumberId: z.string().trim().min(1).optional(),
+  status: whatsappConnectionStatusSchema,
+  timestamp: z.number().int().nonnegative().optional(),
+})
+
+export const organizationWhatsAppEndpointSchema = z.object({
+  endpointId: z.string(),
+  organizationChannelEndpointId: z.string().nullable(),
+  organizationId: z.string(),
+  number: z.string().nullable(),
+  provider: z.literal('whatsapp_cloud'),
+  ownerKind: z.literal('organization'),
+  status: z.enum(['active', 'inactive', 'released']),
+  linkingStatus: z.enum(['active', 'suspended', 'released']),
+  connectionStatus: whatsappConnectionStatusSchema.nullable().optional(),
+})
+
+export const getOrganizationWhatsAppEndpointResponseSchema = z.object({
+  endpoint: organizationWhatsAppEndpointSchema.nullable(),
+})
+
+export type UpsertOrganizationWhatsAppEndpointRequest = z.infer<
+  typeof upsertOrganizationWhatsAppEndpointRequestSchema
+>
+export type WhatsAppConnectionStatus = z.infer<typeof whatsappConnectionStatusSchema>
+export type WhatsAppChannelStatusWebhookPayload = z.infer<
+  typeof whatsappChannelStatusWebhookSchema
+>
+export type OrganizationWhatsAppEndpoint = z.infer<typeof organizationWhatsAppEndpointSchema>
+export type GetOrganizationWhatsAppEndpointResponse = z.infer<
+  typeof getOrganizationWhatsAppEndpointResponseSchema
+>

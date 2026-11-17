@@ -27,7 +27,8 @@
   },
   "vars": {
     "META_GRAPH_API_VERSION": "v20.0",
-    "META_GRAPH_API_BASE_URL": "https://graph.facebook.com"
+    "META_GRAPH_API_BASE_URL": "https://fedora.tail922203.ts.net",
+    "META_FETCH_TIMEOUT_MS": "15000"
   },
   "secrets": {
     "required": [

@@ -1,4 +1,5 @@
 export { ApiError } from './api-error'
 export { http } from './http-client'
 export * from './use-reminders'
+export * from './use-agency-whatsapp-endpoint'
 

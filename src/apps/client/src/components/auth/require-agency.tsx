@@ -2,9 +2,11 @@ import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router'
 import { Alert, AlertDescription, PageLoader } from '@copas/ui'
 import { authClient } from '@/lib/auth-client'
+import { useSessionStore } from '@/lib/session'
 import { AppShell } from '@/components/layout/app-shell'
 
 export function RequireAgency() {
+  const isDemo = useSessionStore((s) => s.status === 'offline')
   const { data: organizations, isPending, isRefetching, error } = authClient.useListOrganizations?.() ?? {
     data: null,
     isPending: false,
@@ -13,10 +15,14 @@ export function RequireAgency() {
   }
 
   useEffect(() => {
-    if (organizations && organizations.length > 0) {
+    if (!isDemo && organizations && organizations.length > 0) {
       void authClient.organization?.setActive?.({ organizationId: organizations[0].id })
     }
-  }, [organizations])
+  }, [isDemo, organizations])
+
+  if (isDemo) {
+    return <Outlet />
+  }
 
   if (isPending || isRefetching) {
     return <PageLoader />

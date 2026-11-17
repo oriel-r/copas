@@ -1,0 +1,13 @@
+{
+  "allowDefaultSessionFallback": true,
+  "sessions": {
+    "default": {
+      "wahaSession": "session_01m7kpvrgmp59wnvmx46qc0w94",
+      "displayPhone": "5493718446327"
+    },
+    "5493718446327": {
+      "wahaSession": "session_01m7kpvrgmp59wnvmx46qc0w94",
+      "displayPhone": "5493718446327"
+    }
+  }
+}

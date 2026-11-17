@@ -6,6 +6,7 @@ export type CloudflareBindings = {
   META_VERIFY_TOKEN: string
   META_GRAPH_API_VERSION?: string
   META_GRAPH_API_BASE_URL?: string
+  META_FETCH_TIMEOUT_MS?: string
   INTEGRATION_ENCRYPTION_KEY?: string
   PLATFORM_WHATSAPP_ACCESS_TOKEN?: string
 }
