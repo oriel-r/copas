@@ -1,7 +1,9 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { drizzle } from 'drizzle-orm/d1'
-import { and, eq, desc, asc } from 'drizzle-orm'
+import { and, eq, desc, asc, isNull } from 'drizzle-orm'
+import type { OrganizationWhatsAppEndpoint } from '@copas/contracts'
 import {
+  channels,
   organizationChannelEndpoints,
   channelEndpoints,
   organizationChannels,
@@ -172,6 +174,244 @@ export function createChannelEndpointsRepository(arg1: any, arg2?: string) {
     findPlatformFallback: async (_channel?: string, tx?: any): Promise<ResolvedChannelEndpoint | null> => {
       const repo = createChannelEndpointsRepository(database, '')
       return repo.findPrimaryWhatsAppEndpoint(tx)
+    },
+
+    findOrganizationWhatsAppEndpoint: async (
+      orgId?: string,
+      tx?: any,
+    ): Promise<OrganizationWhatsAppEndpoint | null> => {
+      const targetOrgId = orgId || organizationId
+      if (!targetOrgId) return null
+
+      const client = getClient(database, tx)
+      const rows = await client
+        .select({
+          endpointId: channelEndpoints.id,
+          organizationChannelEndpointId: organizationChannelEndpoints.id,
+          organizationId: channelEndpoints.ownerOrganizationId,
+          number: channelEndpoints.number,
+          provider: channelEndpoints.provider,
+          ownerKind: channelEndpoints.ownerKind,
+          status: channelEndpoints.status,
+          linkingStatus: organizationChannelEndpoints.status,
+        })
+        .from(channelEndpoints)
+        .leftJoin(
+          organizationChannelEndpoints,
+          and(
+            eq(organizationChannelEndpoints.endpointId, channelEndpoints.id),
+            isNull(organizationChannelEndpoints.deletedAt),
+          ),
+        )
+        .where(
+          and(
+            eq(channelEndpoints.ownerKind, 'organization'),
+            eq(channelEndpoints.ownerOrganizationId, targetOrgId),
+            eq(channelEndpoints.provider, 'whatsapp_cloud'),
+            isNull(channelEndpoints.deletedAt),
+          ),
+        )
+        .orderBy(desc(channelEndpoints.updatedAt))
+        .limit(1)
+
+      const row = Array.isArray(rows) ? rows[0] : rows
+      if (!row) return null
+
+      return {
+        endpointId: row.endpointId,
+        organizationChannelEndpointId: row.organizationChannelEndpointId ?? null,
+        organizationId: row.organizationId ?? targetOrgId,
+        number: row.number ?? null,
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: row.status as OrganizationWhatsAppEndpoint['status'],
+        linkingStatus: (row.linkingStatus ?? 'suspended') as OrganizationWhatsAppEndpoint['linkingStatus'],
+      }
+    },
+
+    upsertOrganizationWhatsAppEndpoint: async (
+      number: string,
+      orgId?: string,
+      tx?: any,
+    ): Promise<OrganizationWhatsAppEndpoint> => {
+      const targetOrgId = orgId || organizationId
+      if (!targetOrgId) {
+        throw new Error('Organization required')
+      }
+
+      const cleanNumber = number.trim()
+      const client = getClient(database, tx)
+
+      const existingChannels = await client
+        .select({ id: channels.id })
+        .from(channels)
+        .where(and(eq(channels.code, 'whatsapp'), isNull(channels.deletedAt)))
+        .limit(1)
+
+      let channelId = existingChannels?.[0]?.id as string | undefined
+      if (!channelId) {
+        await client
+          .insert(channels)
+          .values({
+            id: 'chn_whatsapp',
+            code: 'whatsapp',
+            name: 'WhatsApp',
+            description: 'Canal oficial de WhatsApp Cloud API',
+            isSystem: true,
+          })
+          .onConflictDoNothing()
+        channelId = 'chn_whatsapp'
+      }
+
+      const existingOrgChannels = await client
+        .select()
+        .from(organizationChannels)
+        .where(
+          and(
+            eq(organizationChannels.organizationId, targetOrgId),
+            eq(organizationChannels.channelId, channelId),
+            isNull(organizationChannels.deletedAt),
+          ),
+        )
+        .limit(1)
+
+      let orgChannel = existingOrgChannels?.[0]
+      if (!orgChannel) {
+        const insertedOrgChannels = await client
+          .insert(organizationChannels)
+          .values({
+            organizationId: targetOrgId,
+            channelId,
+            isEnabled: false,
+            config: null,
+          })
+          .returning()
+        orgChannel = insertedOrgChannels[0]
+      }
+
+      const existingEndpoints = await client
+        .select()
+        .from(channelEndpoints)
+        .where(
+          and(
+            eq(channelEndpoints.ownerKind, 'organization'),
+            eq(channelEndpoints.ownerOrganizationId, targetOrgId),
+            eq(channelEndpoints.provider, 'whatsapp_cloud'),
+            isNull(channelEndpoints.deletedAt),
+          ),
+        )
+        .orderBy(desc(channelEndpoints.updatedAt))
+        .limit(1)
+
+      const existingEndpoint = existingEndpoints?.[0]
+
+      if (existingEndpoint) {
+        const hasNumberChanged = (existingEndpoint.number ?? '').trim() !== cleanNumber
+        const nextStatus = hasNumberChanged ? 'inactive' : existingEndpoint.status
+
+        const updatedEndpoints = await client
+          .update(channelEndpoints)
+          .set({
+            number: cleanNumber,
+            status: nextStatus,
+            updatedAt: new Date(),
+          })
+          .where(eq(channelEndpoints.id, existingEndpoint.id))
+          .returning()
+
+        const updatedEndpoint = updatedEndpoints[0] ?? {
+          ...existingEndpoint,
+          number: cleanNumber,
+          status: nextStatus,
+        }
+
+        const existingLinks = await client
+          .select()
+          .from(organizationChannelEndpoints)
+          .where(
+            and(
+              eq(organizationChannelEndpoints.organizationChannelId, orgChannel.id),
+              eq(organizationChannelEndpoints.endpointId, existingEndpoint.id),
+              isNull(organizationChannelEndpoints.deletedAt),
+            ),
+          )
+          .limit(1)
+
+        let link = existingLinks?.[0]
+        if (!link) {
+          const insertedLinks = await client
+            .insert(organizationChannelEndpoints)
+            .values({
+              organizationChannelId: orgChannel.id,
+              endpointId: existingEndpoint.id,
+              label: 'WhatsApp Agencia',
+              isPrimary: false,
+              status: 'suspended',
+            })
+            .returning()
+          link = insertedLinks[0]
+        } else if (hasNumberChanged && link.status === 'active') {
+          const updatedLinks = await client
+            .update(organizationChannelEndpoints)
+            .set({
+              status: 'suspended',
+              isPrimary: false,
+              updatedAt: new Date(),
+            })
+            .where(eq(organizationChannelEndpoints.id, link.id))
+            .returning()
+          link = updatedLinks[0] ?? { ...link, status: 'suspended', isPrimary: false }
+        }
+
+        return {
+          endpointId: updatedEndpoint.id,
+          organizationChannelEndpointId: link?.id ?? null,
+          organizationId: targetOrgId,
+          number: updatedEndpoint.number ?? cleanNumber,
+          provider: 'whatsapp_cloud',
+          ownerKind: 'organization',
+          status: updatedEndpoint.status as OrganizationWhatsAppEndpoint['status'],
+          linkingStatus: (link?.status ?? 'suspended') as OrganizationWhatsAppEndpoint['linkingStatus'],
+        }
+      }
+
+      const insertedEndpoints = await client
+        .insert(channelEndpoints)
+        .values({
+          channelId,
+          number: cleanNumber,
+          provider: 'whatsapp_cloud',
+          ownerKind: 'organization',
+          ownerOrganizationId: targetOrgId,
+          status: 'inactive',
+        })
+        .returning()
+
+      const createdEndpoint = insertedEndpoints[0]
+
+      const insertedLinks = await client
+        .insert(organizationChannelEndpoints)
+        .values({
+          organizationChannelId: orgChannel.id,
+          endpointId: createdEndpoint.id,
+          label: 'WhatsApp Agencia',
+          isPrimary: false,
+          status: 'suspended',
+        })
+        .returning()
+
+      const createdLink = insertedLinks[0]
+
+      return {
+        endpointId: createdEndpoint.id,
+        organizationChannelEndpointId: createdLink?.id ?? null,
+        organizationId: targetOrgId,
+        number: createdEndpoint.number ?? cleanNumber,
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: createdEndpoint.status as OrganizationWhatsAppEndpoint['status'],
+        linkingStatus: (createdLink?.status ?? 'suspended') as OrganizationWhatsAppEndpoint['linkingStatus'],
+      }
     },
   }
 }

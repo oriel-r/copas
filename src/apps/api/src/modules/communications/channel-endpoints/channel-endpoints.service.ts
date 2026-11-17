@@ -1,3 +1,4 @@
+import type { OrganizationWhatsAppEndpoint } from '@copas/contracts'
 import type { ChannelEndpointsRepository, ResolvedChannelEndpoint } from './channel-endpoints.repository'
 
 export interface ChannelEndpointsServiceOptions {
@@ -76,6 +77,23 @@ export function createChannelEndpointsService(
       }
 
       throw new Error('No WhatsApp channel endpoint available')
+    },
+
+    getOrganizationWhatsAppEndpoint: async (
+      orgId?: string,
+    ): Promise<OrganizationWhatsAppEndpoint | null> => {
+      return await channelEndpointsRepo.findOrganizationWhatsAppEndpoint(orgId)
+    },
+
+    upsertOrganizationWhatsAppEndpoint: async (
+      number: string,
+      orgId?: string,
+    ): Promise<OrganizationWhatsAppEndpoint> => {
+      const cleanNumber = number.trim()
+      if (!cleanNumber) {
+        throw new Error('Phone number is required')
+      }
+      return await channelEndpointsRepo.upsertOrganizationWhatsAppEndpoint(cleanNumber, orgId)
     },
   }
 }

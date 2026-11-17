@@ -38,6 +38,7 @@ export default defineConfig({
     exclude: [
       'src/modules/auth/auth.integration.test.ts',
       'src/modules/reminders/reminders.integration.test.ts',
+      'src/modules/communications/channel-endpoints/channel-endpoints.integration.test.ts',
     ],
   },
 })

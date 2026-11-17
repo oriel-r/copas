@@ -1,8 +1,13 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@copas/ui'
+import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@copas/ui'
 import CloseIcon from '~icons/material-symbols/close'
 import QrCodeIcon from '~icons/material-symbols/qr-code-2'
 import WhatsAppIcon from '~icons/logos/whatsapp-icon'
+import {
+  useAgencyWhatsAppEndpoint,
+  useUpsertAgencyWhatsAppEndpoint,
+} from '@/lib/api/use-agency-whatsapp-endpoint'
+import { useSessionStore } from '@/lib/session'
 import { toast } from '@/lib/toast'
 import { useAgencySettingsStore } from '@/stores/use-agency-settings-store'
 import { AGENCY_SETTINGS_DRAWER_ID } from './agency-settings-trigger'
@@ -78,8 +83,14 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
   organizationId,
   agencyName,
 }) => {
-  const savedPhone = useAgencySettingsStore((s) => s.agencyPhone)
-  const saveAgencyPhone = useAgencySettingsStore((s) => s.saveAgencyPhone)
+  const sessionStatus = useSessionStore((s) => s.status)
+  const storePhone = useAgencySettingsStore((s) => s.agencyPhone)
+  const endpointQuery = useAgencyWhatsAppEndpoint(organizationId)
+  const upsertMutation = useUpsertAgencyWhatsAppEndpoint(organizationId, agencyName)
+
+  const endpoint = sessionStatus === 'online' ? (endpointQuery.data?.endpoint ?? null) : null
+  const savedPhone = sessionStatus === 'online' ? (endpoint?.number ?? null) : storePhone
+  const isInitialLoading = sessionStatus === 'online' && endpointQuery.isLoading
 
   const [prevSavedPhone, setPrevSavedPhone] = useState(savedPhone)
   const [phoneInput, setPhoneInput] = useState(savedPhone ?? '')
@@ -177,8 +188,10 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
     setFieldError(validateAgencyPhone(phoneInput))
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (upsertMutation.isPending) return
+
     const validationError = validateAgencyPhone(phoneInput)
     if (validationError) {
       setFieldError(validationError)
@@ -188,10 +201,14 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
 
     setFieldError(null)
     setHasEdited(false)
-    saveAgencyPhone(phoneInput, { organizationId, agencyName })
-    toast.success('Número de agencia guardado', {
-      description: 'Ya podés solicitar el QR de vinculación por WhatsApp.',
-    })
+    try {
+      await upsertMutation.mutateAsync({ number: phoneInput.trim() })
+      toast.success('Número de agencia guardado', {
+        description: 'Ya podés solicitar el QR de vinculación por WhatsApp.',
+      })
+    } catch {
+      // El error se muestra en la alerta del formulario vía upsertMutation.error
+    }
   }
 
   const trimmedInput = phoneInput.trim()
@@ -240,12 +257,18 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
               )}
               <span
                 className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                  savedPhone
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-secondary text-secondary-foreground'
+                  endpoint?.status === 'active'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                    : savedPhone
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-secondary text-secondary-foreground'
                 }`}
               >
-                {savedPhone ? 'Número cargado' : 'Sin configurar'}
+                {endpoint?.status === 'active'
+                  ? 'Vinculado'
+                  : savedPhone
+                    ? 'Número cargado'
+                    : 'Sin configurar'}
               </span>
             </div>
           </div>
@@ -272,6 +295,18 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
             </CardHeader>
 
             <CardContent className="p-4 pt-2 space-y-4">
+              {upsertMutation.error && (
+                <Alert variant="destructive">
+                  {upsertMutation.error.message || 'No se pudo guardar el número de la agencia'}
+                </Alert>
+              )}
+
+              {endpointQuery.error && (
+                <Alert variant="destructive">
+                  {endpointQuery.error.message || 'No se pudo cargar el número actual de la agencia'}
+                </Alert>
+              )}
+
               <form onSubmit={handleSubmit} noValidate className="space-y-3">
                 <div className="space-y-1.5">
                   <label
@@ -292,6 +327,7 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
                     spellCheck={false}
                     required
                     autoFocus
+                    disabled={isInitialLoading || upsertMutation.isPending}
                     value={phoneInput}
                     onFocus={handlePhoneFocus}
                     onChange={handlePhoneChange}
@@ -299,7 +335,7 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
                     aria-invalid={Boolean(fieldError)}
                     aria-describedby={describedBy}
                     placeholder="+54 9 11 1234-5678"
-                    className={`w-full min-h-11 px-3 py-2 text-base sm:text-sm rounded-md border bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`w-full min-h-11 px-3 py-2 text-base sm:text-sm rounded-md border bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
                       fieldError ? 'border-destructive focus-visible:ring-destructive' : 'border-input'
                     }`}
                   />
@@ -318,8 +354,12 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
                   )}
                 </div>
 
-                <Button type="submit" className="w-full min-h-11 cursor-pointer">
-                  Guardar número
+                <Button
+                  type="submit"
+                  disabled={isInitialLoading || upsertMutation.isPending}
+                  className="w-full min-h-11 cursor-pointer"
+                >
+                  {upsertMutation.isPending ? 'Guardando...' : 'Guardar número'}
                 </Button>
               </form>
 

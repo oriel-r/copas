@@ -6,6 +6,7 @@ import { installmentsRouter } from '../../modules/insurance/policy-installments/
 import { reminderRulesRouter } from '../../modules/reminders/reminder-rules/reminder-rules.routes';
 import { remindersRouter } from '../../modules/reminders/reminders.routes';
 import { insuredsRouter } from '../../modules/insurance/insureds/insureds.routes';
+import { channelEndpointsRouter } from '../../modules/communications/channel-endpoints/channel-endpoints.routes';
 import portfolioRouter from '../../modules/portfolio/portfolio.routes';
 
 export const registerRoutes = (app: Hono<AppEnv>) => {
@@ -17,6 +18,7 @@ export const registerRoutes = (app: Hono<AppEnv>) => {
     .route('/reminder-rules', reminderRulesRouter)
     .route('/reminders', remindersRouter)
     .route('/insureds', insuredsRouter)
+    .route('/channel-endpoints', channelEndpointsRouter)
     .route('/portfolio', portfolioRouter);
 };
 

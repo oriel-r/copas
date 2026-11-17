@@ -122,4 +122,71 @@ describe('channel-endpoints.service', () => {
       )
     })
   })
+
+  describe('getOrganizationWhatsAppEndpoint', () => {
+    it('delegates to repository.findOrganizationWhatsAppEndpoint and returns null when none exists', async () => {
+      mockRepo.findOrganizationWhatsAppEndpoint = vi.fn().mockResolvedValueOnce(null)
+
+      const result = await service.getOrganizationWhatsAppEndpoint('org-1')
+
+      expect(result).toBeNull()
+      expect(mockRepo.findOrganizationWhatsAppEndpoint).toHaveBeenCalledWith('org-1')
+    })
+
+    it('delegates to repository.findOrganizationWhatsAppEndpoint and returns the endpoint', async () => {
+      const endpoint = {
+        endpointId: 'cep-1',
+        organizationChannelEndpointId: 'oce-1',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud' as const,
+        ownerKind: 'organization' as const,
+        status: 'inactive' as const,
+        linkingStatus: 'suspended' as const,
+      }
+      mockRepo.findOrganizationWhatsAppEndpoint = vi.fn().mockResolvedValueOnce(endpoint)
+
+      const result = await service.getOrganizationWhatsAppEndpoint('org-1')
+
+      expect(result).toEqual(endpoint)
+      expect(mockRepo.findOrganizationWhatsAppEndpoint).toHaveBeenCalledWith('org-1')
+    })
+  })
+
+  describe('upsertOrganizationWhatsAppEndpoint', () => {
+    it.each([
+      ['empty string', ''],
+      ['whitespace only', '   '],
+    ])('throws "Phone number is required" on %s without calling repository', async (_label, blank) => {
+      mockRepo.upsertOrganizationWhatsAppEndpoint = vi.fn()
+
+      await expect(service.upsertOrganizationWhatsAppEndpoint(blank, 'org-1')).rejects.toThrow(
+        'Phone number is required',
+      )
+
+      expect(mockRepo.upsertOrganizationWhatsAppEndpoint).not.toHaveBeenCalled()
+    })
+
+    it('trims phone number and delegates to repository.upsertOrganizationWhatsAppEndpoint', async () => {
+      const saved = {
+        endpointId: 'cep-1',
+        organizationChannelEndpointId: 'oce-1',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud' as const,
+        ownerKind: 'organization' as const,
+        status: 'inactive' as const,
+        linkingStatus: 'suspended' as const,
+      }
+      mockRepo.upsertOrganizationWhatsAppEndpoint = vi.fn().mockResolvedValueOnce(saved)
+
+      const result = await service.upsertOrganizationWhatsAppEndpoint('  +54 9 11 1234-5678  ', 'org-1')
+
+      expect(result).toEqual(saved)
+      expect(mockRepo.upsertOrganizationWhatsAppEndpoint).toHaveBeenCalledWith(
+        '+54 9 11 1234-5678',
+        'org-1',
+      )
+    })
+  })
 })

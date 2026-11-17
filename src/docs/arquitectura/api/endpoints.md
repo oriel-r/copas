@@ -3,7 +3,7 @@ type: convention
 producer: oriel
 status: active
 created: 2026-08-24T22:56:10.324Z
-updated: 2026-08-25
+updated: 2026-11-17
 expires: 
 deprecatedReason: ""
 supersededBy: ""
@@ -29,4 +29,9 @@ RESTful naming:
 
 > [!NOTE]
 > El despacho automatizado diario del cron **no expone endpoints HTTP**; se ejecuta exclusivamente a nivel de infraestructura mediante Service Binding nativo Worker-to-Worker RPC (`WorkerEntrypoint`) invocado por el worker `scheduler`.
+
+## Endpoints de Canales y Endpoints
+
+- `GET /channel-endpoints/whatsapp`: Obtiene el endpoint de WhatsApp propio de la organización autenticada (`ownerKind = 'organization'`), o `{ endpoint: null }` si todavía no registró ninguno.
+- `PUT /channel-endpoints/whatsapp`: Registra o actualiza el número de teléfono de WhatsApp propio de la organización autenticada en `channel_endpoints` (creando si no existen el canal en `organization_channels` y el vínculo en `organization_channel_endpoints`) con estado inicial `inactive` hasta completar la vinculación.
 

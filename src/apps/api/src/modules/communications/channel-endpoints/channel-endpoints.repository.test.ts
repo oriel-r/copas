@@ -239,5 +239,279 @@ describe('channel-endpoints.repository', () => {
       expect(mockDb.select).not.toHaveBeenCalled()
     })
   })
+
+  describe('findOrganizationWhatsAppEndpoint', () => {
+    beforeEach(() => {
+      mockDb.orderBy = vi.fn().mockReturnThis()
+    })
+
+    it('returns null without querying when organizationId is empty', async () => {
+      const repo = createChannelEndpointsRepository({ db: mockDb, organizationId: '' } as any)
+
+      const result = await repo.findOrganizationWhatsAppEndpoint('')
+
+      expect(result).toBeNull()
+      expect(mockDb.select).not.toHaveBeenCalled()
+    })
+
+    it('returns null when no organization WhatsApp endpoint row exists', async () => {
+      mockDb.limit.mockResolvedValueOnce([])
+
+      const result = await repository.findOrganizationWhatsAppEndpoint('org-1')
+
+      expect(result).toBeNull()
+      expect(mockDb.select).toHaveBeenCalled()
+    })
+
+    it('returns mapped OrganizationWhatsAppEndpoint when present', async () => {
+      const row = {
+        endpointId: 'cep-org-1',
+        organizationChannelEndpointId: 'oce-org-1',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'active',
+        linkingStatus: 'active',
+      }
+      mockDb.limit.mockResolvedValueOnce([row])
+
+      const result = await repository.findOrganizationWhatsAppEndpoint('org-1')
+
+      expect(result).toEqual({
+        endpointId: 'cep-org-1',
+        organizationChannelEndpointId: 'oce-org-1',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'active',
+        linkingStatus: 'active',
+      })
+    })
+
+    it('defaults linkingStatus to "suspended" when left-join link is null', async () => {
+      const row = {
+        endpointId: 'cep-org-1',
+        organizationChannelEndpointId: null,
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'inactive',
+        linkingStatus: null,
+      }
+      mockDb.limit.mockResolvedValueOnce([row])
+
+      const result = await repository.findOrganizationWhatsAppEndpoint('org-1')
+
+      expect(result).toEqual({
+        endpointId: 'cep-org-1',
+        organizationChannelEndpointId: null,
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'inactive',
+        linkingStatus: 'suspended',
+      })
+    })
+  })
+
+  describe('upsertOrganizationWhatsAppEndpoint', () => {
+    beforeEach(() => {
+      mockDb.orderBy = vi.fn().mockReturnThis()
+      mockDb.insert = vi.fn().mockReturnThis()
+      mockDb.values = vi.fn().mockReturnThis()
+      mockDb.onConflictDoNothing = vi.fn().mockReturnThis()
+      mockDb.returning = vi.fn().mockResolvedValue([])
+      mockDb.update = vi.fn().mockReturnThis()
+      mockDb.set = vi.fn().mockReturnThis()
+    })
+
+    it('throws "Organization required" when orgId is empty', async () => {
+      const repo = createChannelEndpointsRepository({ db: mockDb, organizationId: '' } as any)
+
+      await expect(
+        repo.upsertOrganizationWhatsAppEndpoint('+54 9 11 1234-5678', ''),
+      ).rejects.toThrow('Organization required')
+    })
+
+    it('inserts fallback "chn_whatsapp" channel and creates organization_channels, channel_endpoints, and organization_channel_endpoints when missing', async () => {
+      const createdEndpoint = {
+        endpointId: 'cep-new',
+        organizationChannelEndpointId: 'oce-new',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'inactive',
+        linkingStatus: 'suspended',
+      }
+      mockDb.limit
+        .mockResolvedValueOnce([]) // channel lookup
+        .mockResolvedValueOnce([]) // organization_channel lookup
+        .mockResolvedValueOnce([]) // existing endpoint lookup
+      mockDb.returning
+        .mockResolvedValueOnce([{ id: 'och-new', organizationId: 'org-1', channelId: 'chn_whatsapp' }])
+        .mockResolvedValueOnce([
+          {
+            id: 'cep-new',
+            channelId: 'chn_whatsapp',
+            number: '+54 9 11 1234-5678',
+            provider: 'whatsapp_cloud',
+            ownerKind: 'organization',
+            ownerOrganizationId: 'org-1',
+            status: 'inactive',
+          },
+        ])
+        .mockResolvedValueOnce([{ id: 'oce-new', status: 'suspended', isPrimary: false }])
+
+      const result = await repository.upsertOrganizationWhatsAppEndpoint(
+        '+54 9 11 1234-5678',
+        'org-1',
+      )
+
+      expect(result).toEqual(createdEndpoint)
+
+      const insertedValues = mockDb.values.mock.calls.map(([arg]: [any]) => arg)
+      expect(insertedValues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'chn_whatsapp', code: 'whatsapp' }),
+          expect.objectContaining({
+            organizationId: 'org-1',
+            channelId: 'chn_whatsapp',
+            isEnabled: false,
+            config: null,
+          }),
+          expect.objectContaining({
+            channelId: 'chn_whatsapp',
+            number: '+54 9 11 1234-5678',
+            provider: 'whatsapp_cloud',
+            ownerKind: 'organization',
+            ownerOrganizationId: 'org-1',
+            status: 'inactive',
+          }),
+          expect.objectContaining({
+            isPrimary: false,
+            status: 'suspended',
+          }),
+        ]),
+      )
+    })
+
+    it('updates an existing endpoint without resetting status when number is unchanged', async () => {
+      const unchangedEndpoint = {
+        endpointId: 'cep-1',
+        organizationChannelEndpointId: 'oce-1',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'active',
+        linkingStatus: 'active',
+      }
+      mockDb.limit
+        .mockResolvedValueOnce([{ id: 'chn_whatsapp' }]) // channel
+        .mockResolvedValueOnce([{ id: 'och-1' }]) // organization_channel
+        .mockResolvedValueOnce([{ id: 'cep-1', number: '+54 9 11 1234-5678', status: 'active' }]) // existing endpoint
+        .mockResolvedValueOnce([{ id: 'oce-1', status: 'active', isPrimary: true }]) // existing link
+        .mockResolvedValueOnce([unchangedEndpoint]) // final read
+
+      const result = await repository.upsertOrganizationWhatsAppEndpoint(
+        '+54 9 11 1234-5678',
+        'org-1',
+      )
+
+      expect(result).toEqual(unchangedEndpoint)
+
+      const setPayloads = mockDb.set.mock.calls.map(([arg]: [any]) => arg)
+      expect(setPayloads.some((p: any) => p.status === 'inactive')).toBe(false)
+      expect(setPayloads.some((p: any) => p.status === 'suspended')).toBe(false)
+    })
+
+    it('updates existing endpoint and resets status to "inactive" and active link to "suspended", isPrimary: false when number changes', async () => {
+      const resetEndpoint = {
+        endpointId: 'cep-1',
+        organizationChannelEndpointId: 'oce-1',
+        organizationId: 'org-1',
+        number: '+54 9 11 9999-0000',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'inactive',
+        linkingStatus: 'suspended',
+      }
+      mockDb.limit
+        .mockResolvedValueOnce([{ id: 'chn_whatsapp' }]) // channel
+        .mockResolvedValueOnce([{ id: 'och-1' }]) // organization_channel
+        .mockResolvedValueOnce([{ id: 'cep-1', number: '+54 9 11 1234-5678', status: 'active' }]) // existing endpoint
+        .mockResolvedValueOnce([{ id: 'oce-1', status: 'active', isPrimary: true }]) // existing link
+        .mockResolvedValueOnce([resetEndpoint]) // final read
+
+      const result = await repository.upsertOrganizationWhatsAppEndpoint(
+        '+54 9 11 9999-0000',
+        'org-1',
+      )
+
+      expect(result).toEqual(resetEndpoint)
+
+      const setPayloads = mockDb.set.mock.calls.map(([arg]: [any]) => arg)
+      expect(setPayloads).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ number: '+54 9 11 9999-0000', status: 'inactive' }),
+          expect.objectContaining({ status: 'suspended', isPrimary: false }),
+        ]),
+      )
+    })
+
+    it('creates missing organization_channel_endpoints link if existing endpoint has none', async () => {
+      const linkedEndpoint = {
+        endpointId: 'cep-1',
+        organizationChannelEndpointId: 'oce-new',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud',
+        ownerKind: 'organization',
+        status: 'inactive',
+        linkingStatus: 'suspended',
+      }
+      mockDb.limit
+        .mockResolvedValueOnce([{ id: 'chn_whatsapp' }]) // channel
+        .mockResolvedValueOnce([{ id: 'och-1' }]) // organization_channel
+        .mockResolvedValueOnce([{ id: 'cep-1', number: '+54 9 11 1234-5678', status: 'inactive' }]) // existing endpoint
+        .mockResolvedValueOnce([]) // missing link
+      mockDb.returning
+        .mockResolvedValueOnce([
+          {
+            id: 'cep-1',
+            number: '+54 9 11 1234-5678',
+            provider: 'whatsapp_cloud',
+            ownerKind: 'organization',
+            ownerOrganizationId: 'org-1',
+            status: 'inactive',
+          },
+        ])
+        .mockResolvedValueOnce([{ id: 'oce-new', status: 'suspended', isPrimary: false }])
+
+      const result = await repository.upsertOrganizationWhatsAppEndpoint(
+        '+54 9 11 1234-5678',
+        'org-1',
+      )
+
+      expect(result).toEqual(linkedEndpoint)
+
+      const insertedValues = mockDb.values.mock.calls.map(([arg]: [any]) => arg)
+      expect(insertedValues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            organizationChannelId: 'och-1',
+            endpointId: 'cep-1',
+            isPrimary: false,
+            status: 'suspended',
+          }),
+        ]),
+      )
+    })
+  })
 })
 
