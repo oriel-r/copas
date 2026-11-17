@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
+import type { OrganizationWhatsAppEndpoint, WhatsAppConnectionStatus } from '@copas/contracts'
 import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@copas/ui'
+import CheckCircleIcon from '~icons/material-symbols/check-circle'
 import CloseIcon from '~icons/material-symbols/close'
+import ErrorIcon from '~icons/material-symbols/error'
+import LoadingIcon from '~icons/material-symbols/progress-activity'
 import QrCodeIcon from '~icons/material-symbols/qr-code-2'
+import RefreshIcon from '~icons/material-symbols/refresh'
 import WhatsAppIcon from '~icons/logos/whatsapp-icon'
 import {
   useAgencyWhatsAppEndpoint,
@@ -26,6 +31,83 @@ export interface AgencySettingsDrawerProps {
 }
 
 const EXIT_ANIMATION_MS = 250
+
+type ConnectionPresentationKey = WhatsAppConnectionStatus | 'pending' | 'unconfigured'
+
+interface ConnectionPresentation {
+  badgeLabel: string
+  badgeClass: string
+  cardTitle: string
+  cardDescription: string
+  cardClass: string
+}
+
+const CONNECTION_PRESENTATIONS: Record<ConnectionPresentationKey, ConnectionPresentation> = {
+  connected: {
+    badgeLabel: 'Conectado',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+    cardTitle: 'WhatsApp conectado',
+    cardDescription:
+      'La línea está vinculada y activa. Los recordatorios y comunicaciones de tu agencia ya salen desde este número.',
+    cardClass: 'border-emerald-500/30 bg-emerald-500/5',
+  },
+  waiting_qr: {
+    badgeLabel: 'Esperando QR',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    cardTitle: 'Esperando escaneo de QR',
+    cardDescription:
+      'Escaneá el enlace de vinculación para conectar tu WhatsApp. El estado se actualiza automáticamente.',
+    cardClass: 'border-amber-500/30 bg-amber-500/5',
+  },
+  disconnected: {
+    badgeLabel: 'Desconectado',
+    badgeClass: 'bg-secondary text-secondary-foreground',
+    cardTitle: 'Sesión desconectada',
+    cardDescription:
+      'La sesión de WhatsApp está cerrada o pausada. Solicitá un nuevo QR para volver a vincular la línea.',
+    cardClass: 'border-border bg-muted/40',
+  },
+  error: {
+    badgeLabel: 'Error de conexión',
+    badgeClass: 'bg-destructive/15 text-destructive',
+    cardTitle: 'Error en la vinculación',
+    cardDescription:
+      'No se pudo mantener la sesión de WhatsApp activa. Solicitá un nuevo QR para restablecer la conexión.',
+    cardClass: 'border-destructive/40 bg-destructive/5',
+  },
+  pending: {
+    badgeLabel: 'Número cargado',
+    badgeClass: 'bg-primary/10 text-primary',
+    cardTitle: 'Pendiente de vinculación',
+    cardDescription:
+      'Listo. Solicitá por WhatsApp el link para vincular este número y escaneá el QR.',
+    cardClass: 'border-border bg-muted/30',
+  },
+  unconfigured: {
+    badgeLabel: 'Sin configurar',
+    badgeClass: 'bg-secondary text-secondary-foreground',
+    cardTitle: 'Sin configurar',
+    cardDescription:
+      'Guardá primero el número de la agencia para habilitar la solicitud de QR.',
+    cardClass: 'border-border bg-muted/30',
+  },
+}
+
+function resolveConnectionStateKey(
+  endpoint: OrganizationWhatsAppEndpoint | null,
+  savedPhone: string | null,
+): ConnectionPresentationKey {
+  if (endpoint?.connectionStatus) {
+    return endpoint.connectionStatus
+  }
+  if (endpoint?.status === 'active') {
+    return 'connected'
+  }
+  if (savedPhone) {
+    return 'pending'
+  }
+  return 'unconfigured'
+}
 
 export const AgencySettingsDrawer: React.FC<AgencySettingsDrawerProps> = ({
   isOpen: propIsOpen,
@@ -85,12 +167,17 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
 }) => {
   const sessionStatus = useSessionStore((s) => s.status)
   const storePhone = useAgencySettingsStore((s) => s.agencyPhone)
-  const endpointQuery = useAgencyWhatsAppEndpoint(organizationId)
+  const endpointQuery = useAgencyWhatsAppEndpoint(organizationId, {
+    pollWhenPending: !isExiting,
+  })
   const upsertMutation = useUpsertAgencyWhatsAppEndpoint(organizationId, agencyName)
 
   const endpoint = sessionStatus === 'online' ? (endpointQuery.data?.endpoint ?? null) : null
   const savedPhone = sessionStatus === 'online' ? (endpoint?.number ?? null) : storePhone
   const isInitialLoading = sessionStatus === 'online' && endpointQuery.isLoading
+  const connectionStateKey = resolveConnectionStateKey(endpoint, savedPhone)
+  const connectionPresentation = CONNECTION_PRESENTATIONS[connectionStateKey]
+  const isConnected = connectionStateKey === 'connected'
 
   const [prevSavedPhone, setPrevSavedPhone] = useState(savedPhone)
   const [phoneInput, setPhoneInput] = useState(savedPhone ?? '')
@@ -256,19 +343,9 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
                 </span>
               )}
               <span
-                className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                  endpoint?.status === 'active'
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-                    : savedPhone
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-secondary text-secondary-foreground'
-                }`}
+                className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${connectionPresentation.badgeClass}`}
               >
-                {endpoint?.status === 'active'
-                  ? 'Vinculado'
-                  : savedPhone
-                    ? 'Número cargado'
-                    : 'Sin configurar'}
+                {connectionPresentation.badgeLabel}
               </span>
             </div>
           </div>
@@ -364,29 +441,83 @@ const AgencySettingsDrawerContent: React.FC<AgencySettingsDrawerContentProps> = 
               </form>
 
               <div className="pt-3 border-t border-border space-y-2.5">
-                <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Vinculación por QR
+                    Estado de vinculación
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {hasUnsavedChanges
-                      ? 'Guardá los cambios del número antes de solicitar el link de vinculación.'
-                      : savedPhone
-                        ? 'Listo. Solicitá por WhatsApp el link para vincular este número.'
-                        : 'Guardá primero el número de la agencia para habilitar la solicitud de QR.'}
-                  </p>
+                  {savedPhone && sessionStatus === 'online' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        void endpointQuery.refetch()
+                      }}
+                      disabled={endpointQuery.isFetching}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
+                    >
+                      {endpointQuery.isFetching ? (
+                        <LoadingIcon className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <RefreshIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      <span>Actualizar</span>
+                    </Button>
+                  )}
                 </div>
+
+                {hasUnsavedChanges ? (
+                  <p className="text-xs text-muted-foreground">
+                    Guardá los cambios del número antes de solicitar el link de vinculación.
+                  </p>
+                ) : savedPhone ? (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className={`rounded-md border p-3 space-y-1 ${connectionPresentation.cardClass}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isConnected ? (
+                        <CheckCircleIcon
+                          className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0"
+                          aria-hidden="true"
+                        />
+                      ) : connectionStateKey === 'error' ? (
+                        <ErrorIcon className="h-4 w-4 text-destructive shrink-0" aria-hidden="true" />
+                      ) : connectionStateKey === 'waiting_qr' ? (
+                        <LoadingIcon
+                          className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-spin shrink-0"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <QrCodeIcon className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                      )}
+                      <span className="text-xs font-semibold text-foreground">
+                        {connectionPresentation.cardTitle}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {connectionPresentation.cardDescription}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {connectionPresentation.cardDescription}
+                  </p>
+                )}
 
                 <Button
                   type="button"
-                  variant="outline"
+                  variant={isConnected ? 'ghost' : 'outline'}
                   onClick={handleRequestQr}
                   disabled={!canRequestQr}
-                  className="w-full min-h-11 gap-2 cursor-pointer"
+                  className={`w-full min-h-11 gap-2 cursor-pointer ${
+                    isConnected ? 'text-muted-foreground hover:text-foreground' : ''
+                  }`}
                 >
                   <WhatsAppIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <QrCodeIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>Solicitar QR</span>
+                  <span>{isConnected ? 'Solicitar nuevo QR' : 'Solicitar QR'}</span>
                 </Button>
               </div>
             </CardContent>

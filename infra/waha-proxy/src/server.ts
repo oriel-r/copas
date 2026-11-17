@@ -461,6 +461,14 @@ export function createProxyApp(deps: ProxyAppDeps): Hono {
     )
   })
 
+  app.post('/qr/sync-status', async (c) => {
+    if (!verifyQrAdminAuth(c, config)) {
+      return rejectNonAdminQr(c, config)
+    }
+    const summary = await webhooks.syncAllSessionsStatus(waha)
+    return c.json({ ok: true, ...summary })
+  })
+
   app.get('/qr/:session', async (c) => {
     const session = sanitizeSessionName(c.req.param('session'), config.wahaDefaultSession)
     const access = verifyQrSessionAccess(c, config, session)
@@ -540,6 +548,12 @@ export function createProxyApp(deps: ProxyAppDeps): Hono {
       status: result.status,
       role: access.role,
     })
+    void webhooks
+      .emitChannelStatusWebhook({
+        wahaSession: session,
+        wahaStatus: result.status,
+      })
+      .catch(() => undefined)
     return c.json({ ok: true, session: result })
   })
 
@@ -549,6 +563,18 @@ export function createProxyApp(deps: ProxyAppDeps): Hono {
     }
     const session = sanitizeSessionName(c.req.param('session'), config.wahaDefaultSession)
     await waha.restartSession(session)
+    void waha
+      .getSessionDetail(session)
+      .then((detail) =>
+        detail
+          ? webhooks.emitChannelStatusWebhook({
+              wahaSession: session,
+              wahaStatus: detail.status,
+              meId: detail.me?.id,
+            })
+          : undefined,
+      )
+      .catch(() => undefined)
     return c.json({ ok: true, session })
   })
 
@@ -558,6 +584,12 @@ export function createProxyApp(deps: ProxyAppDeps): Hono {
     }
     const session = sanitizeSessionName(c.req.param('session'), config.wahaDefaultSession)
     await waha.logoutSession(session)
+    void webhooks
+      .emitChannelStatusWebhook({
+        wahaSession: session,
+        wahaStatus: 'STOPPED',
+      })
+      .catch(() => undefined)
     return c.json({ ok: true, session })
   })
 

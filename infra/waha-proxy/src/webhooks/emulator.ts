@@ -3,6 +3,18 @@ import type { ProxyStore } from '../db/store.ts'
 import { getProxyLogger } from '../observability/logger.ts'
 import { signMetaWebhookPayload } from '../security/auth.ts'
 import type { MetaWebhookPayload, WahaWebhookEvent } from '../types.ts'
+import type { WahaClient } from '../waha/client.ts'
+
+export type ChannelConnectionStatus = 'connected' | 'waiting_qr' | 'disconnected' | 'error'
+
+export function mapWahaStatusToChannelStatus(wahaStatus: string | undefined): ChannelConnectionStatus | null {
+  const norm = (wahaStatus || '').trim().toUpperCase()
+  if (norm === 'WORKING') return 'connected'
+  if (norm === 'SCAN_QR_CODE' || norm === 'STARTING') return 'waiting_qr'
+  if (norm === 'STOPPED') return 'disconnected'
+  if (norm === 'FAILED') return 'error'
+  return null
+}
 
 function mapWahaAckToMetaStatus(ack: number): 'sent' | 'delivered' | 'read' | 'failed' | null {
   if (ack === -1) return 'failed'
@@ -191,6 +203,217 @@ export class WebhookEmulator {
       wamid: params.wamid,
       kind: `status:${params.status}`,
     })
+  }
+
+  async emitChannelStatusWebhook(params: {
+    wahaSession: string
+    wahaStatus: string
+    meId?: string
+    timestampSec?: number
+  }): Promise<{ forwarded: boolean; reason?: string }> {
+    if (!this.config.copasApiStatusWebhookUrl) {
+      this.logger.debug('COPAS_API_STATUS_WEBHOOK_URL is not configured; skipping channel status push', {
+        wahaSession: params.wahaSession,
+        wahaStatus: params.wahaStatus,
+      })
+      return { forwarded: false, reason: 'status_webhook_not_configured' }
+    }
+    if (!this.config.copasStatusWebhookSecret) {
+      this.logger.warn('COPAS_STATUS_WEBHOOK_SECRET is empty; skipping signed channel status push', {
+        wahaSession: params.wahaSession,
+        wahaStatus: params.wahaStatus,
+      })
+      return { forwarded: false, reason: 'status_webhook_secret_missing' }
+    }
+
+    const mappedStatus = mapWahaStatusToChannelStatus(params.wahaStatus)
+    if (!mappedStatus) {
+      return { forwarded: false, reason: 'unmapped_session_status' }
+    }
+
+    const sessionsConfig = loadSessionsConfig(this.config.sessionsConfigPath)
+    const { phoneNumberId, displayPhone } = resolvePhoneMetadataByWahaSession(
+      params.wahaSession,
+      this.config,
+      sessionsConfig,
+    )
+
+    const displayDigits = displayPhone.replace(/\D/g, '')
+    const meDigits = extractPhoneDigitsFromJid(params.meId)
+    const effectivePhone = displayDigits.length >= 6 ? displayDigits : meDigits
+    if (effectivePhone.length < 6) {
+      this.logger.debug('Skipping channel status push for unmapped session {wahaSession}', {
+        wahaSession: params.wahaSession,
+        wahaStatus: params.wahaStatus,
+      })
+      return { forwarded: false, reason: 'missing_phone_number' }
+    }
+
+    const effectivePhoneNumberId =
+      phoneNumberId && phoneNumberId !== 'default' && phoneNumberId !== params.wahaSession
+        ? phoneNumberId
+        : effectivePhone
+
+    const rawBody = JSON.stringify({
+      phoneNumber: effectivePhone,
+      phoneNumberId: effectivePhoneNumberId,
+      status: mappedStatus,
+      timestamp: params.timestampSec ?? Math.floor(Date.now() / 1000),
+    })
+    const signature = signMetaWebhookPayload(rawBody, this.config.copasStatusWebhookSecret)
+
+    const retryDelaysMs = [0, 400, 1200]
+    let lastErrorMsg = ''
+    let lastStatus = 0
+
+    for (let attempt = 0; attempt < retryDelaysMs.length; attempt++) {
+      if (retryDelaysMs[attempt] > 0) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelaysMs[attempt]))
+      }
+
+      const start = performance.now()
+      try {
+        const response = await fetch(this.config.copasApiStatusWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Hub-Signature-256': signature,
+          },
+          body: rawBody,
+          signal: AbortSignal.timeout(10000),
+        })
+        const durationMs = Math.round((performance.now() - start) * 100) / 100
+        lastStatus = response.status
+
+        if (response.ok) {
+          this.logger.info(
+            'Forwarded channel status {mappedStatus} for {effectivePhone} to CoPAS API in {durationMs}ms (HTTP {status})',
+            {
+              wahaSession: params.wahaSession,
+              mappedStatus,
+              effectivePhone,
+              status: response.status,
+              durationMs,
+            },
+          )
+          this.store.recordEvent({
+            level: 'info',
+            category: 'webhooks',
+            wahaSession: params.wahaSession,
+            eventType: 'copas_channel_status_sent',
+            message: `Forwarded channel status ${mappedStatus} for ${effectivePhone} (HTTP ${response.status})`,
+            details: {
+              mappedStatus,
+              phoneNumber: effectivePhone,
+              phoneNumberId: effectivePhoneNumberId,
+              status: response.status,
+              durationMs,
+            },
+          })
+          return { forwarded: true }
+        }
+
+        lastErrorMsg = await response.text().catch(() => '')
+        const shouldRetry = response.status === 429 || response.status >= 500
+        if (!shouldRetry || attempt === retryDelaysMs.length - 1) {
+          this.logger.warn(
+            'CoPAS API rejected channel status {mappedStatus} for {effectivePhone} (HTTP {status}): {error}',
+            {
+              wahaSession: params.wahaSession,
+              mappedStatus,
+              effectivePhone,
+              status: response.status,
+              error: lastErrorMsg,
+            },
+          )
+          this.store.recordEvent({
+            level: response.status === 404 ? 'warning' : 'error',
+            category: 'webhooks',
+            wahaSession: params.wahaSession,
+            eventType: 'copas_channel_status_failed',
+            message: `CoPAS API returned HTTP ${response.status} for channel status ${mappedStatus}`,
+            details: {
+              mappedStatus,
+              phoneNumber: effectivePhone,
+              status: response.status,
+              durationMs,
+              error: lastErrorMsg,
+            },
+          })
+          return { forwarded: false, reason: `http_${response.status}` }
+        }
+      } catch (err: any) {
+        lastErrorMsg = err?.message || String(err)
+        if (attempt === retryDelaysMs.length - 1) {
+          this.logger.error('Failed posting channel status {mappedStatus} to CoPAS API: {error}', {
+            wahaSession: params.wahaSession,
+            mappedStatus,
+            effectivePhone,
+            error: lastErrorMsg,
+          })
+          this.store.recordEvent({
+            level: 'error',
+            category: 'webhooks',
+            wahaSession: params.wahaSession,
+            eventType: 'copas_channel_status_failed',
+            message: `Network error posting channel status ${mappedStatus}: ${lastErrorMsg}`,
+            details: {
+              mappedStatus,
+              phoneNumber: effectivePhone,
+              error: lastErrorMsg,
+            },
+          })
+          return { forwarded: false, reason: 'network_error' }
+        }
+      }
+    }
+
+    return { forwarded: false, reason: lastStatus ? `http_${lastStatus}` : 'network_error' }
+  }
+
+  async syncAllSessionsStatus(waha: WahaClient): Promise<{
+    reachable: boolean
+    total: number
+    forwarded: number
+    skipped: number
+    failed: number
+  }> {
+    const list = await waha.listSessions()
+    if (!list.reachable) {
+      return { reachable: false, total: 0, forwarded: 0, skipped: 0, failed: 0 }
+    }
+
+    let forwarded = 0
+    let skipped = 0
+    let failed = 0
+
+    for (const s of list.sessions) {
+      const detail = await waha.getSessionDetail(s.name).catch(() => null)
+      const res = await this.emitChannelStatusWebhook({
+        wahaSession: s.name,
+        wahaStatus: detail?.status || s.status,
+        meId: detail?.me?.id,
+      })
+      if (res.forwarded) {
+        forwarded += 1
+      } else if (
+        res.reason === 'missing_phone_number' ||
+        res.reason === 'unmapped_session_status' ||
+        res.reason === 'status_webhook_not_configured'
+      ) {
+        skipped += 1
+      } else {
+        failed += 1
+      }
+    }
+
+    return {
+      reachable: true,
+      total: list.sessions.length,
+      forwarded,
+      skipped,
+      failed,
+    }
   }
 
   async handleWahaWebhook(
@@ -426,6 +649,8 @@ export class WebhookEmulator {
 
     if (event.event === 'session.status') {
       const sessionStatus = typeof payload.status === 'string' ? payload.status : 'unknown'
+      const meObj = (payload.me as Record<string, unknown> | undefined) ?? undefined
+      const meId = typeof meObj?.id === 'string' ? meObj.id : undefined
       this.logger.info('WAHA session {wahaSession} status changed to {sessionStatus}', {
         wahaSession: event.session,
         sessionStatus,
@@ -438,7 +663,17 @@ export class WebhookEmulator {
         message: `WAHA session status: ${sessionStatus}`,
         details: { status: sessionStatus },
       })
-      return { forwarded: false, reason: 'session_status_logged' }
+      const pushResult = await this.emitChannelStatusWebhook({
+        wahaSession: event.session,
+        wahaStatus: sessionStatus,
+        meId,
+      })
+      return {
+        forwarded: pushResult.forwarded,
+        reason: pushResult.forwarded
+          ? 'session_status_forwarded'
+          : pushResult.reason || 'session_status_logged',
+      }
     }
 
     return { forwarded: false, reason: `unhandled_event:${event.event}` }

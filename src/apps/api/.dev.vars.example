@@ -7,3 +7,4 @@ MICROSOFT_TENANT_ID=optional_microsoft_tenant_id
 WHATSAPP_ACCESS_TOKEN=optional_whatsapp_bearer_token
 WHATSAPP_PHONE_NUMBER_ID=optional_whatsapp_phone_number_id
 WHATSAPP_WABA_ID=optional_whatsapp_waba_id
+WHATSAPP_STATUS_WEBHOOK_SECRET=change-me-whatsapp-status-webhook-secret

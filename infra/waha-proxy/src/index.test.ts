@@ -94,7 +94,10 @@ function makeTempFixtures() {
   return { dir, sessionsPath, templatesPath, templates }
 }
 
-function makeTestConfig(overrides: Partial<ProxyConfig> & { sessionsPath: string; templatesPath: string }): ProxyConfig {
+function makeTestConfig(
+  overrides: Partial<ProxyConfig> & { sessionsPath: string; templatesPath: string },
+  envOverrides: Record<string, string | undefined> = {},
+): ProxyConfig {
   return {
     ...loadProxyConfig({
       LOG_LEVEL: 'error',
@@ -120,6 +123,7 @@ function makeTestConfig(overrides: Partial<ProxyConfig> & { sessionsPath: string
       HUMAN_MIN_TYPING_MS: '0',
       HUMAN_MAX_TYPING_MS: '0',
       MAX_SEND_RETRIES: '2',
+      ...envOverrides,
     }),
     ...overrides,
   }
@@ -1335,5 +1339,244 @@ describe('waha-proxy HTTP Hono server, human dispatcher & webhook emulator', () 
     })
     expect((await disabledApp.request('/qr')).status).toBe(404)
     expect((await disabledApp.request('/qr/agencia-remota/status?token=qr-admin-token-test')).status).toBe(404)
+  })
+
+  it.each([
+    ['WORKING', 'connected'],
+    ['SCAN_QR_CODE', 'waiting_qr'],
+    ['STOPPED', 'disconnected'],
+    ['FAILED', 'error'],
+  ] as const)(
+    'forwards WAHA session.status "%s" as "%s" to COPAS_API_STATUS_WEBHOOK_URL signed with COPAS_STATUS_WEBHOOK_SECRET',
+    async (wahaStatus, expectedCopasStatus) => {
+      const fx = makeTempFixtures()
+      try {
+        const statusWebhookUrl = 'https://api.copas.test/webhooks/whatsapp-channel-status'
+        const statusSecret = 'copas-status-secret-test'
+        const statusConfig = makeTestConfig(
+          { sessionsPath: fx.sessionsPath, templatesPath: fx.templatesPath },
+          {
+            COPAS_API_STATUS_WEBHOOK_URL: statusWebhookUrl,
+            COPAS_STATUS_WEBHOOK_SECRET: statusSecret,
+          },
+        )
+
+        const statusCalls: Array<{ rawBody: string; signature: string | null }> = []
+        fetchMock.mockImplementation(async (input: string | URL, init?: RequestInit) => {
+          if (String(input) === statusWebhookUrl) {
+            const headers = new Headers(init?.headers)
+            statusCalls.push({
+              rawBody: String(init?.body ?? ''),
+              signature: headers.get('X-Hub-Signature-256'),
+            })
+            return new Response(JSON.stringify({ ok: true }), { status: 200 })
+          }
+          return new Response('{}', { status: 200 })
+        })
+
+        const waha = new WahaClient(statusConfig.wahaBaseUrl, statusConfig.wahaApiKey)
+        const webhooks = new WebhookEmulator(statusConfig, store)
+        const dispatcher = new HumanDispatcher(statusConfig, store, waha, webhooks)
+        const app = createProxyApp({ config: statusConfig, store, waha, dispatcher, webhooks })
+
+        const raw = JSON.stringify({
+          event: 'session.status',
+          session: 'agencia-a',
+          payload: {
+            name: 'agencia-a',
+            status: wahaStatus,
+          },
+        })
+        const wahaSig = createHmac('sha512', statusConfig.wahaWebhookHmacKey)
+          .update(raw)
+          .digest('hex')
+
+        const res = await app.request('/internal/waha-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Webhook-Hmac': wahaSig,
+          },
+          body: raw,
+        })
+
+        expect(res.status).toBe(200)
+        expect(await res.json()).toMatchObject({
+          ok: true,
+          forwarded: true,
+          reason: 'session_status_forwarded',
+        })
+        expect(statusCalls).toHaveLength(1)
+        expect(
+          await verifyMetaSignatureLikeWorker(
+            statusCalls[0].rawBody,
+            statusCalls[0].signature,
+            statusSecret,
+          ),
+        ).toBe(true)
+
+        expect(JSON.parse(statusCalls[0].rawBody)).toMatchObject({
+          phoneNumber: '5491122223333',
+          phoneNumberId: 'agency-a-phone-id',
+          status: expectedCopasStatus,
+        })
+      } finally {
+        rmSync(fx.dir, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it('falls back to META_APP_SECRET when COPAS_STATUS_WEBHOOK_SECRET is unset for session.status webhooks', async () => {
+    const fx = makeTempFixtures()
+    try {
+      const statusWebhookUrl = 'https://api.copas.test/webhooks/whatsapp-channel-status'
+      const statusConfig = makeTestConfig(
+        { sessionsPath: fx.sessionsPath, templatesPath: fx.templatesPath },
+        {
+          COPAS_API_STATUS_WEBHOOK_URL: statusWebhookUrl,
+        },
+      )
+
+      const statusCalls: Array<{ rawBody: string; signature: string | null }> = []
+      fetchMock.mockImplementation(async (input: string | URL, init?: RequestInit) => {
+        if (String(input) === statusWebhookUrl) {
+          const headers = new Headers(init?.headers)
+          statusCalls.push({
+            rawBody: String(init?.body ?? ''),
+            signature: headers.get('X-Hub-Signature-256'),
+          })
+          return new Response(JSON.stringify({ ok: true }), { status: 200 })
+        }
+        return new Response('{}', { status: 200 })
+      })
+
+      const waha = new WahaClient(statusConfig.wahaBaseUrl, statusConfig.wahaApiKey)
+      const webhooks = new WebhookEmulator(statusConfig, store)
+      const dispatcher = new HumanDispatcher(statusConfig, store, waha, webhooks)
+      const app = createProxyApp({ config: statusConfig, store, waha, dispatcher, webhooks })
+
+      const raw = JSON.stringify({
+        event: 'session.status',
+        session: 'agencia-a',
+        payload: { name: 'agencia-a', status: 'WORKING' },
+      })
+      const wahaSig = createHmac('sha512', statusConfig.wahaWebhookHmacKey)
+        .update(raw)
+        .digest('hex')
+
+      const res = await app.request('/internal/waha-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Hmac': wahaSig,
+        },
+        body: raw,
+      })
+
+      expect(res.status).toBe(200)
+      expect(statusCalls).toHaveLength(1)
+      expect(
+        await verifyMetaSignatureLikeWorker(
+          statusCalls[0].rawBody,
+          statusCalls[0].signature,
+          statusConfig.metaAppSecret,
+        ),
+      ).toBe(true)
+    } finally {
+      rmSync(fx.dir, { recursive: true, force: true })
+    }
+  })
+
+  it('POST /qr/sync-status admin endpoint syncs live WAHA sessions to CoPAS API and rejects unauthorized/tunneled callers', async () => {
+    const fx = makeTempFixtures()
+    try {
+      const statusWebhookUrl = 'https://api.copas.test/webhooks/whatsapp-channel-status'
+      const statusSecret = 'copas-status-secret-sync'
+      const statusConfig = makeTestConfig(
+        { sessionsPath: fx.sessionsPath, templatesPath: fx.templatesPath },
+        {
+          COPAS_API_STATUS_WEBHOOK_URL: statusWebhookUrl,
+          COPAS_STATUS_WEBHOOK_SECRET: statusSecret,
+        },
+      )
+
+      const statusCalls: Array<{ rawBody: string; signature: string | null }> = []
+      fetchMock.mockImplementation(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/sessions?all=true')) {
+          return new Response(
+            JSON.stringify([
+              { name: 'default', status: 'WORKING' },
+              { name: 'agencia-a', status: 'SCAN_QR_CODE' },
+              { name: 'unmapped-session', status: 'STOPPED' },
+            ]),
+            { status: 200 },
+          )
+        }
+        if (url === statusWebhookUrl) {
+          const headers = new Headers(init?.headers)
+          statusCalls.push({
+            rawBody: String(init?.body ?? ''),
+            signature: headers.get('X-Hub-Signature-256'),
+          })
+          return new Response(JSON.stringify({ ok: true }), { status: 200 })
+        }
+        return new Response('{}', { status: 200 })
+      })
+
+      const waha = new WahaClient(statusConfig.wahaBaseUrl, statusConfig.wahaApiKey)
+      const webhooks = new WebhookEmulator(statusConfig, store)
+      const dispatcher = new HumanDispatcher(statusConfig, store, waha, webhooks)
+      const app = createProxyApp({ config: statusConfig, store, waha, dispatcher, webhooks })
+
+      // Unauthenticated -> 401
+      const unauth = await app.request('/qr/sync-status', { method: 'POST' })
+      expect(unauth.status).toBe(401)
+
+      // External tunnel -> 403 even with admin token
+      const tunneled = await app.request('/qr/sync-status?token=qr-admin-token-test', {
+        method: 'POST',
+        headers: {
+          Host: 'wa.copas.com.ar',
+          'CF-Connecting-IP': '190.10.20.30',
+          'CF-Ray': 'abc123',
+        },
+      })
+      expect(tunneled.status).toBe(403)
+
+      // Authenticated local admin -> 200 and syncs live mapped sessions
+      const syncRes = await app.request('/qr/sync-status?token=qr-admin-token-test', {
+        method: 'POST',
+      })
+      expect(syncRes.status).toBe(200)
+      const syncBody = (await syncRes.json()) as any
+      expect(syncBody.ok).toBe(true)
+
+      expect(statusCalls.length).toBeGreaterThanOrEqual(2)
+      const payloads = statusCalls.map((c) => JSON.parse(c.rawBody))
+      expect(payloads).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            phoneNumber: '5491100000000',
+            status: 'connected',
+            timestamp: expect.any(Number),
+          }),
+          expect.objectContaining({
+            phoneNumber: '5491122223333',
+            phoneNumberId: 'agency-a-phone-id',
+            status: 'waiting_qr',
+            timestamp: expect.any(Number),
+          }),
+        ]),
+      )
+
+      for (const call of statusCalls) {
+        expect(
+          await verifyMetaSignatureLikeWorker(call.rawBody, call.signature, statusSecret),
+        ).toBe(true)
+      }
+    } finally {
+      rmSync(fx.dir, { recursive: true, force: true })
+    }
   })
 })

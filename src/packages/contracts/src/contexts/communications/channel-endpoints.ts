@@ -51,6 +51,20 @@ export const upsertOrganizationWhatsAppEndpointRequestSchema = z.object({
     ),
 })
 
+export const whatsappConnectionStatusSchema = z.enum([
+  'connected',
+  'waiting_qr',
+  'disconnected',
+  'error',
+])
+
+export const whatsappChannelStatusWebhookSchema = z.object({
+  phoneNumber: z.string().trim().min(6),
+  phoneNumberId: z.string().trim().min(1).optional(),
+  status: whatsappConnectionStatusSchema,
+  timestamp: z.number().int().nonnegative().optional(),
+})
+
 export const organizationWhatsAppEndpointSchema = z.object({
   endpointId: z.string(),
   organizationChannelEndpointId: z.string().nullable(),
@@ -60,6 +74,7 @@ export const organizationWhatsAppEndpointSchema = z.object({
   ownerKind: z.literal('organization'),
   status: z.enum(['active', 'inactive', 'released']),
   linkingStatus: z.enum(['active', 'suspended', 'released']),
+  connectionStatus: whatsappConnectionStatusSchema.nullable().optional(),
 })
 
 export const getOrganizationWhatsAppEndpointResponseSchema = z.object({
@@ -68,6 +83,10 @@ export const getOrganizationWhatsAppEndpointResponseSchema = z.object({
 
 export type UpsertOrganizationWhatsAppEndpointRequest = z.infer<
   typeof upsertOrganizationWhatsAppEndpointRequestSchema
+>
+export type WhatsAppConnectionStatus = z.infer<typeof whatsappConnectionStatusSchema>
+export type WhatsAppChannelStatusWebhookPayload = z.infer<
+  typeof whatsappChannelStatusWebhookSchema
 >
 export type OrganizationWhatsAppEndpoint = z.infer<typeof organizationWhatsAppEndpointSchema>
 export type GetOrganizationWhatsAppEndpointResponse = z.infer<

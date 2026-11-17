@@ -1391,6 +1391,7 @@ ${renderHeadHtml('Panel de Control — CoPAS', extraCss)}
             <button type="button" class="btn-green" onclick="sessionAction('start')">Iniciar / Generar QR</button>
             <button type="button" class="btn-amber" onclick="sessionAction('restart')">Reiniciar</button>
             <button type="button" class="btn-red" onclick="sessionAction('logout')">Cerrar sesión</button>
+            <button type="button" class="btn-secondary" onclick="syncStatusWithCopas()">Sincronizar con CoPAS</button>
           </div>
           <p id="sessionActionMsg" class="muted" style="margin-block-start:0.5rem;" role="status"></p>
 
@@ -1635,6 +1636,29 @@ ${renderHeadHtml('Panel de Control — CoPAS', extraCss)}
         await pollStatus();
       } catch (err) {
         msgEl.textContent = 'Error de red (' + action + '): ' + err.message;
+      }
+    }
+
+    async function syncStatusWithCopas() {
+      const msgEl = document.getElementById('sessionActionMsg');
+      msgEl.textContent = 'Sincronizando estados con CoPAS…';
+      try {
+        const res = await fetch('/qr/sync-status', {
+          method: 'POST',
+          credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          msgEl.textContent = 'Error sincronizando: ' + (data.error || ('HTTP ' + res.status));
+          return;
+        }
+        if (!data.reachable) {
+          msgEl.textContent = 'WAHA no está accesible en este momento.';
+          return;
+        }
+        msgEl.textContent = 'Sincronización CoPAS: ' + (data.forwarded || 0) + ' enviadas, ' + (data.skipped || 0) + ' omitidas, ' + (data.failed || 0) + ' fallidas.';
+      } catch (err) {
+        msgEl.textContent = 'Error de red sincronizando: ' + err.message;
       }
     }
 

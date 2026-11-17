@@ -4,6 +4,7 @@ import { getOrganizationWhatsAppEndpointResponseSchema } from '@copas/contracts'
 import app from '../../../index'
 
 const password = 'correct-horse-battery-staple'
+const statusWebhookSecret = 'integration-whatsapp-status-secret'
 let sequence = 0
 
 function testEnvironment() {
@@ -18,7 +19,24 @@ function testEnvironment() {
     PLATFORM_WHATSAPP_ACCESS_TOKEN: 'EAAB_test_platform_token_integration',
     PLATFORM_WHATSAPP_PHONE_NUMBER_ID: '109876543210123',
     PLATFORM_WHATSAPP_WABA_ID: 'waba_test_456',
+    WHATSAPP_STATUS_WEBHOOK_SECRET: statusWebhookSecret,
   }
+}
+
+async function signStatusWebhook(rawBody: string, secret = statusWebhookSecret): Promise<string> {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const signature = await crypto.subtle.sign('HMAC', key, enc.encode(rawBody))
+  const hex = Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return `sha256=${hex}`
 }
 
 async function apiRequest(path: string, init: RequestInit = {}) {
@@ -89,6 +107,7 @@ describe('Channel Endpoints Integration (D1)', () => {
     await env.DB.prepare('DELETE FROM conversations').run()
     await env.DB.prepare('DELETE FROM organization_channel_endpoints').run()
     await env.DB.prepare('DELETE FROM organization_channels').run()
+    await env.DB.prepare('DELETE FROM organization_integrations').run()
     await env.DB.prepare('DELETE FROM channel_endpoints').run()
     await env.DB.prepare('DELETE FROM invitation').run()
     await env.DB.prepare('DELETE FROM member').run()
@@ -295,5 +314,279 @@ describe('Channel Endpoints Integration (D1)', () => {
     expect(getRes.status).toBe(200)
     const getBody = await getRes.json()
     expect(getBody).toEqual(updateBody)
+  })
+
+  it('POST /webhooks/whatsapp-channel-status with signed "connected" activates org endpoint, coexists with active platform endpoint, enables channel, upserts integration phoneNumberId, and updates GET /channel-endpoints/whatsapp', async () => {
+    const { organizationId, cookie } = await createAuthenticatedAgency()
+
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO channels (id, created_at, updated_at, code, name, isSystem)
+       VALUES ('chn_whatsapp', unixepoch() * 1000, unixepoch() * 1000, 'whatsapp', 'WhatsApp', 1)`,
+    ).run()
+
+    await env.DB.prepare(
+      `INSERT INTO channel_endpoints (id, created_at, updated_at, channelId, number, provider, ownerKind, ownerOrganizationId, status)
+       VALUES ('cep-platform-sync', unixepoch() * 1000, unixepoch() * 1000, 'chn_whatsapp', '+54 9 11 0000-0000', 'whatsapp_cloud', 'platform', NULL, 'active')`,
+    ).run()
+
+    await env.DB.prepare(
+      `INSERT INTO organization_channels (id, created_at, updated_at, organizationId, channelId, isEnabled)
+       VALUES ('och-sync-1', unixepoch() * 1000, unixepoch() * 1000, ?, 'chn_whatsapp', 1)`,
+    )
+      .bind(organizationId)
+      .run()
+
+    await env.DB.prepare(
+      `INSERT INTO organization_channel_endpoints (id, created_at, updated_at, organizationChannelId, endpointId, isPrimary, status)
+       VALUES ('oce-platform-sync', unixepoch() * 1000, unixepoch() * 1000, 'och-sync-1', 'cep-platform-sync', 1, 'active')`,
+    ).run()
+
+    const putRes = await apiRequest('/channel-endpoints/whatsapp', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ number: '+54 9 11 4444-5555' }),
+    })
+    expect(putRes.status).toBe(200)
+    const putBody = (await putRes.json()) as {
+      endpoint: { endpointId: string; organizationChannelEndpointId: string }
+    }
+
+    const webhookBody = JSON.stringify({
+      phoneNumber: '541144445555', // Argentine 54... candidate matching +54 9 11 4444-5555
+      phoneNumberId: 'waha-phone-sync-1',
+      status: 'connected',
+      timestamp: 1794885805,
+    })
+    const signature = await signStatusWebhook(webhookBody)
+
+    const webhookRes = await apiRequest('/webhooks/whatsapp-channel-status', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': signature,
+      },
+      body: webhookBody,
+    })
+
+    expect(webhookRes.status).toBe(200)
+    const webhookJson = (await webhookRes.json()) as {
+      ok: boolean
+      endpoint: Record<string, unknown>
+    }
+    expect(webhookJson.ok).toBe(true)
+    expect(webhookJson.endpoint).toMatchObject({
+      endpointId: putBody.endpoint.endpointId,
+      organizationChannelEndpointId: putBody.endpoint.organizationChannelEndpointId,
+      organizationId,
+      number: '+54 9 11 4444-5555',
+      status: 'active',
+      linkingStatus: 'active',
+      connectionStatus: 'connected',
+    })
+
+    const platformLink = await env.DB.prepare(
+      'SELECT status, isPrimary FROM organization_channel_endpoints WHERE id = ?',
+    )
+      .bind('oce-platform-sync')
+      .first<Record<string, unknown>>()
+    expect(platformLink).toEqual({ status: 'suspended', isPrimary: 0 })
+
+    const orgChannelRow = await env.DB.prepare(
+      'SELECT isEnabled FROM organization_channels WHERE id = ?',
+    )
+      .bind('och-sync-1')
+      .first<Record<string, unknown>>()
+    expect(orgChannelRow?.isEnabled).toBe(1)
+
+    const integrationRow = await env.DB.prepare(
+      'SELECT status, config FROM organization_integrations WHERE organizationId = ? AND provider = ?',
+    )
+      .bind(organizationId, 'whatsapp_cloud')
+      .first<{ status: string; config: string }>()
+    expect(integrationRow).toBeTruthy()
+    expect(integrationRow?.status).toBe('active')
+    expect(JSON.parse(integrationRow!.config)).toMatchObject({
+      phoneNumberId: 'waha-phone-sync-1',
+    })
+
+    const getRes = await apiRequest('/channel-endpoints/whatsapp', {
+      headers: { cookie },
+    })
+    expect(getRes.status).toBe(200)
+    const getBody = (await getRes.json()) as { endpoint: Record<string, unknown> }
+    expect(getOrganizationWhatsAppEndpointResponseSchema.safeParse(getBody).success).toBe(true)
+    expect(getBody.endpoint).toMatchObject({
+      endpointId: putBody.endpoint.endpointId,
+      status: 'active',
+      linkingStatus: 'active',
+      connectionStatus: 'connected',
+    })
+  })
+
+  it('POST /webhooks/whatsapp-channel-status with signed "disconnected" and "error" deactivates endpoint, suspends link, disables channel, and updates integration status', async () => {
+    const { organizationId, cookie } = await createAuthenticatedAgency()
+
+    const putRes = await apiRequest('/channel-endpoints/whatsapp', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ number: '+54 9 11 7777-8888' }),
+    })
+    expect(putRes.status).toBe(200)
+
+    const sendSignedStatus = async (
+      status: 'connected' | 'disconnected' | 'error',
+      phoneNumberId?: string,
+    ) => {
+      const rawBody = JSON.stringify({
+        phoneNumber: '5491177778888',
+        ...(phoneNumberId ? { phoneNumberId } : {}),
+        status,
+      })
+      return apiRequest('/webhooks/whatsapp-channel-status', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-hub-signature-256': await signStatusWebhook(rawBody),
+        },
+        body: rawBody,
+      })
+    }
+
+    expect((await sendSignedStatus('connected', 'waha-phone-777')).status).toBe(200)
+    // Re-connecting with updated phoneNumberId upserts existing organization_integrations without duplicating
+    expect((await sendSignedStatus('connected', 'waha-phone-777-v2')).status).toBe(200)
+    const integrationAfterReconnect = await env.DB.prepare(
+      'SELECT COUNT(*) as count, MAX(config) as config FROM organization_integrations WHERE organizationId = ? AND provider = ?',
+    )
+      .bind(organizationId, 'whatsapp_cloud')
+      .first<{ count: number; config: string }>()
+    expect(integrationAfterReconnect?.count).toBe(1)
+    expect(JSON.parse(integrationAfterReconnect!.config)).toMatchObject({
+      phoneNumberId: 'waha-phone-777-v2',
+    })
+
+    const discRes = await sendSignedStatus('disconnected')
+    expect(discRes.status).toBe(200)
+    const discBody = (await discRes.json()) as { endpoint: Record<string, unknown> }
+    expect(discBody.endpoint).toMatchObject({
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: 'disconnected',
+    })
+
+    const orgChannelAfterDisc = await env.DB.prepare(
+      'SELECT isEnabled FROM organization_channels WHERE organizationId = ?',
+    )
+      .bind(organizationId)
+      .first<Record<string, unknown>>()
+    expect(orgChannelAfterDisc?.isEnabled).toBe(0)
+
+    const integrationAfterDisc = await env.DB.prepare(
+      'SELECT status FROM organization_integrations WHERE organizationId = ? AND provider = ?',
+    )
+      .bind(organizationId, 'whatsapp_cloud')
+      .first<Record<string, unknown>>()
+    expect(integrationAfterDisc?.status).toBe('disabled')
+
+    const errRes = await sendSignedStatus('error')
+    expect(errRes.status).toBe(200)
+    const errBody = (await errRes.json()) as { endpoint: Record<string, unknown> }
+    expect(errBody.endpoint).toMatchObject({
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: 'error',
+    })
+
+    const integrationAfterErr = await env.DB.prepare(
+      'SELECT status FROM organization_integrations WHERE organizationId = ? AND provider = ?',
+    )
+      .bind(organizationId, 'whatsapp_cloud')
+      .first<Record<string, unknown>>()
+    expect(integrationAfterErr?.status).toBe('error')
+
+    const getRes = await apiRequest('/channel-endpoints/whatsapp', {
+      headers: { cookie },
+    })
+    expect(getRes.status).toBe(200)
+    expect((await getRes.json()) as any).toMatchObject({
+      endpoint: {
+        status: 'inactive',
+        linkingStatus: 'suspended',
+        connectionStatus: 'error',
+      },
+    })
+  })
+
+  it('PUT /channel-endpoints/whatsapp with a new number resets connectionStatus to null', async () => {
+    const { cookie } = await createAuthenticatedAgency()
+
+    const putInitial = await apiRequest('/channel-endpoints/whatsapp', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ number: '+54 9 11 2222-3333' }),
+    })
+    expect(putInitial.status).toBe(200)
+
+    const connectedBody = JSON.stringify({
+      phoneNumber: '5491122223333',
+      phoneNumberId: 'waha-phone-222',
+      status: 'connected',
+    })
+    const syncRes = await apiRequest('/webhooks/whatsapp-channel-status', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': await signStatusWebhook(connectedBody),
+      },
+      body: connectedBody,
+    })
+    expect(syncRes.status).toBe(200)
+
+    const putUpdated = await apiRequest('/channel-endpoints/whatsapp', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ number: '+54 9 11 9999-1111' }),
+    })
+    expect(putUpdated.status).toBe(200)
+    const updatedBody = (await putUpdated.json()) as { endpoint: Record<string, unknown> }
+    expect(updatedBody.endpoint).toMatchObject({
+      number: '+54 9 11 9999-1111',
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: null,
+    })
+
+    const getRes = await apiRequest('/channel-endpoints/whatsapp', {
+      headers: { cookie },
+    })
+    expect(getRes.status).toBe(200)
+    expect(await getRes.json()).toEqual(updatedBody)
+  })
+
+  it('POST /webhooks/whatsapp-channel-status returns 401 on invalid signature and 404 on unknown phone', async () => {
+    const payload = JSON.stringify({
+      phoneNumber: '5491198765432',
+      status: 'connected',
+    })
+
+    const badSigRes = await apiRequest('/webhooks/whatsapp-channel-status', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': await signStatusWebhook(payload, 'wrong-secret'),
+      },
+      body: payload,
+    })
+    expect(badSigRes.status).toBe(401)
+
+    const unknownPhoneRes = await apiRequest('/webhooks/whatsapp-channel-status', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': await signStatusWebhook(payload),
+      },
+      body: payload,
+    })
+    expect(unknownPhoneRes.status).toBe(404)
   })
 })

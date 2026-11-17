@@ -23,18 +23,33 @@ export const agencyWhatsAppKeys = {
     [...agencyWhatsAppKeys.all, organizationId ?? 'active'] as const,
 }
 
+export interface UseAgencyWhatsAppEndpointOptions {
+  pollWhenPending?: boolean
+}
+
 export function useAgencyWhatsAppEndpoint(
   organizationId?: string | null,
+  options?: UseAgencyWhatsAppEndpointOptions,
 ): UseQueryResult<GetOrganizationWhatsAppEndpointResponse> {
   const contextClient = useContext(QueryClientContext)
   const activeClient = contextClient ?? fallbackQueryClient
   const sessionStatus = useSessionStore((s) => s.status)
+  const pollWhenPending = Boolean(options?.pollWhenPending)
 
   return useQuery<GetOrganizationWhatsAppEndpointResponse>(
     {
       queryKey: agencyWhatsAppKeys.detail(organizationId),
       enabled: sessionStatus === 'online',
       retry: false,
+      refetchOnWindowFocus: pollWhenPending,
+      refetchInterval: pollWhenPending
+        ? (query) => {
+            const ep = query.state.data?.endpoint
+            if (!ep?.number) return false
+            const isConnected = ep.connectionStatus === 'connected' || ep.status === 'active'
+            return isConnected ? false : 4000
+          }
+        : false,
       queryFn: async () => {
         const response = await apiClient['channel-endpoints'].whatsapp.$get()
         if (!response.ok) {
@@ -80,6 +95,7 @@ export function useUpsertAgencyWhatsAppEndpoint(
               ownerKind: 'organization',
               status: 'inactive',
               linkingStatus: 'suspended',
+              connectionStatus: null,
             },
           }
         }

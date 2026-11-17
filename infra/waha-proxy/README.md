@@ -11,6 +11,7 @@ Stack local (`waha` + `waha-proxy` en Hono) diseñado para exponer envío y rece
   - Arma los mensajes (`template` desde `config/templates.json`, `text`, `contacts`, `reaction`, `interactive`).
   - Encola por sesión en SQLite (`./data/proxy/proxy.db`), responde `200` inmediato con `wamid.waha.<uuid>` y despacha en segundo plano simulando comportamiento humano (`startTyping` → espera proporcional + jitter → `stopTyping` → `sendText` + cooldown entre mensajes).
   - Traduce webhooks `message.ack` y `message` de WAHA (`X-Webhook-Hmac` SHA-512) a `MetaWebhookPayload` firmado con `X-Hub-Signature-256` (`HMAC-SHA256` usando `META_APP_SECRET`) hacia `whatsapp-service`.
+  - Traduce eventos `session.status` de WAHA (`WORKING`, `SCAN_QR_CODE`, `STARTING`, `STOPPED`, `FAILED`) a estados agnósticos (`connected`, `waiting_qr`, `disconnected`, `error`) firmados con `X-Hub-Signature-256` hacia `COPAS_API_STATUS_WEBHOOK_URL` (`api /webhooks/whatsapp-channel-status`) para actualizar el estado de vinculación y enrutamiento por número en CoPAS (incluye sincronización inicial al arrancar y manual vía `POST /qr/sync-status` en el panel `/qr`).
 
 ## Puesta en marcha local (Podman o Docker)
 

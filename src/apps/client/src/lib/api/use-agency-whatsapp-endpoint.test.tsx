@@ -188,6 +188,245 @@ describe('use-agency-whatsapp-endpoint & AgencySettingsDrawer (online/offline)',
 
       expect(apiMocks.getWhatsAppEndpoint).not.toHaveBeenCalled()
     })
+
+    describe('polling with pollWhenPending', () => {
+      beforeEach(() => {
+        vi.useFakeTimers()
+      })
+
+      afterEach(() => {
+        vi.useRealTimers()
+      })
+
+      async function flushInitialQuery() {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0)
+          await Promise.resolve()
+        })
+      }
+
+      async function advanceUntilRefetched(expectedMinCalls = 2, maxMs = 35_000) {
+        const step = 5_000
+        for (
+          let elapsed = 0;
+          elapsed < maxMs && apiMocks.getWhatsAppEndpoint.mock.calls.length < expectedMinCalls;
+          elapsed += step
+        ) {
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(step)
+            await Promise.resolve()
+          })
+        }
+      }
+
+      it.each(['waiting_qr', 'disconnected', 'error'] as const)(
+        'polls when endpoint.number exists and connectionStatus is %s',
+        async (connectionStatus) => {
+          setOnlineSession('org-1')
+          const endpoint = makeEndpoint({
+            number: '+54 9 11 1234-5678',
+            status: 'inactive',
+            linkingStatus: 'suspended',
+            connectionStatus,
+          })
+          apiMocks.getWhatsAppEndpoint.mockImplementation(async () => jsonResponse({ endpoint }))
+
+          const { result, unmount } = renderHook(
+            () => useAgencyWhatsAppEndpoint('org-1', { pollWhenPending: true }),
+            { wrapper: createWrapper(queryClient) },
+          )
+
+          await flushInitialQuery()
+          expect(result.current.isSuccess).toBe(true)
+          expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+          await advanceUntilRefetched(2)
+          expect(apiMocks.getWhatsAppEndpoint.mock.calls.length).toBeGreaterThanOrEqual(2)
+
+          unmount()
+        },
+      )
+
+      it('polls when endpoint.number exists, connectionStatus is null, and status is inactive', async () => {
+        setOnlineSession('org-1')
+        const endpoint = makeEndpoint({
+          number: '+54 9 11 1234-5678',
+          status: 'inactive',
+          linkingStatus: 'suspended',
+          connectionStatus: null,
+        })
+        apiMocks.getWhatsAppEndpoint.mockImplementation(async () => jsonResponse({ endpoint }))
+
+        const { result, unmount } = renderHook(
+          () => useAgencyWhatsAppEndpoint('org-1', { pollWhenPending: true }),
+          { wrapper: createWrapper(queryClient) },
+        )
+
+        await flushInitialQuery()
+        expect(result.current.isSuccess).toBe(true)
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+        await advanceUntilRefetched(2)
+        expect(apiMocks.getWhatsAppEndpoint.mock.calls.length).toBeGreaterThanOrEqual(2)
+
+        unmount()
+      })
+
+      it('stops polling when connectionStatus is connected', async () => {
+        setOnlineSession('org-1')
+        const endpoint = makeEndpoint({
+          number: '+54 9 11 1234-5678',
+          status: 'active',
+          linkingStatus: 'active',
+          connectionStatus: 'connected',
+        })
+        apiMocks.getWhatsAppEndpoint.mockImplementation(async () => jsonResponse({ endpoint }))
+
+        const { result, unmount } = renderHook(
+          () => useAgencyWhatsAppEndpoint('org-1', { pollWhenPending: true }),
+          { wrapper: createWrapper(queryClient) },
+        )
+
+        await flushInitialQuery()
+        expect(result.current.isSuccess).toBe(true)
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000)
+          await Promise.resolve()
+        })
+
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+        unmount()
+      })
+
+      it('stops polling when status is active even if connectionStatus is null', async () => {
+        setOnlineSession('org-1')
+        const endpoint = makeEndpoint({
+          number: '+54 9 11 1234-5678',
+          status: 'active',
+          linkingStatus: 'active',
+          connectionStatus: null,
+        })
+        apiMocks.getWhatsAppEndpoint.mockImplementation(async () => jsonResponse({ endpoint }))
+
+        const { result, unmount } = renderHook(
+          () => useAgencyWhatsAppEndpoint('org-1', { pollWhenPending: true }),
+          { wrapper: createWrapper(queryClient) },
+        )
+
+        await flushInitialQuery()
+        expect(result.current.isSuccess).toBe(true)
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000)
+          await Promise.resolve()
+        })
+
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+        unmount()
+      })
+
+      it('stops polling once connectionStatus transitions from waiting_qr to connected', async () => {
+        setOnlineSession('org-1')
+        const pendingEndpoint = makeEndpoint({
+          number: '+54 9 11 1234-5678',
+          status: 'inactive',
+          linkingStatus: 'suspended',
+          connectionStatus: 'waiting_qr',
+        })
+        const connectedEndpoint = makeEndpoint({
+          number: '+54 9 11 1234-5678',
+          status: 'active',
+          linkingStatus: 'active',
+          connectionStatus: 'connected',
+        })
+
+        apiMocks.getWhatsAppEndpoint
+          .mockResolvedValueOnce(jsonResponse({ endpoint: pendingEndpoint }))
+          .mockImplementation(async () => jsonResponse({ endpoint: connectedEndpoint }))
+
+        const { result, unmount } = renderHook(
+          () => useAgencyWhatsAppEndpoint('org-1', { pollWhenPending: true }),
+          { wrapper: createWrapper(queryClient) },
+        )
+
+        await flushInitialQuery()
+        expect(result.current.data?.endpoint?.connectionStatus).toBe('waiting_qr')
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+        await advanceUntilRefetched(2)
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(2)
+        expect(result.current.data?.endpoint?.connectionStatus).toBe('connected')
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000)
+          await Promise.resolve()
+        })
+
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(2)
+        unmount()
+      })
+
+      it('does NOT poll when endpoint has no number or is null even with pollWhenPending', async () => {
+        setOnlineSession('org-1')
+        apiMocks.getWhatsAppEndpoint.mockImplementation(async () =>
+          jsonResponse({
+            endpoint: makeEndpoint({
+              number: null,
+              status: 'inactive',
+              connectionStatus: null,
+            }),
+          }),
+        )
+
+        const { result, unmount } = renderHook(
+          () => useAgencyWhatsAppEndpoint('org-1', { pollWhenPending: true }),
+          { wrapper: createWrapper(queryClient) },
+        )
+
+        await flushInitialQuery()
+        expect(result.current.isSuccess).toBe(true)
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000)
+          await Promise.resolve()
+        })
+
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+        unmount()
+      })
+
+      it('does NOT poll when pollWhenPending is false even if connectionStatus is waiting_qr', async () => {
+        setOnlineSession('org-1')
+        const endpoint = makeEndpoint({
+          number: '+54 9 11 1234-5678',
+          status: 'inactive',
+          linkingStatus: 'suspended',
+          connectionStatus: 'waiting_qr',
+        })
+        apiMocks.getWhatsAppEndpoint.mockImplementation(async () => jsonResponse({ endpoint }))
+
+        const { result, unmount } = renderHook(
+          () => useAgencyWhatsAppEndpoint('org-1', { pollWhenPending: false }),
+          { wrapper: createWrapper(queryClient) },
+        )
+
+        await flushInitialQuery()
+        expect(result.current.isSuccess).toBe(true)
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60_000)
+          await Promise.resolve()
+        })
+
+        expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+        unmount()
+      })
+    })
   })
 
   describe('useUpsertAgencyWhatsAppEndpoint', () => {
@@ -230,7 +469,7 @@ describe('use-agency-whatsapp-endpoint & AgencySettingsDrawer (online/offline)',
   })
 
   describe('AgencySettingsDrawer in online mode', () => {
-    it('displays "Vinculado" badge and pre-fills input when endpoint.status is active', async () => {
+    it('displays "Conectado" badge and pre-fills input when endpoint.status is active', async () => {
       setOnlineSession('org-1')
       const endpoint = makeEndpoint({
         number: '+54 9 11 2222-3333',
@@ -246,7 +485,7 @@ describe('use-agency-whatsapp-endpoint & AgencySettingsDrawer (online/offline)',
       )
 
       await waitFor(() => {
-        expect(screen.getByText('Vinculado')).toBeInTheDocument()
+        expect(screen.getByText('Conectado')).toBeInTheDocument()
       })
       expect(screen.getByLabelText(/Teléfono de la agencia/i)).toHaveValue('+54 9 11 2222-3333')
     })

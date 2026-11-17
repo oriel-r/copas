@@ -49,6 +49,17 @@ const server = serve(
         logFormat: config.logFormat,
       },
     )
+    if (config.copasApiStatusWebhookUrl && config.copasStatusWebhookSecret) {
+      void webhooks
+        .syncAllSessionsStatus(waha)
+        .then((res) => {
+          logger.info(
+            'Initial CoPAS channel status sync finished (reachable={reachable}, forwarded={forwarded}, skipped={skipped}, failed={failed})',
+            res,
+          )
+        })
+        .catch(() => undefined)
+    }
   },
 )
 

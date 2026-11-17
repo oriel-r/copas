@@ -32,6 +32,7 @@ RESTful naming:
 
 ## Endpoints de Canales y Endpoints
 
-- `GET /channel-endpoints/whatsapp`: Obtiene el endpoint de WhatsApp propio de la organización autenticada (`ownerKind = 'organization'`), o `{ endpoint: null }` si todavía no registró ninguno.
-- `PUT /channel-endpoints/whatsapp`: Registra o actualiza el número de teléfono de WhatsApp propio de la organización autenticada en `channel_endpoints` (creando si no existen el canal en `organization_channels` y el vínculo en `organization_channel_endpoints`) con estado inicial `inactive` hasta completar la vinculación.
+- `GET /channel-endpoints/whatsapp`: Obtiene el endpoint de WhatsApp propio de la organización autenticada (`ownerKind = 'organization'`), o `{ endpoint: null }` si todavía no registró ninguno. Incluye `connectionStatus` (`connected` | `waiting_qr` | `disconnected` | `error` | `null`).
+- `PUT /channel-endpoints/whatsapp`: Registra o actualiza el número de teléfono de WhatsApp propio de la organización autenticada en `channel_endpoints` (creando si no existen el canal en `organization_channels` y el vínculo en `organization_channel_endpoints`) con estado inicial `inactive` y `connectionStatus: null` hasta completar la vinculación.
+- `POST /webhooks/whatsapp-channel-status`: Webhook agnóstico firmado con `X-Hub-Signature-256` (`WHATSAPP_STATUS_WEBHOOK_SECRET` o `META_APP_SECRET`) para sincronizar el estado de conexión de un número (`connected` | `waiting_qr` | `disconnected` | `error`) y activar/suspender automáticamente su enrutamiento en D1.
 

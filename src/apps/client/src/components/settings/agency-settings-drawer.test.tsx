@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { OrganizationWhatsAppEndpoint } from '@copas/contracts'
 import {
   AGENCY_SETTINGS_DRAWER_ID,
   AgencySettingsDrawer,
@@ -12,8 +13,24 @@ import {
 } from '@/components/settings'
 import { useAgencySettingsStore } from '@/stores/use-agency-settings-store'
 import { AppShell } from '@/components/layout/app-shell'
-import { useSession } from '@/lib/session'
+import { useSession, useSessionStore } from '@/lib/session'
 import { authClient } from '@/lib/auth-client'
+
+const apiMocks = vi.hoisted(() => ({
+  getWhatsAppEndpoint: vi.fn(),
+  putWhatsAppEndpoint: vi.fn(),
+}))
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: {
+    'channel-endpoints': {
+      whatsapp: {
+        $get: apiMocks.getWhatsAppEndpoint,
+        $put: apiMocks.putWhatsAppEndpoint,
+      },
+    },
+  },
+}))
 
 vi.mock('@/lib/session', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/session')>()
@@ -557,5 +574,194 @@ describe('AppShell AgencySettingsTrigger integration', () => {
     expect(
       screen.queryByRole('button', { name: 'Abrir ajustes de la agencia' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('AgencySettingsDrawer granular connection states (online mode)', () => {
+  function setOnlineSession(organizationId = 'org-1') {
+    useSessionStore.setState({
+      status: 'online',
+      demoSession: null,
+      realSession: {
+        data: {
+          user: { id: 'usr-1', email: 'pas@example.com' },
+          session: { id: 'ses-1', activeOrganizationId: organizationId },
+        },
+        isPending: false,
+        error: null,
+      } as unknown as ReturnType<typeof useSession>,
+    })
+  }
+
+  function makeEndpoint(
+    overrides: Partial<OrganizationWhatsAppEndpoint> = {},
+  ): OrganizationWhatsAppEndpoint {
+    return {
+      endpointId: 'cep-org-1',
+      organizationChannelEndpointId: 'oce-org-1',
+      organizationId: 'org-1',
+      number: '+54 9 11 2222-3333',
+      provider: 'whatsapp_cloud',
+      ownerKind: 'organization',
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: null,
+      ...overrides,
+    }
+  }
+
+  function jsonResponse(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useAgencySettingsStore.getState().reset()
+    setOnlineSession('org-1')
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    useAgencySettingsStore.getState().reset()
+    useSessionStore.setState({ status: 'checking', demoSession: null, realSession: null })
+  })
+
+  it('renders connected state with "Conectado" badge, "WhatsApp conectado" card, and "Solicitar nuevo QR" button', async () => {
+    const endpoint = makeEndpoint({
+      status: 'active',
+      linkingStatus: 'active',
+      connectionStatus: 'connected',
+    })
+    apiMocks.getWhatsAppEndpoint.mockResolvedValueOnce(jsonResponse({ endpoint }))
+
+    const queryClient = createQueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AgencySettingsDrawer isOpen={true} organizationId="org-1" agencyName="Agencia Conectada" />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Conectado')).toBeInTheDocument()
+    })
+    expect(screen.getByText('WhatsApp conectado')).toBeInTheDocument()
+
+    const newQrButton = screen.getByRole('button', { name: 'Solicitar nuevo QR' })
+    expect(newQrButton).toBeInTheDocument()
+    expect(newQrButton).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Solicitar QR' })).not.toBeInTheDocument()
+  })
+
+  it('renders waiting_qr state with "Esperando QR" badge, "Esperando escaneo de QR" card, and prominent "Solicitar QR" button', async () => {
+    const endpoint = makeEndpoint({
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: 'waiting_qr',
+    })
+    apiMocks.getWhatsAppEndpoint.mockResolvedValueOnce(jsonResponse({ endpoint }))
+
+    const queryClient = createQueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AgencySettingsDrawer isOpen={true} organizationId="org-1" agencyName="Agencia Esperando" />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Esperando QR')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Esperando escaneo de QR')).toBeInTheDocument()
+
+    const qrButton = screen.getByRole('button', { name: 'Solicitar QR' })
+    expect(qrButton).toBeInTheDocument()
+    expect(qrButton).toBeEnabled()
+  })
+
+  it('renders disconnected state with "Desconectado" badge and "Sesión desconectada" card', async () => {
+    const endpoint = makeEndpoint({
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: 'disconnected',
+    })
+    apiMocks.getWhatsAppEndpoint.mockResolvedValueOnce(jsonResponse({ endpoint }))
+
+    const queryClient = createQueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AgencySettingsDrawer
+          isOpen={true}
+          organizationId="org-1"
+          agencyName="Agencia Desconectada"
+        />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Desconectado')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Sesión desconectada')).toBeInTheDocument()
+  })
+
+  it('renders error state with "Error de conexión" badge and "Error en la vinculación" card', async () => {
+    const endpoint = makeEndpoint({
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: 'error',
+    })
+    apiMocks.getWhatsAppEndpoint.mockResolvedValueOnce(jsonResponse({ endpoint }))
+
+    const queryClient = createQueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AgencySettingsDrawer isOpen={true} organizationId="org-1" agencyName="Agencia Error" />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Error de conexión')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Error en la vinculación')).toBeInTheDocument()
+  })
+
+  it('triggers a manual refetch when clicking "Actualizar" in online mode', async () => {
+    const user = userEvent.setup()
+    const waitingEndpoint = makeEndpoint({
+      status: 'inactive',
+      linkingStatus: 'suspended',
+      connectionStatus: 'waiting_qr',
+    })
+    const connectedEndpoint = makeEndpoint({
+      status: 'active',
+      linkingStatus: 'active',
+      connectionStatus: 'connected',
+    })
+
+    apiMocks.getWhatsAppEndpoint
+      .mockResolvedValueOnce(jsonResponse({ endpoint: waitingEndpoint }))
+      .mockResolvedValueOnce(jsonResponse({ endpoint: connectedEndpoint }))
+
+    const queryClient = createQueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AgencySettingsDrawer isOpen={true} organizationId="org-1" agencyName="Agencia Refresh" />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Esperando QR')).toBeInTheDocument()
+    })
+    expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(1)
+
+    const refreshButton = screen.getByRole('button', { name: /Actualizar/i })
+    await user.click(refreshButton)
+
+    await waitFor(() => {
+      expect(apiMocks.getWhatsAppEndpoint).toHaveBeenCalledTimes(2)
+      expect(screen.getByText('Conectado')).toBeInTheDocument()
+    })
+    expect(screen.getByText('WhatsApp conectado')).toBeInTheDocument()
   })
 })

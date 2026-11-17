@@ -189,4 +189,34 @@ describe('channel-endpoints.service', () => {
       )
     })
   })
+
+  describe('syncWhatsAppConnectionStatus', () => {
+    it('delegates to repository.applyWhatsAppConnectionStatusByPhone', async () => {
+      const endpoint = {
+        endpointId: 'cep-1',
+        organizationChannelEndpointId: 'oce-1',
+        organizationId: 'org-1',
+        number: '+54 9 11 1234-5678',
+        provider: 'whatsapp_cloud' as const,
+        ownerKind: 'organization' as const,
+        status: 'active' as const,
+        linkingStatus: 'active' as const,
+        connectionStatus: 'connected' as const,
+      }
+      mockRepo.applyWhatsAppConnectionStatusByPhone = vi.fn().mockResolvedValueOnce(endpoint)
+
+      const result = await service.syncWhatsAppConnectionStatus({
+        phoneNumber: '5491112345678',
+        phoneNumberId: 'waha-phone-1',
+        status: 'connected',
+      })
+
+      expect(result).toEqual(endpoint)
+      expect(mockRepo.applyWhatsAppConnectionStatusByPhone).toHaveBeenCalledWith({
+        phoneNumber: '5491112345678',
+        phoneNumberId: 'waha-phone-1',
+        connectionStatus: 'connected',
+      })
+    })
+  })
 })

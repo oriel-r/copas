@@ -4,9 +4,9 @@ import { createAuth } from '../../modules/auth/auth.factory';
 import type { AppEnv } from '../types/env';
 
 export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
-  // Bypass auth infra routes - no need to lookup session
+  // Bypass auth infra and signed webhook routes - no need to lookup session
   const path = c.req.path;
-  if (path.startsWith('/auth') || path === '/') {
+  if (path.startsWith('/auth') || path.startsWith('/webhooks') || path === '/') {
     await next();
     return;
   }

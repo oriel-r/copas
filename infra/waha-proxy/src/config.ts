@@ -29,6 +29,8 @@ export type ProxyConfig = {
   qrInviteSecret: string
   qrInviteDefaultTtlSec: number
   copasWebhookUrl: string
+  copasApiStatusWebhookUrl: string
+  copasStatusWebhookSecret: string
   metaAppSecret: string
   metaWabaId: string
   wahaCheckNumberExists: boolean
@@ -105,6 +107,9 @@ export function loadProxyConfig(env: NodeJS.ProcessEnv = process.env): ProxyConf
     qrInviteSecret: env.QR_INVITE_SECRET?.trim() || env.QR_PORTAL_TOKEN?.trim() || '',
     qrInviteDefaultTtlSec: Math.max(60, parseIntEnv(env.QR_INVITE_DEFAULT_TTL_SEC, 900)),
     copasWebhookUrl: env.COPAS_WEBHOOK_URL?.trim() || '',
+    copasApiStatusWebhookUrl: env.COPAS_API_STATUS_WEBHOOK_URL?.trim() || '',
+    copasStatusWebhookSecret:
+      env.COPAS_STATUS_WEBHOOK_SECRET?.trim() || env.META_APP_SECRET?.trim() || '',
     metaAppSecret: env.META_APP_SECRET?.trim() || '',
     metaWabaId: env.META_WABA_ID?.trim() || 'waha-proxy-waba',
     wahaCheckNumberExists: parseBooleanEnv(env.WAHA_CHECK_NUMBER_EXISTS, false),
