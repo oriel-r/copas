@@ -22,6 +22,12 @@ export type ProxyConfig = {
   wahaWebhookHmacKey: string
   proxyBearerTokens: string[]
   proxyExtraSecret: string
+  enableQrPortal: boolean
+  qrAdminLocalOnly: boolean
+  qrPublicBaseUrl: string
+  qrPortalToken: string
+  qrInviteSecret: string
+  qrInviteDefaultTtlSec: number
   copasWebhookUrl: string
   metaAppSecret: string
   metaWabaId: string
@@ -92,6 +98,12 @@ export function loadProxyConfig(env: NodeJS.ProcessEnv = process.env): ProxyConf
     wahaWebhookHmacKey: env.WAHA_WEBHOOK_HMAC_KEY?.trim() || '',
     proxyBearerTokens,
     proxyExtraSecret: env.PROXY_EXTRA_SECRET?.trim() || '',
+    enableQrPortal: parseBooleanEnv(env.ENABLE_QR_PORTAL, true),
+    qrAdminLocalOnly: parseBooleanEnv(env.QR_ADMIN_LOCAL_ONLY, true),
+    qrPublicBaseUrl: (env.QR_PUBLIC_BASE_URL?.trim() || '').replace(/\/+$/, ''),
+    qrPortalToken: env.QR_PORTAL_TOKEN?.trim() || '',
+    qrInviteSecret: env.QR_INVITE_SECRET?.trim() || env.QR_PORTAL_TOKEN?.trim() || '',
+    qrInviteDefaultTtlSec: Math.max(60, parseIntEnv(env.QR_INVITE_DEFAULT_TTL_SEC, 900)),
     copasWebhookUrl: env.COPAS_WEBHOOK_URL?.trim() || '',
     metaAppSecret: env.META_APP_SECRET?.trim() || '',
     metaWabaId: env.META_WABA_ID?.trim() || 'waha-proxy-waba',
@@ -159,6 +171,7 @@ export function resolveSessionForPhoneNumberId(
       wahaSession: direct.wahaSession,
       displayPhone: direct.displayPhone || phoneNumberId,
       bearerToken: direct.bearerToken,
+      agencyName: direct.agencyName,
     }
   }
 
@@ -169,6 +182,7 @@ export function resolveSessionForPhoneNumberId(
       wahaSession: fallbackEntry?.wahaSession || config.wahaDefaultSession || 'default',
       displayPhone: fallbackEntry?.displayPhone || phoneNumberId,
       bearerToken: fallbackEntry?.bearerToken,
+      agencyName: fallbackEntry?.agencyName,
     }
   }
 

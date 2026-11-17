@@ -20,6 +20,15 @@ export type WahaSessionStatus = {
   status: string
 }
 
+export type WahaSessionDetail = {
+  name: string
+  status: string
+  me?: {
+    id?: string
+    pushName?: string
+  }
+}
+
 export class WahaClient {
   private readonly baseUrl: string
   private readonly apiKey: string
@@ -125,9 +134,9 @@ export class WahaClient {
     }
   }
 
-  async getSession(session: string): Promise<WahaSessionStatus | null> {
+  async getSessionDetail(session: string): Promise<WahaSessionDetail | null> {
     try {
-      return await this.requestJson<WahaSessionStatus>(
+      return await this.requestJson<WahaSessionDetail>(
         'GET',
         `/api/sessions/${encodeURIComponent(session)}`,
         undefined,
@@ -139,6 +148,112 @@ export class WahaClient {
       }
       throw err
     }
+  }
+
+  async getSession(session: string): Promise<WahaSessionStatus | null> {
+    return this.getSessionDetail(session)
+  }
+
+  async ensureSessionStarted(
+    session: string,
+    webhookUrl: string,
+    webhookHmacKey: string,
+  ): Promise<{ name: string; status: string }> {
+    const detail = await this.getSessionDetail(session)
+    if (!detail) {
+      const created = await this.requestJson<WahaSessionStatus>('POST', '/api/sessions', {
+        name: session,
+        start: true,
+        config: {
+          webhooks: [
+            {
+              url: webhookUrl,
+              events: ['message', 'message.ack', 'session.status'],
+              hmac: { key: webhookHmacKey },
+            },
+          ],
+        },
+      })
+      return {
+        name: created?.name || session,
+        status: created?.status || 'STARTING',
+      }
+    }
+
+    if (detail.status === 'STOPPED') {
+      const started = await this.requestJson<WahaSessionStatus>(
+        'POST',
+        `/api/sessions/${encodeURIComponent(session)}/start`,
+      )
+      return { name: detail.name, status: started?.status || 'STARTING' }
+    }
+
+    if (detail.status === 'FAILED') {
+      const restarted = await this.requestJson<WahaSessionStatus>(
+        'POST',
+        `/api/sessions/${encodeURIComponent(session)}/restart`,
+      )
+      return { name: detail.name, status: restarted?.status || 'STARTING' }
+    }
+
+    return { name: detail.name, status: detail.status }
+  }
+
+  async restartSession(session: string): Promise<void> {
+    await this.requestJson('POST', `/api/sessions/${encodeURIComponent(session)}/restart`)
+  }
+
+  async logoutSession(session: string): Promise<void> {
+    await this.requestJson('POST', `/api/sessions/${encodeURIComponent(session)}/logout`)
+  }
+
+  async getSessionQrImage(session: string): Promise<{ contentType: string; data: Uint8Array }> {
+    const path = `/api/${encodeURIComponent(session)}/auth/qr?format=image`
+    const url = `${this.baseUrl}${path}`
+    const headers: Record<string, string> = { Accept: 'image/png' }
+    if (this.apiKey) {
+      headers['X-Api-Key'] = this.apiKey
+    }
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: AbortSignal.timeout(15000),
+      })
+    } catch (err: any) {
+      throw new WahaRequestError(503, 2, `WAHA network/timeout error: ${err?.message || String(err)}`, true)
+    }
+
+    if (!response.ok) {
+      const rawText = await response.text().catch(() => '')
+      let msg = `WAHA HTTP ${response.status}`
+      if (rawText) {
+        try {
+          const parsed = JSON.parse(rawText)
+          msg = parsed?.message || parsed?.error || msg
+        } catch {
+          msg = rawText
+        }
+      }
+      const retryable = response.status === 429 || response.status >= 500
+      throw new WahaRequestError(response.status, retryable ? 2 : 131026, msg, retryable)
+    }
+
+    const buffer = await response.arrayBuffer()
+    return {
+      contentType: response.headers.get('content-type') || 'image/png',
+      data: new Uint8Array(buffer),
+    }
+  }
+
+  async requestPairingCode(session: string, phoneNumber: string): Promise<{ code?: string }> {
+    return this.requestJson<{ code?: string }>(
+      'POST',
+      `/api/${encodeURIComponent(session)}/auth/request-code`,
+      { phoneNumber },
+    )
   }
 
   async checkNumberExists(

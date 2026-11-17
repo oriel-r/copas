@@ -101,6 +101,7 @@ function resolveTemplateString(
 export function renderTemplateText(
   template: NonNullable<MetaSendMessageRequest['template']>,
   templatesConfig: TemplatesConfigFile,
+  defaultNamedFallbacks?: Record<string, string>,
 ): string {
   const rawTemplate = resolveTemplateString(
     template.name,
@@ -128,8 +129,9 @@ export function renderTemplateText(
     }
   }
 
-  const DEFAULT_NAMED_FALLBACKS: Record<string, string> = {
+  const mergedFallbacks: Record<string, string> = {
     agency_name: 'tu productor asesor de seguros',
+    ...defaultNamedFallbacks,
   }
 
   let rendered = rawTemplate.replace(/\{\{\s*([^}\s]+)\s*\}\}/g, (_match, key: string) => {
@@ -141,7 +143,7 @@ export function renderTemplateText(
     if (Number.isInteger(index) && index >= 1 && index <= positionalValues.length) {
       return positionalValues[index - 1] ?? ''
     }
-    return DEFAULT_NAMED_FALLBACKS[key] ?? ''
+    return mergedFallbacks[key] ?? ''
   })
 
   if (mediaLinks.length > 0) {
@@ -213,6 +215,7 @@ function formatInteractiveText(interactive: MetaInteractive): string {
 export function buildOutboundAction(
   request: MetaSendMessageRequest,
   templatesConfig: TemplatesConfigFile,
+  defaultNamedFallbacks?: Record<string, string>,
 ): OutboundAction {
   if (!request || typeof request !== 'object') {
     throw new MetaApiError(400, 100, 'OAuthException', 'Invalid JSON body')
@@ -224,7 +227,7 @@ export function buildOutboundAction(
     if (!request.template?.name) {
       throw new MetaApiError(400, 100, 'OAuthException', 'Missing template.name')
     }
-    const text = renderTemplateText(request.template, templatesConfig)
+    const text = renderTemplateText(request.template, templatesConfig, defaultNamedFallbacks)
     if (!text) {
       throw new MetaApiError(400, 100, 'OAuthException', 'Rendered template text is empty')
     }

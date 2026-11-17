@@ -108,6 +108,7 @@ export type SessionMappingEntry = {
   wahaSession: string
   displayPhone?: string
   bearerToken?: string
+  agencyName?: string
 }
 
 export type SessionsConfigFile = {

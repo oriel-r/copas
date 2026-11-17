@@ -15,7 +15,9 @@ import { ProxyStore } from './db/store.ts'
 import { buildOutboundAction, MetaApiError, normalizePhoneDigits, toWahaChatId } from './messages/builder.ts'
 import {
   signMetaWebhookPayload,
+  signQrInviteToken,
   verifyBearerToken,
+  verifyQrInviteToken,
   verifyWahaWebhookHmac,
 } from './security/auth.ts'
 import { createProxyApp } from './server.ts'
@@ -105,6 +107,9 @@ function makeTestConfig(overrides: Partial<ProxyConfig> & { sessionsPath: string
       WAHA_DEFAULT_SESSION: 'default',
       WAHA_WEBHOOK_HMAC_KEY: 'waha-hmac-secret',
       PROXY_BEARER_TOKEN: 'global-bearer-token',
+      ENABLE_QR_PORTAL: 'true',
+      QR_PORTAL_TOKEN: 'qr-admin-token-test',
+      QR_INVITE_SECRET: 'qr-invite-secret-test',
       COPAS_WEBHOOK_URL: 'https://whatsapp-service.test/webhooks/whatsapp',
       META_APP_SECRET: 'meta-app-secret-test',
       META_WABA_ID: 'waha-proxy-waba',
@@ -1009,5 +1014,326 @@ describe('waha-proxy HTTP Hono server, human dispatcher & webhook emulator', () 
       kind: 'text',
       text: 'Hola Prueba, te escribimos de parte de tu productor asesor de seguros. Te recordamos que la cuota de tu póliza (patente AA111BB) vence el 22/11/2026 por un monto de $15.000,00.\n\nPara mantener la vigencia de tu cobertura, podés realizar el pago por los canales habituales. Si ya lo abonaste, por favor desestimá este mensaje.',
     })
+  })
+
+  it('serves remote QR pairing portal, QR image/status/start routes, and per-session agencyName template fallback', async () => {
+    const startCalls: Array<{ url: string; body: any }> = []
+    let sessionCreated = false
+    let sendSeq = 0
+    fetchMock.mockImplementation(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/api/sessions?all=true')) {
+        return new Response(
+          JSON.stringify([{ name: 'agencia-remota', status: 'SCAN_QR_CODE' }]),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/api/sessions/agencia-remota') && (!init?.method || init.method === 'GET')) {
+        if (!sessionCreated) {
+          return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 })
+        }
+        return new Response(
+          JSON.stringify({ name: 'agencia-remota', status: 'SCAN_QR_CODE' }),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/api/sessions') && init?.method === 'POST') {
+        sessionCreated = true
+        startCalls.push({ url, body: JSON.parse(String(init.body || '{}')) })
+        return new Response(JSON.stringify({ name: 'agencia-remota', status: 'STARTING' }), {
+          status: 201,
+        })
+      }
+      if (url.endsWith('/api/agencia-remota/auth/qr?format=image')) {
+        return new Response(new Uint8Array([137, 80, 78, 71]), {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' },
+        })
+      }
+      if (url.endsWith('/api/sendText')) {
+        sendSeq++
+        startCalls.push({ url, body: JSON.parse(String(init?.body || '{}')) })
+        return new Response(JSON.stringify({ id: `WAHA_AGENCY_${sendSeq}` }), { status: 200 })
+      }
+      if (url.endsWith('/api/sessions/agencia-a')) {
+        return new Response(JSON.stringify({ name: 'agencia-a', status: 'WORKING' }), {
+          status: 200,
+        })
+      }
+      return new Response('{}', { status: 200 })
+    })
+
+    writeFileSync(
+      config.sessionsConfigPath,
+      JSON.stringify(
+        {
+          allowDefaultSessionFallback: false,
+          sessions: {
+            'agency-a-phone-id': {
+              wahaSession: 'agencia-a',
+              displayPhone: '5491140001111',
+              agencyName: 'LucianaPAS Seguros',
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    )
+
+    const waha = new WahaClient(config.wahaBaseUrl, config.wahaApiKey)
+    const webhooks = new WebhookEmulator(config, store)
+    const dispatcher = new HumanDispatcher(config, store, waha, webhooks)
+    const app = createProxyApp({ config, store, waha, dispatcher, webhooks })
+
+    const loginRes = await app.request('/qr/agencia-remota')
+    expect(loginRes.status).toBe(200)
+    expect(await loginRes.text()).toContain('Token de administrador')
+
+    const badLoginRes = await app.request('/qr/agencia-remota?token=wrong')
+    expect(badLoginRes.status).toBe(401)
+
+    // Privilege separation: PROXY_BEARER_TOKEN must NOT grant access to QR portal
+    const bearerOnQrPage = await app.request('/qr/agencia-remota?token=global-bearer-token')
+    expect(bearerOnQrPage.status).toBe(401)
+    const bearerOnQrStatus = await app.request('/qr/agencia-remota/status', {
+      headers: { Authorization: 'Bearer global-bearer-token' },
+    })
+    expect(bearerOnQrStatus.status).toBe(401)
+
+    // Privilege separation: QR_PORTAL_TOKEN must NOT grant access to Meta API or Observability
+    const qrTokenOnMeta = await app.request('/v20.0/default/messages', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer qr-admin-token-test',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ to: '5491155551234', type: 'text', text: { body: 'x' } }),
+    })
+    expect(qrTokenOnMeta.status).toBe(401)
+    const qrTokenOnObs = await app.request('/observability/status', {
+      headers: { Authorization: 'Bearer qr-admin-token-test' },
+    })
+    expect(qrTokenOnObs.status).toBe(401)
+
+    const unauthStatus = await app.request('/qr/agencia-remota/status')
+    expect(unauthStatus.status).toBe(401)
+
+    // Admin login via POST /qr/login sets HttpOnly cookie, redirects to control panel, and strips secrets from URL
+    const postLogin = await app.request('/qr/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'token=qr-admin-token-test&session=agencia-remota',
+    })
+    expect(postLogin.status).toBe(303)
+    expect(postLogin.headers.get('location')).toBe('/qr?session=agencia-remota')
+    const setCookie = postLogin.headers.get('set-cookie') || ''
+    expect(setCookie).toContain('waha_qr_admin=')
+    expect(setCookie).toContain('HttpOnly')
+    const cookiePair = setCookie.split(';')[0]
+
+    const panelRes = await app.request('/qr?session=agencia-remota', {
+      headers: { Cookie: cookiePair },
+    })
+    expect(panelRes.status).toBe(200)
+    const panelHtml = await panelRes.text()
+    expect(panelHtml).toContain('Panel de Control WhatsApp')
+    expect(panelHtml).toContain('Disparo Manual de Mensaje')
+    expect(panelHtml).toContain('Generar y copiar link')
+    expect(panelHtml).not.toContain('qr-admin-token-test')
+    expect(panelHtml).not.toContain('global-bearer-token')
+
+    const adminQrRes = await app.request('/qr/agencia-remota', {
+      headers: { Cookie: cookiePair },
+    })
+    expect(adminQrRes.status).toBe(200)
+    const adminQrHtml = await adminQrRes.text()
+    expect(adminQrHtml).toContain('Vinculá tu WhatsApp con CoPAS')
+    expect(adminQrHtml).not.toContain('Panel de control')
+    expect(adminQrHtml).not.toContain('Disparo Manual de Mensaje')
+
+    const startRes = await app.request('/qr/agencia-remota/start', {
+      method: 'POST',
+      headers: { Cookie: cookiePair },
+    })
+    expect(startRes.status).toBe(200)
+    expect(await startRes.json()).toEqual({
+      ok: true,
+      session: { name: 'agencia-remota', status: 'STARTING' },
+    })
+    expect(startCalls[0].body.name).toBe('agencia-remota')
+    expect(startCalls[0].body.config.webhooks[0].url).toBe('http://waha-proxy:8080/internal/waha-webhook')
+
+    const statusRes = await app.request('/qr/agencia-remota/status?token=qr-admin-token-test')
+    expect(statusRes.status).toBe(200)
+    const statusJson = (await statusRes.json()) as any
+    expect(statusJson.role).toBe('admin')
+    expect(statusJson.detail).toEqual({ name: 'agencia-remota', status: 'SCAN_QR_CODE' })
+
+    const imgRes = await app.request('/qr/agencia-remota/image?token=qr-admin-token-test')
+    expect(imgRes.status).toBe(200)
+    expect(imgRes.headers.get('content-type')).toBe('image/png')
+    expect(new Uint8Array(await imgRes.arrayBuffer())).toEqual(new Uint8Array([137, 80, 78, 71]))
+
+    // Scoped invite minting & strict single-session enforcement
+    const inviteMintRes = await app.request('/qr/agencia-remota/invite', {
+      method: 'POST',
+      headers: {
+        Cookie: cookiePair,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ttlMinutes: 15 }),
+    })
+    expect(inviteMintRes.status).toBe(200)
+    const inviteMintJson = (await inviteMintRes.json()) as any
+    const inviteToken: string = inviteMintJson.inviteToken
+    expect(inviteMintJson.invitePath).toBe(`/qr/agencia-remota?invite=${encodeURIComponent(inviteToken)}`)
+
+    const guestHtmlRes = await app.request(`/qr/agencia-remota?invite=${encodeURIComponent(inviteToken)}`, {
+      headers: {
+        Host: 'wa.copas.com.ar',
+        'CF-Connecting-IP': '190.10.20.30',
+        'CF-Ray': 'abc123',
+      },
+    })
+    expect(guestHtmlRes.status).toBe(200)
+    const guestHtml = await guestHtmlRes.text()
+    expect(guestHtml).toContain('CoPAS')
+    expect(guestHtml).toContain('Vinculá tu WhatsApp con CoPAS')
+    expect(guestHtml).toContain('Generar código QR')
+    expect(guestHtml).toContain('Escaneá este código QR')
+    expect(guestHtml).toContain('Actualizar QR')
+    expect(guestHtml).toContain('¡Conexión exitosa!')
+    expect(guestHtml).toContain('Ya podés cerrar esta pestaña')
+    expect(guestHtml).toContain('launchConfetti')
+    expect(guestHtml).not.toContain('Ya lo escaneé')
+    expect(guestHtml).not.toContain('Panel de control')
+    expect(guestHtml).not.toContain('Disparo Manual de Mensaje')
+    expect(guestHtml).not.toContain('Sesiones registradas')
+    expect(guestHtml).not.toContain('Cerrar sesión / Cambiar número')
+    expect(guestHtml).not.toContain('pairPhone')
+    expect(guestHtml).not.toContain('WAHA')
+
+    // Local-only protection: external tunnel requests MUST NOT reach control panel or admin routes, even with admin token/cookie
+    const tunneledHeaders = {
+      Host: 'wa.copas.com.ar',
+      'CF-Connecting-IP': '190.10.20.30',
+      'CF-Ray': 'abc123',
+      Cookie: cookiePair,
+    }
+    expect((await app.request('/qr', { headers: tunneledHeaders })).status).toBe(403)
+    expect((await app.request('/qr/login', { method: 'POST', headers: tunneledHeaders, body: 'token=qr-admin-token-test' })).status).toBe(403)
+    expect((await app.request('/qr/agencia-remota', { headers: tunneledHeaders })).status).toBe(403)
+    expect((await app.request('/qr/agencia-remota/invite', { method: 'POST', headers: tunneledHeaders })).status).toBe(403)
+    expect((await app.request('/qr/agencia-remota/test-send?token=qr-admin-token-test', { method: 'POST', headers: tunneledHeaders })).status).toBe(403)
+    expect((await app.request('/qr', { headers: { Host: 'node.tail.ts.net', 'X-Forwarded-For': '190.10.20.30', Cookie: cookiePair } })).status).toBe(403)
+
+    const guestStatus = await app.request(`/qr/agencia-remota/status?invite=${encodeURIComponent(inviteToken)}`, {
+      headers: tunneledHeaders,
+    })
+    expect(guestStatus.status).toBe(200)
+    const guestStatusJson = (await guestStatus.json()) as any
+    expect(guestStatusJson.role).toBe('invite')
+    expect(guestStatusJson.sessionsConfig).toBeUndefined()
+
+    const guestImg = await app.request(`/qr/agencia-remota/image?invite=${encodeURIComponent(inviteToken)}`, {
+      headers: tunneledHeaders,
+    })
+    expect(guestImg.status).toBe(200)
+
+    // Guest invite cannot access other sessions, admin root, destructive actions, pairing-code, or test-send
+    expect((await app.request(`/qr?invite=${encodeURIComponent(inviteToken)}`)).status).toBe(401)
+    expect((await app.request(`/qr/otra-sesion/status?invite=${encodeURIComponent(inviteToken)}`)).status).toBe(403)
+    expect((await app.request(`/qr/agencia-remota/restart?invite=${encodeURIComponent(inviteToken)}`, { method: 'POST' })).status).toBe(403)
+    expect((await app.request(`/qr/agencia-remota/logout?invite=${encodeURIComponent(inviteToken)}`, { method: 'POST' })).status).toBe(403)
+    expect((await app.request(`/qr/agencia-remota/pairing-code?invite=${encodeURIComponent(inviteToken)}`, { method: 'POST' })).status).toBe(403)
+    expect((await app.request(`/qr/agencia-remota/invite?invite=${encodeURIComponent(inviteToken)}`, { method: 'POST' })).status).toBe(403)
+    expect((await app.request(`/qr/agencia-remota/test-send?invite=${encodeURIComponent(inviteToken)}`, { method: 'POST' })).status).toBe(403)
+    expect((await app.request(`/qr/agencia-remota?invite=tampered.sig`)).status).toBe(403)
+
+    // Expired invite fails verification
+    const expiredInvite = signQrInviteToken({
+      session: 'agencia-remota',
+      ttlSeconds: 60,
+      secret: config.qrInviteSecret,
+      nowSec: 1000,
+    })
+    expect(verifyQrInviteToken(expiredInvite, 'agencia-remota', config.qrInviteSecret, 2000)).toEqual({ valid: false })
+
+    // Verify per-session agencyName fills {{agency_name}} when CoPAS omits it
+    writeFileSync(
+      config.templatesConfigPath,
+      JSON.stringify({
+        templates: {
+          recordatorio_vencimiento: {
+            es_AR: 'Hola {{customer_name}}, de parte de {{agency_name}} ({{plate_number}}).',
+          },
+        },
+      }),
+    )
+    const sendRes = await app.request('/v20.0/agency-a-phone-id/messages', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer global-bearer-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: '543704609703',
+        type: 'template',
+        template: {
+          name: 'recordatorio_vencimiento',
+          language: { code: 'es_AR' },
+          components: [
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', parameter_name: 'customer_name', text: 'Carlos' },
+                { type: 'text', parameter_name: 'plate_number', text: 'AF123CD' },
+              ],
+            },
+          ],
+        },
+      }),
+    })
+    expect(sendRes.status).toBe(200)
+    await dispatcher.waitIdle()
+    const sendTextCall = startCalls.find((c) => c.url.endsWith('/api/sendText'))
+    expect(sendTextCall?.body.text).toBe('Hola Carlos, de parte de LucianaPAS Seguros (AF123CD).')
+
+    // Admin portal test-send endpoint dispatches without exposing PROXY_BEARER_TOKEN
+    const adminTestSendRes = await app.request('/qr/agencia-a/test-send', {
+      method: 'POST',
+      headers: {
+        Cookie: cookiePair,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phoneNumberId: 'agency-a-phone-id',
+        to: '543704609703',
+        type: 'text',
+        text: { body: 'Prueba admin portal' },
+      }),
+    })
+    expect(adminTestSendRes.status).toBe(200)
+    const adminTestJson = (await adminTestSendRes.json()) as any
+    await dispatcher.waitIdle()
+    const adminEventsRes = await app.request(
+      `/qr/agencia-a/events?wamid=${encodeURIComponent(adminTestJson.messages[0].id)}`,
+      { headers: { Cookie: cookiePair } },
+    )
+    expect(adminEventsRes.status).toBe(200)
+    const adminEventsJson = (await adminEventsRes.json()) as any
+    expect(adminEventsJson.items.map((e: any) => e.eventType)).toContain('waha_dispatched')
+
+    // Kill-switch disables all /qr routes when ENABLE_QR_PORTAL=false
+    const disabledApp = createProxyApp({
+      config: { ...config, enableQrPortal: false },
+      store,
+      waha,
+      dispatcher,
+      webhooks,
+    })
+    expect((await disabledApp.request('/qr')).status).toBe(404)
+    expect((await disabledApp.request('/qr/agencia-remota/status?token=qr-admin-token-test')).status).toBe(404)
   })
 })
