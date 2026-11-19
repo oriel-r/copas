@@ -1346,6 +1346,159 @@ describe('reminders-orchestrator.service', () => {
       expect(mockMessagesService.isAlreadySent).toHaveBeenCalledWith(expectedHash)
       expect(result.deduplicationHash).toBe(expectedHash)
     })
+
+    describe('offsetDays rule selection with multiple active installment_due rules', () => {
+      const ruleMinus3 = {
+        id: 'rule-offset-minus-3',
+        organizationId: testOrgId,
+        eventSource: 'installment_due' as const,
+        offsetDays: -3,
+        isEnabled: true,
+        templateId: 'recordatorio_vencimiento',
+      }
+
+      const ruleZero = {
+        id: 'rule-offset-0',
+        organizationId: testOrgId,
+        eventSource: 'installment_due' as const,
+        offsetDays: 0,
+        isEnabled: true,
+        templateId: 'recordatorio_vencimiento_hoy',
+      }
+
+      const setupDispatchDependencies = () => {
+        mockMessagesService.isAlreadySent.mockResolvedValueOnce(false)
+        mockChannelEndpointsService.resolveWhatsAppEndpointAndCredentials.mockResolvedValueOnce({
+          endpointId: 'cep-1',
+          phoneNumberId: 'phone-id-1',
+          credentials: { accessToken: 'token-1' },
+        })
+        mockConversationsService.getOrCreateActiveConversation.mockResolvedValueOnce({
+          id: 'conv-rule-select',
+          organizationId: testOrgId,
+          status: 'open',
+        })
+        mockConversationsService.linkEntityToConversation.mockResolvedValueOnce(undefined)
+        mockMessagesService.recordOutboundMessage.mockResolvedValueOnce({
+          id: 'msg-rule-select',
+          status: 'sent',
+        })
+        mockWhatsappDispatchService.enqueueTemplateReminder.mockResolvedValueOnce(undefined)
+      }
+
+      it('picks offsetDays: 0 rule when scheduledDate === dueDate (diff = 0) and dispatches recordatorio_vencimiento_hoy without amount and with DD/MM date', async () => {
+        const installment = {
+          ...baseInstallment,
+          dueDate: '2026-11-19',
+          plateNumber: 'AF123CD',
+          totalAmount: 18500,
+        }
+        mockReminderRulesService.getActiveRules.mockResolvedValueOnce([ruleMinus3, ruleZero])
+        setupInstallmentMock(installment)
+        setupDispatchDependencies()
+
+        const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+          organizationId: testOrgId,
+          scheduledDate: '2026-11-19',
+        })
+
+        expect(result.ruleId).toBe('rule-offset-0')
+        expect(mockWhatsappDispatchService.enqueueTemplateReminder).toHaveBeenCalledTimes(1)
+        const enqueueArg = mockWhatsappDispatchService.enqueueTemplateReminder.mock.calls[0][0]
+        expect(enqueueArg.templateName).toBe('recordatorio_vencimiento_hoy')
+        expect(enqueueArg.components).toEqual([
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', parameter_name: 'customer_name', text: 'LAURA MARTINEZ' },
+              { type: 'text', parameter_name: 'plate_number', text: 'AF123CD' },
+              { type: 'text', parameter_name: 'expiration_date', text: '19/11' },
+            ],
+          },
+        ])
+      })
+
+      it('picks offsetDays: -3 rule when scheduledDate is 3 days before dueDate (diff = -3)', async () => {
+        const installment = {
+          ...baseInstallment,
+          dueDate: '2026-11-19',
+          plateNumber: 'AF123CD',
+          totalAmount: 18500,
+        }
+        mockReminderRulesService.getActiveRules.mockResolvedValueOnce([ruleMinus3, ruleZero])
+        setupInstallmentMock(installment)
+        setupDispatchDependencies()
+
+        const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+          organizationId: testOrgId,
+          scheduledDate: '2026-11-16',
+        })
+
+        expect(result.ruleId).toBe('rule-offset-minus-3')
+        expect(mockWhatsappDispatchService.enqueueTemplateReminder).toHaveBeenCalledTimes(1)
+        const enqueueArg = mockWhatsappDispatchService.enqueueTemplateReminder.mock.calls[0][0]
+        expect(enqueueArg.templateName).toBe('recordatorio_vencimiento')
+        expect(enqueueArg.components).toEqual([
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', parameter_name: 'customer_name', text: 'LAURA MARTINEZ' },
+              { type: 'text', parameter_name: 'plate_number', text: 'AF123CD' },
+              { type: 'text', parameter_name: 'expiration_date', text: '19/11/2026' },
+              { type: 'text', parameter_name: 'amount', text: '18.500,00' },
+            ],
+          },
+        ])
+      })
+
+      it('falls back to offsetDays: 0 rule when no exact offsetDays match exists (e.g. diff = 2)', async () => {
+        const installment = {
+          ...baseInstallment,
+          dueDate: '2026-11-19',
+          plateNumber: 'AF123CD',
+          totalAmount: 18500,
+        }
+        mockReminderRulesService.getActiveRules.mockResolvedValueOnce([ruleMinus3, ruleZero])
+        setupInstallmentMock(installment)
+        setupDispatchDependencies()
+
+        const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+          organizationId: testOrgId,
+          scheduledDate: '2026-11-21', // diff = +2, no matching rule
+        })
+
+        expect(result.ruleId).toBe('rule-offset-0')
+        const enqueueArg = mockWhatsappDispatchService.enqueueTemplateReminder.mock.calls[0][0]
+        expect(enqueueArg.templateName).toBe('recordatorio_vencimiento_hoy')
+      })
+
+      it('falls back to the first active rule when neither exact diff nor offsetDays: 0 rule exists', async () => {
+        const ruleMinus5 = {
+          id: 'rule-offset-minus-5',
+          organizationId: testOrgId,
+          eventSource: 'installment_due' as const,
+          offsetDays: -5,
+          isEnabled: true,
+          templateId: 'recordatorio_vencimiento',
+        }
+        const installment = {
+          ...baseInstallment,
+          dueDate: '2026-11-19',
+          plateNumber: 'AF123CD',
+          totalAmount: 18500,
+        }
+        mockReminderRulesService.getActiveRules.mockResolvedValueOnce([ruleMinus5, ruleMinus3])
+        setupInstallmentMock(installment)
+        setupDispatchDependencies()
+
+        const result = await service.dispatchInstallmentReminder(testInstallmentId, {
+          organizationId: testOrgId,
+          scheduledDate: '2026-11-21', // diff = +2, no -5 or -3 or 0
+        })
+
+        expect(result.ruleId).toBe('rule-offset-minus-5')
+      })
+    })
   })
 })
 

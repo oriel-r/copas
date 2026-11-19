@@ -53,6 +53,40 @@ async function resolveRuleTemplateName(rule: any, client: any, db: any): Promise
   return 'reminder_default'
 }
 
+function computeCivilDayDiff(
+  scheduledDate: string,
+  targetDate: string | null | undefined,
+): number | null {
+  if (!targetDate) return null
+  const scheduledMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(scheduledDate.trim())
+  const targetMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(targetDate.trim().split('T')[0])
+  if (!scheduledMatch || !targetMatch) return null
+  const scheduledMs = Date.UTC(
+    Number(scheduledMatch[1]),
+    Number(scheduledMatch[2]) - 1,
+    Number(scheduledMatch[3]),
+  )
+  const targetMs = Date.UTC(
+    Number(targetMatch[1]),
+    Number(targetMatch[2]) - 1,
+    Number(targetMatch[3]),
+  )
+  return Math.round((scheduledMs - targetMs) / 86_400_000)
+}
+
+function selectInstallmentReminderRule(
+  rules: any[],
+  scheduledDate: string,
+  dueDate: string | null | undefined,
+) {
+  const diffDays = computeCivilDayDiff(scheduledDate, dueDate)
+  if (diffDays !== null) {
+    const exactMatch = rules.find((r) => r.offsetDays === diffDays)
+    if (exactMatch) return exactMatch
+  }
+  return rules.find((r) => r.offsetDays === 0) ?? rules[0]
+}
+
 export function createRemindersOrchestratorService(
   arg1: any,
   arg2?: string,
@@ -696,8 +730,8 @@ export function createRemindersOrchestratorService(
     const scheduledDate = options?.scheduledDate || getTodayArgentina()
 
     const activeRules = await reminderRulesService.getActiveRules(orgId)
-    const rule = activeRules.find(r => r.eventSource === 'installment_due' || !r.eventSource)
-    if (!rule) {
+    const installmentRules = activeRules.filter(r => r.eventSource === 'installment_due' || !r.eventSource)
+    if (installmentRules.length === 0) {
       throw new NoActiveReminderRuleError('No existe regla de recordatorio activa para la cuota')
     }
 
@@ -727,6 +761,7 @@ export function createRemindersOrchestratorService(
       throw new ReminderInstallmentNotFoundError('Cuota no encontrada o perteneciente a otra organización')
     }
     const row = rows[0]
+    const rule = selectInstallmentReminderRule(installmentRules, scheduledDate, row.dueDate)
     const actualInstallmentId = row.installmentId || row.id
 
     const rawDb = (client as any)?.prepare ? client : (db?.db ?? db)

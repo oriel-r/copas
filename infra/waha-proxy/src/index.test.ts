@@ -1020,6 +1020,121 @@ describe('waha-proxy HTTP Hono server, human dispatcher & webhook emulator', () 
     })
   })
 
+  it('defines recordatorio_vencimiento_hoy in config/templates.json and renders with session 5493718683066 agencyName without amount', async () => {
+    const shippedTemplatesPath = join(process.cwd(), 'config/templates.json')
+    const shippedSessionsPath = join(process.cwd(), 'config/sessions.json')
+    const shippedTemplates = loadTemplatesConfig(shippedTemplatesPath)
+    const shippedSessions = loadSessionsConfig(shippedSessionsPath)
+
+    const expectedTemplateText =
+      'Hola {{customer_name}}, te escribimos de parte de {{agency_name}}. Te recordamos que hoy {{expiration_date}} vence la cuota de tu póliza (patente {{plate_number}}).\n\nPara mantener la vigencia de tu cobertura, podés realizar el pago por los canales habituales. Si ya lo abonaste, por favor desestimá este mensaje.'
+
+    expect(shippedTemplates.templates.recordatorio_vencimiento_hoy).toEqual({
+      es_AR: expectedTemplateText,
+      default: expectedTemplateText,
+    })
+    expect(shippedSessions.sessions['5493718683066']).toMatchObject({
+      wahaSession: 'legion_seguros',
+      displayPhone: '5493718683066',
+      agencyName: 'LEGION ASESORES DE SEGUROS',
+    })
+
+    const wahaSendCalls: Array<{ url: string; body?: any }> = []
+    fetchMock.mockImplementation(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/api/sessions/legion_seguros')) {
+        return new Response(JSON.stringify({ name: 'legion_seguros', status: 'WORKING' }), {
+          status: 200,
+        })
+      }
+      if (url.endsWith('/api/sendText')) {
+        wahaSendCalls.push({ url, body: JSON.parse(String(init?.body || '{}')) })
+        return new Response(JSON.stringify({ id: 'true_5491155551234@c.us_HOY1' }), {
+          status: 200,
+        })
+      }
+      return new Response('{}', { status: 200 })
+    })
+
+    const shippedConfig = makeTestConfig({
+      sessionsPath: shippedSessionsPath,
+      templatesPath: shippedTemplatesPath,
+    })
+    const waha = new WahaClient(shippedConfig.wahaBaseUrl, shippedConfig.wahaApiKey)
+    const webhooks = new WebhookEmulator(shippedConfig, store)
+    const dispatcher = new HumanDispatcher(shippedConfig, store, waha, webhooks)
+    const app = createProxyApp({ config: shippedConfig, store, waha, dispatcher, webhooks })
+
+    const res = await app.request('/v20.0/5493718683066/messages', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer global-bearer-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: '5491155551234',
+        type: 'template',
+        template: {
+          name: 'recordatorio_vencimiento_hoy',
+          language: { code: 'es_AR' },
+          components: [
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', parameter_name: 'customer_name', text: 'Lucía Fernández' },
+                { type: 'text', parameter_name: 'plate_number', text: 'AF999ZZ' },
+                { type: 'text', parameter_name: 'expiration_date', text: '19/11' },
+              ],
+            },
+          ],
+        },
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    await dispatcher.waitIdle()
+
+    expect(wahaSendCalls).toHaveLength(1)
+    expect(wahaSendCalls[0].body.session).toBe('legion_seguros')
+    const renderedText: string = wahaSendCalls[0].body.text
+    expect(renderedText).toContain('hoy 19/11 vence la cuota de tu póliza')
+    expect(renderedText).toContain('LEGION ASESORES DE SEGUROS')
+    expect(renderedText).not.toContain('$')
+    expect(renderedText).toBe(
+      'Hola Lucía Fernández, te escribimos de parte de LEGION ASESORES DE SEGUROS. Te recordamos que hoy 19/11 vence la cuota de tu póliza (patente AF999ZZ).\n\nPara mantener la vigencia de tu cobertura, podés realizar el pago por los canales habituales. Si ya lo abonaste, por favor desestimá este mensaje.',
+    )
+  })
+
+  it('includes recordatorio_vencimiento_hoy option and tplAmountField in /qr admin portal HTML', async () => {
+    fetchMock.mockImplementation(async (input: string | URL) => {
+      if (String(input).endsWith('/api/sessions?all=true')) {
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
+      return new Response('{}', { status: 200 })
+    })
+
+    const waha = new WahaClient(config.wahaBaseUrl, config.wahaApiKey)
+    const webhooks = new WebhookEmulator(config, store)
+    const dispatcher = new HumanDispatcher(config, store, waha, webhooks)
+    const app = createProxyApp({ config, store, waha, dispatcher, webhooks })
+
+    const postLogin = await app.request('/qr/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'token=qr-admin-token-test&session=default',
+    })
+    const cookiePair = (postLogin.headers.get('set-cookie') || '').split(';')[0]
+
+    const panelRes = await app.request('/qr?session=default', {
+      headers: { Cookie: cookiePair },
+    })
+    expect(panelRes.status).toBe(200)
+    const panelHtml = await panelRes.text()
+    expect(panelHtml).toContain('recordatorio_vencimiento_hoy')
+    expect(panelHtml).toContain('tplAmountField')
+  })
+
   it('serves remote QR pairing portal, QR image/status/start routes, and per-session agencyName template fallback', async () => {
     const startCalls: Array<{ url: string; body: any }> = []
     let sessionCreated = false

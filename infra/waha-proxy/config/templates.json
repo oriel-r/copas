@@ -4,6 +4,10 @@
       "es_AR": "Hola {{customer_name}}, te escribimos de parte de {{agency_name}}. Te recordamos que la cuota de tu póliza (patente {{plate_number}}) vence el {{expiration_date}} por un monto de ${{amount}}.\n\nPara mantener la vigencia de tu cobertura, podés realizar el pago por los canales habituales. Si ya lo abonaste, por favor desestimá este mensaje.",
       "default": "Hola {{customer_name}}, te escribimos de parte de {{agency_name}}. Te recordamos que la cuota de tu póliza (patente {{plate_number}}) vence el {{expiration_date}} por un monto de ${{amount}}.\n\nPara mantener la vigencia de tu cobertura, podés realizar el pago por los canales habituales. Si ya lo abonaste, por favor desestimá este mensaje."
     },
+    "recordatorio_vencimiento_hoy": {
+      "es_AR": "Hola {{customer_name}}, te escribimos de parte de {{agency_name}}. Te recordamos que hoy {{expiration_date}} vence la cuota de tu póliza (patente {{plate_number}}).\n\nPara mantener la vigencia de tu cobertura, podés realizar el pago por los canales habituales. Si ya lo abonaste, por favor desestimá este mensaje.",
+      "default": "Hola {{customer_name}}, te escribimos de parte de {{agency_name}}. Te recordamos que hoy {{expiration_date}} vence la cuota de tu póliza (patente {{plate_number}}).\n\nPara mantener la vigencia de tu cobertura, podés realizar el pago por los canales habituales. Si ya lo abonaste, por favor desestimá este mensaje."
+    },
     "renovacion_poliza": {
       "es_AR": "Hola {{customer_name}}, te escribimos de parte de {{agency_name}}. Te recordamos que la póliza de tu vehículo ({{plate_number}}) vence el {{expiration_date}}. Comunicate con nosotros para coordinar la renovación.",
       "default": "Hola {{customer_name}}, te escribimos de parte de {{agency_name}}. Te recordamos que la póliza de tu vehículo ({{plate_number}}) vence el {{expiration_date}}. Comunicate con nosotros para coordinar la renovación."

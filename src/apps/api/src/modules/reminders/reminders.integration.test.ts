@@ -43,6 +43,8 @@ interface SeedReminderParams {
   hasConsentOptOut?: boolean
   optOutCategory?: 'cat_billing' | 'cat_renewals'
   hasInstallmentRule?: boolean
+  installmentOffsetDays?: number
+  installmentTemplateId?: string
   hasPolicyRule?: boolean
 }
 
@@ -100,6 +102,8 @@ async function seedReminderData(db: any, params: SeedReminderParams) {
     hasConsentOptOut = false,
     optOutCategory = 'cat_billing',
     hasInstallmentRule = true,
+    installmentOffsetDays = -3,
+    installmentTemplateId = 'tpl_recordatorio_vencimiento',
     hasPolicyRule = false,
   } = params
 
@@ -207,14 +211,14 @@ async function seedReminderData(db: any, params: SeedReminderParams) {
       .run()
   }
 
-  // 6. Reminder Rules (offsetDays = -3, meaning targetDate = scheduledDate - (-3) = scheduledDate + 3)
+  // 6. Reminder Rules (default offsetDays = -3, meaning targetDate = scheduledDate - (-3) = scheduledDate + 3)
   if (hasInstallmentRule) {
     await db
       .prepare(
         `INSERT INTO reminder_rules (id, created_at, updated_at, organizationId, eventSource, offsetDays, templateId, isEnabled)
-         VALUES (?, unixepoch() * 1000, unixepoch() * 1000, ?, 'installment_due', -3, 'tpl_recordatorio_vencimiento', 1)`,
+         VALUES (?, unixepoch() * 1000, unixepoch() * 1000, ?, 'installment_due', ?, ?, 1)`,
       )
-      .bind(`rule-inst-${orgId}`, orgId)
+      .bind(`rule-inst-${orgId}`, orgId, installmentOffsetDays, installmentTemplateId)
       .run()
   }
 
@@ -440,6 +444,86 @@ describe('Reminders End-to-End Integration Flow', () => {
       { type: 'text', parameter_name: 'expiration_date', text: '20/09/2026' },
       { type: 'text', parameter_name: 'amount', text: '18.500,00' },
     ])
+  })
+
+  it('seeds tpl_recordatorio_vencimiento_hoy via D1 migrations and delivers 3-parameter DD/MM template on offsetDays = 0', async () => {
+    const seededTpl = await testEnv.DB
+      .prepare("SELECT id, name FROM message_templates WHERE id = 'tpl_recordatorio_vencimiento_hoy'")
+      .first<{ id: string; name: string }>()
+    expect(seededTpl).toEqual({
+      id: 'tpl_recordatorio_vencimiento_hoy',
+      name: 'recordatorio_vencimiento_hoy',
+    })
+
+    const orgId = `org-inst-hoy-${Date.now()}`
+    await seedReminderData(testEnv.DB, {
+      orgId,
+      insuredPhone: '+5491155556666',
+      installmentDueDate: '2026-11-19',
+      installmentAmount: 18500,
+      installmentStatus: 'pending',
+      hasInstallmentRule: true,
+      installmentOffsetDays: 0,
+      installmentTemplateId: 'tpl_recordatorio_vencimiento_hoy',
+      hasPolicyRule: false,
+    })
+
+    const entrypoint = new RemindersRpcEntrypoint({} as any, testEnv)
+    const summary: ReminderDispatchSummary = await entrypoint.dispatchDueReminders({
+      scheduledDate: '2026-11-19',
+    })
+
+    expect(summary.scheduledDate).toBe('2026-11-19')
+    expect(summary.totalEnqueued).toBe(1)
+    expect(summary.totalSkipped).toBe(0)
+    expect(enqueuedWhatsAppMessages).toHaveLength(1)
+
+    const queueMsg = enqueuedWhatsAppMessages[0]
+    expect(queueMsg.payload.template?.name).toBe('recordatorio_vencimiento_hoy')
+
+    const ackFn = vi.fn()
+    const retryFn = vi.fn()
+    const batch: MessageBatch<WhatsAppOutboundQueueMessage> = {
+      queue: 'copas-whatsapp',
+      messages: [
+        {
+          id: 'queue-msg-hoy-1',
+          timestamp: new Date(),
+          body: queueMsg,
+          attempts: 1,
+          ack: ackFn,
+          retry: retryFn,
+        },
+      ],
+      ackAll: vi.fn(),
+      retryAll: vi.fn(),
+    }
+
+    const whatsappEnv = {
+      ...testEnv,
+      META_GRAPH_API_BASE_URL: 'https://graph.facebook.com',
+      META_GRAPH_API_VERSION: 'v20.0',
+      PLATFORM_WHATSAPP_ACCESS_TOKEN: 'EAAB_test_platform_token_integration',
+    }
+
+    await whatsappQueueConsumer(batch, whatsappEnv as any, {} as ExecutionContext)
+
+    expect(ackFn).toHaveBeenCalled()
+    expect(retryFn).not.toHaveBeenCalled()
+    expect(metaGraphApiRequests).toHaveLength(1)
+
+    const metaReq = metaGraphApiRequests[0]
+    expect(metaReq.body.type).toBe('template')
+    expect(metaReq.body.template.name).toBe('recordatorio_vencimiento_hoy')
+
+    const bodyComp = metaReq.body.template.components.find((c: any) => c.type === 'body')
+    expect(bodyComp).toBeDefined()
+    expect(bodyComp.parameters).toEqual([
+      { type: 'text', parameter_name: 'customer_name', text: 'Carlos Fernandez' },
+      { type: 'text', parameter_name: 'plate_number', text: 'AF123CD' },
+      { type: 'text', parameter_name: 'expiration_date', text: '19/11' },
+    ])
+    expect(bodyComp.parameters).toHaveLength(3)
   })
 
   it('delivers policy expiration renewal reminder to Meta Graph API mock', async () => {

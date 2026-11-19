@@ -1427,7 +1427,8 @@ ${renderHeadHtml('Panel de Control — CoPAS', extraCss)}
           <div>
             <label for="msgMode">Tipo de envío</label>
             <select id="msgMode" onchange="toggleMode()">
-              <option value="template">Plantilla recordatorio_vencimiento</option>
+              <option value="recordatorio_vencimiento">Plantilla recordatorio_vencimiento</option>
+              <option value="recordatorio_vencimiento_hoy">Plantilla recordatorio_vencimiento_hoy (hoy DD/MM, sin importe)</option>
               <option value="text">Texto libre</option>
             </select>
           </div>
@@ -1442,7 +1443,7 @@ ${renderHeadHtml('Panel de Control — CoPAS', extraCss)}
           <div><label for="tplAgency">Agencia (agency_name)</label><input id="tplAgency" value="Agencia CoPAS Seguros" /></div>
           <div><label for="tplPlate">Patente (plate_number)</label><input id="tplPlate" value="AE482KM" /></div>
           <div><label for="tplDate">Vencimiento (expiration_date)</label><input id="tplDate" value="20/11/2026" /></div>
-          <div><label for="tplAmount">Monto (amount)</label><input id="tplAmount" value="48.500,00" /></div>
+          <div id="tplAmountField"><label for="tplAmount">Monto (amount)</label><input id="tplAmount" value="48.500,00" /></div>
         </div>
 
         <div id="textFields" hidden style="margin-block-start:0.75rem;">
@@ -1682,8 +1683,17 @@ ${renderHeadHtml('Panel de Control — CoPAS', extraCss)}
 
     function toggleMode() {
       const mode = document.getElementById('msgMode').value;
-      document.getElementById('tplFields').hidden = mode !== 'template';
-      document.getElementById('textFields').hidden = mode !== 'text';
+      const isText = mode === 'text';
+      const isHoy = mode === 'recordatorio_vencimiento_hoy';
+      document.getElementById('tplFields').hidden = isText;
+      document.getElementById('tplAmountField').hidden = isText || isHoy;
+      document.getElementById('textFields').hidden = !isText;
+      const dateInput = document.getElementById('tplDate');
+      if (isHoy && dateInput.value === '20/11/2026') {
+        dateInput.value = '20/11';
+      } else if (!isHoy && !isText && dateInput.value === '20/11') {
+        dateInput.value = '20/11/2026';
+      }
     }
 
     async function sendManualMessage() {
@@ -1695,6 +1705,19 @@ ${renderHeadHtml('Panel de Control — CoPAS', extraCss)}
       const phoneNumberId = document.getElementById('phoneIdInput').value.trim() || 'default';
       const to = document.getElementById('toInput').value.trim();
       const mode = document.getElementById('msgMode').value;
+      const templateParameters = [
+        { type: 'text', parameter_name: 'customer_name', text: document.getElementById('tplCustomer').value.trim() },
+        { type: 'text', parameter_name: 'agency_name', text: document.getElementById('tplAgency').value.trim() },
+        { type: 'text', parameter_name: 'plate_number', text: document.getElementById('tplPlate').value.trim() },
+        { type: 'text', parameter_name: 'expiration_date', text: document.getElementById('tplDate').value.trim() },
+      ];
+      if (mode !== 'recordatorio_vencimiento_hoy') {
+        templateParameters.push({
+          type: 'text',
+          parameter_name: 'amount',
+          text: document.getElementById('tplAmount').value.trim(),
+        });
+      }
       const body = mode === 'text'
         ? {
             phoneNumberId,
@@ -1709,17 +1732,11 @@ ${renderHeadHtml('Panel de Control — CoPAS', extraCss)}
             to,
             type: 'template',
             template: {
-              name: 'recordatorio_vencimiento',
+              name: mode === 'recordatorio_vencimiento_hoy' ? 'recordatorio_vencimiento_hoy' : 'recordatorio_vencimiento',
               language: { code: 'es_AR' },
               components: [{
                 type: 'body',
-                parameters: [
-                  { type: 'text', parameter_name: 'customer_name', text: document.getElementById('tplCustomer').value.trim() },
-                  { type: 'text', parameter_name: 'agency_name', text: document.getElementById('tplAgency').value.trim() },
-                  { type: 'text', parameter_name: 'plate_number', text: document.getElementById('tplPlate').value.trim() },
-                  { type: 'text', parameter_name: 'expiration_date', text: document.getElementById('tplDate').value.trim() },
-                  { type: 'text', parameter_name: 'amount', text: document.getElementById('tplAmount').value.trim() },
-                ],
+                parameters: templateParameters,
               }],
             },
           };
